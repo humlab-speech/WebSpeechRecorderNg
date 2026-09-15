@@ -81,7 +81,7 @@ export const enum Status {
 
         @if (screenXs && enableUploadRecordings) {
           <app-uploadstatus class="ricontrols dark"  style="flex:0 0 0" [value]="uploadProgress"
-          [status]="uploadStatus" [awaitNewUpload]="processingRecording"></app-uploadstatus>
+          [status]="uploadStatus" [statusMsg]="uploadStatusMsg" [awaitNewUpload]="processingRecording"></app-uploadstatus>
         }
         @if (screenXs) {
           <app-wakelockindicator class="ricontrols dark" style="flex:0 0 0" [screenLocked]="screenLocked"></app-wakelockindicator>
@@ -101,7 +101,7 @@ export const enum Status {
       <div style="display:flex;flex:1 1 30%;flex-direction:row;justify-content: flex-end;align-items: center; align-content: center">
         @if (!screenXs && enableUploadRecordings) {
           <app-uploadstatus  class="ricontrols"  [value]="uploadProgress"
-          [status]="uploadStatus" [awaitNewUpload]="processingRecording"></app-uploadstatus>
+          [status]="uploadStatus" [statusMsg]="uploadStatusMsg" [awaitNewUpload]="processingRecording"></app-uploadstatus>
         }
         @if (!screenXs) {
           <app-wakelockindicator class="ricontrols" [screenLocked]="screenLocked"></app-wakelockindicator>
@@ -1279,6 +1279,9 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
                   console.debug("upload set on done: Call ready provider.ready");
                   //rp.ready();
                   netAb.ready();
+                }
+                this.uploadSet.onFail=(uploadSet)=>{
+                  this.error('Upload failed. Recordings were not stored on the server.','Please check your connection and retry.');
                 }
               }
             }

@@ -1,357 +1,560 @@
+import { HttpClient, HttpErrorResponse, HttpHeaders } from "@angular/common/http";
+import { timeout } from 'rxjs/operators'
+import {UUID} from "../utils/utils";
 
-    import { HttpClient, HttpErrorResponse } from "@angular/common/http";
-    import { timeout } from 'rxjs/operators'
+// state of an upload
+export enum UploadStatus {IDLE = 1, UPLOADING = 2,  ABORT = 3, DONE = 0, ERR = -1, FAILED = -2}
 
-    // state of an upload
-    export enum UploadStatus {IDLE = 1, UPLOADING = 2,  ABORT = 3, DONE = 0, ERR = -1}
+// state of the uploader
+// TRY_UPLOADING is uploading state after an error (for example if disconnected from server)
+// PARTIAL is set when the queue has no startable upload, but at least one upload has terminally failed
+export enum UploaderStatus { DONE = 0, UPLOADING = 1, TRY_UPLOADING = 2,NEXT = 3, ERR = -1, PARTIAL = 4}
 
-    // state of the uploader
-    // TRY_UPLOADING is uploading state after an error (for example if disconnected from server)
-    export enum UploaderStatus { DONE = 0, UPLOADING = 1, TRY_UPLOADING = 2,NEXT = 3, ERR = -1}
+// normalized description of a failed upload attempt
+export interface UploadError {
+    // HTTP status code; 0 for network errors, timeouts and other client side errors
+    status: number;
+    // normalized error message (server response body or exception message), truncated
+    message: string;
+    // true, if the upload must not be retried anymore
+    terminal: boolean;
+}
 
-    export class UploaderStatusChangeEvent {
-        private readonly _sizeQueued:number;
-        private readonly _sizeDone:number;
-        private readonly _status: UploaderStatus;
+// upload configuration with sensible defaults
+export interface UploadConfig {
+    // total POST attempts incl. the first one. Default: 8
+    maxAttempts?: number;
+    // retry delay for the first retry in ms. Default: 1000
+    baseRetryDelayMs?: number;
+    // cap for the exponential retry delay in ms. Default: 60000
+    maxRetryDelayMs?: number;
+    // relative jitter applied to the retry delay (0..0.5). Default: 0.25
+    jitterRatio?: number;
+    // If true, a successful response body must be JSON with {stored:true} to count as stored. Default: false
+    requireStoredAck?: boolean;
+    // HTTP header name carrying the idempotency key. Default: 'Idempotency-Key'
+    idempotencyHeader?: string;
+}
+
+export const DEFAULT_UPLOAD_CONFIG: Required<UploadConfig> = {
+    maxAttempts: 8,
+    baseRetryDelayMs: 1000,
+    maxRetryDelayMs: 60000,
+    jitterRatio: 0.25,
+    requireStoredAck: false,
+    idempotencyHeader: 'Idempotency-Key'
+};
+
+export class UploaderStatusChangeEvent {
+    private readonly _sizeQueued:number;
+    private readonly _sizeDone:number;
+    private readonly _status: UploaderStatus;
+    // number of terminally failed uploads currently in the queue
+    readonly failedCount:number;
+    // error of the first terminally failed upload, if any
+    readonly lastError:UploadError|null;
 
 
-        constructor(sizeQueued: number, sizeDone: number, status: UploaderStatus) {
-            this._sizeQueued = sizeQueued;
-            this._sizeDone = sizeDone;
-            this._status = status;
-        }
-
-        get sizeQueued():number {
-            return this._sizeQueued;
-        }
-
-        get sizeDone():number {
-            return this._sizeDone;
-        }
-
-        sizeInQueue(){
-          return this._sizeQueued-this._sizeDone;
-        }
-
-        get status(): UploaderStatus {
-            return this._status;
-        }
-
-        uploadDone(): boolean {
-            return (this._sizeDone >= this._sizeQueued);
-        }
-
-        percentDone(): number {
-            if (this._sizeQueued == 0) {
-                // no data queued, we are "done"
-                return 100;
-            }
-            let percent = Math.floor(this._sizeDone * 100 / this._sizeQueued);
-            //console.log("Upload status: queued: "+this._sizeQueued+", done: "+this._sizeDone+", "+percent+"%")
-            return percent;
-        }
-
+    constructor(sizeQueued: number, sizeDone: number, status: UploaderStatus, failedCount: number = 0, lastError: UploadError|null = null) {
+        this._sizeQueued = sizeQueued;
+        this._sizeDone = sizeDone;
+        this._status = status;
+        this.failedCount = failedCount;
+        this.lastError = lastError;
     }
 
-    export class Upload {
+    get sizeQueued():number {
+        return this._sizeQueued;
+    }
 
-      get serverPersistable(): ServerPersistable | null {
+    get sizeDone():number {
+        return this._sizeDone;
+    }
+
+    sizeInQueue(){
+        return this._sizeQueued-this._sizeDone;
+    }
+
+    get status(): UploaderStatus {
+        return this._status;
+    }
+
+    uploadDone(): boolean {
+        return (this._sizeDone >= this._sizeQueued);
+    }
+
+    percentDone(): number {
+        if (this._sizeQueued == 0) {
+            // no data queued, we are "done"
+            return 100;
+        }
+        let percent = Math.floor(this._sizeDone * 100 / this._sizeQueued);
+        //console.log("Upload status: queued: "+this._sizeQueued+", done: "+this._sizeDone+", "+percent+"%")
+        return percent;
+    }
+
+}
+
+export interface ServerPersistable{
+    serverPersisted:boolean;
+}
+
+export class Upload {
+
+    get serverPersistable(): ServerPersistable | null {
         return this._serverPersistable;
-      }
+    }
 
-        private readonly _data:Blob|FormData;
-        private readonly _url:string;
+    private readonly _data:Blob|FormData;
+    private readonly _url:string;
 
-        status: UploadStatus;
-        onDone:((upload:Upload)=>void) | null=null;
+    status: UploadStatus;
+    onDone:((upload:Upload)=>void) | null=null;
+    onFail:((upload:Upload)=>void) | null=null;
 
-        constructor(blob:Blob|FormData, url:string,private _serverPersistable:ServerPersistable|null=null) {
-            this._data = blob;
-            this._url = url;
-            this.status = UploadStatus.IDLE;
+    // idempotency key: sent with every POST attempt of this upload, identical across retries
+    readonly idempotencyKey: string;
+    // number of POST attempts already performed
+    attemptCount: number=0;
+    // error of the last failed attempt, if any
+    lastError: UploadError|null=null;
+
+    constructor(blob:Blob|FormData, url:string,private _serverPersistable:ServerPersistable|null=null) {
+        this._data = blob;
+        this._url = url;
+        this.status = UploadStatus.IDLE;
+        this.idempotencyKey=(typeof crypto!=='undefined' && typeof crypto.randomUUID==='function')?crypto.randomUUID():UUID.generate();
+    }
+
+    get url():string {
+        return this._url;
+    }
+
+    get data():Blob|FormData {
+        return this._data;
+    }
+
+    succeeded(){
+        this.status=UploadStatus.DONE;
+        // The upload is only marked as server persisted, if the server acknowledged it
+        if(this._serverPersistable) {
+            this._serverPersistable.serverPersisted = true;
+            //console.debug("Single upload set server persisted: "+this.serverPersistable);
+        }else{
+            //console.debug("Server persistable not set.");
         }
-
-        get url():string {
-            return this._url;
+        if(this.onDone){
+            this.onDone(this);
         }
+    }
 
-        get data():Blob|FormData {
-            return this._data;
+    failed(err:UploadError){
+        this.status=UploadStatus.FAILED;
+        this.lastError=err;
+        if(this.onFail){
+            this.onFail(this);
         }
+    }
 
-        done(){
-            this.status=UploadStatus.DONE;
-            //console.debug("Single upload done.");
-            if(this._serverPersistable) {
-              this._serverPersistable.serverPersisted = true;
-              //console.debug("Single upload set server persisted: "+this.serverPersistable);
-            }else{
-              //console.debug("Server persistable not set.");
-            }
-            if(this.onDone){
-              this.onDone(this);
-            }
-        }
-
-
-
-      public toString = () : string => {
+    public toString = () : string => {
         let s=`Upload: Status: ${this.status}, URL: ${this._url}`;
         if(this._data instanceof Blob){
             s=s+`, Size: ${this._data.size}`;
         }else if(this._data instanceof  FormData){
-           // TODO (iterate through parts ??)
+            // TODO (iterate through parts ??)
         }
         return s;
-      }
+    }
+}
+
+export class UploadHolder{
+
+    onUploadSet:((upload:Upload)=>void)|null=null;
+
+    get upload(): Upload | null {
+        return this._upload;
     }
 
-    export class UploadHolder{
-
-      onUploadSet:((upload:Upload)=>void)|null=null;
-
-      get upload(): Upload | null {
-        return this._upload;
-      }
-
-      set upload(value: Upload | null) {
+    set upload(value: Upload | null) {
         this._upload = value;
         if(this._upload && this.onUploadSet){
-          this.onUploadSet(this._upload);
+            this.onUploadSet(this._upload);
         }
-      }
-      private _upload:Upload|null=null;
     }
+    private _upload:Upload|null=null;
 
-    export class UploadSet{
+}
 
-      private uploads: Array<Upload|UploadHolder>=new Array<Upload|UploadHolder>();
-      private _complete=false;
+export class UploadSet{
 
-      private _onDone:((uploadSet:UploadSet)=>void)|null=null;
+    private uploads: Array<Upload|UploadHolder>=new Array<Upload|UploadHolder>();
+    private _complete=false;
 
-      add(upload:Upload|UploadHolder){
+    private _onDone:((uploadSet:UploadSet)=>void)|null=null;
+    private _onFail:((uploadSet:UploadSet)=>void)|null=null;
+
+    add(upload:Upload|UploadHolder){
         if(this._complete) {
-          throw new Error('Cannot add upload to upload set. Upload set already complete.')
+            throw new Error('Cannot add upload to upload set. Upload set already complete.')
         }
         if(upload instanceof UploadHolder){
-          upload.onUploadSet=(upl)=>{
-            upl.onDone=()=>{
-              this.checkUploadStates();
+            upload.onUploadSet=(upl)=>{
+                upl.onDone=()=>{
+                    this.checkUploadStates();
+                }
+                upl.onFail=()=>{
+                    this.checkUploadStates();
+                }
+                this.checkUploadStates();
             }
-            this.checkUploadStates();
-          }
         }
         this.uploads.push(upload);
+    }
 
-      }
 
-      complete(){
+    complete(){
         // Mark set as complete
         this._complete=true;
 
         // add listeners to each upload
         for(let upl of this.uploads){
-          if(upl instanceof Upload) {
-            upl.onDone = (upl: Upload) => {
-              this.checkUploadStates();
+            if(upl instanceof Upload) {
+                upl.onDone = (upl: Upload) => {
+                    this.checkUploadStates();
+                }
+                upl.onFail = (upl: Upload) => {
+                    this.checkUploadStates();
+                }
+            }else if(upl instanceof UploadHolder){
+                if(upl.upload){
+                    upl.upload.onDone = (upl: Upload) => {
+                        this.checkUploadStates();
+                    }
+                    upl.upload.onFail = (upl: Upload) => {
+                        this.checkUploadStates();
+                    }
+                }
             }
-          }else if(upl instanceof UploadHolder){
-            if(upl.upload){
-              upl.upload.onDone = (upl: Upload) => {
-                this.checkUploadStates();
-              }
-            }
-          }
         }
 
         // check immediately if already done
         this.checkUploadStates();
-      }
+    }
 
-      set onDone(value: ((uploadSet: UploadSet) => void) | null) {
+    set onDone(value: ((uploadSet: UploadSet) => void) | null) {
         this._onDone = value;
-        this.checkUploadStates();
-      }
+        // Callbacks may be assigned after complete() has been called (async upload creation).
+        // Re-check in that case, otherwise a late done callback would never fire.
+        if(this._complete) {
+            this.checkUploadStates();
+        }
+    }
 
-      private checkUploadStates(){
+    set onFail(value: ((uploadSet: UploadSet) => void) | null) {
+        this._onFail = value;
+        if(this._complete) {
+            this.checkUploadStates();
+        }
+    }
+
+    private checkUploadStates(){
         //console.debug("Check upload state...")
         if(this._complete){
 
-          if(this._onDone) {
             for(let upl of this.uploads){
-              if(upl instanceof Upload) {
-                if (UploadStatus.DONE !== upl.status) {
-                  // At least this upload is not yet done
-                  // Do nothing
-                  //console.debug("Check upload state: Upload not done.")
-                  return;
+                if(upl instanceof Upload) {
+                    if (UploadStatus.FAILED === upl.status) {
+                        // At least one upload has terminally failed
+                        //console.debug("Check upload state: Upload failed.")
+                        if(this._onFail) {
+                            this._onFail(this);
+                        }
+                        return;
+                    }
+                    if (UploadStatus.DONE !== upl.status) {
+                        // At least this upload is not yet done
+                        // Do nothing
+                        //console.debug("Check upload state: Upload not done.")
+                        return;
+                    }
+                }else if(upl instanceof UploadHolder){
+                    if(upl.upload){
+                        if (UploadStatus.FAILED === upl.upload.status) {
+                            // At least one upload has terminally failed
+                            //console.debug("Check upload state: Upload (holder) failed.")
+                            if(this._onFail) {
+                                this._onFail(this);
+                            }
+                            return;
+                        }
+                        if (UploadStatus.DONE !== upl.upload.status) {
+                            // At least this upload is not yet done
+                            // Do nothing
+                            //console.debug("Check upload state: Upload (holder) not done.")
+                            return;
+                        }
+                    }else{
+                        // The actual upload is not yet set
+                        //console.debug("Check upload state: Upload (holder): upload not yet set.")
+                        return;
+                    }
                 }
-              }else if(upl instanceof UploadHolder){
-                if(upl.upload){
-                  if (UploadStatus.DONE !== upl.upload.status) {
-                    // At least this upload is not yet done
-                    // Do nothing
-                    //console.debug("Check upload state: Upload (holder) not done.")
-                    return;
-                  }
-                }else{
-                  // The actual upload is not yet set
-                  //console.debug("Check upload state: Upload (holder): upload not yet set.")
-                  return;
-                }
-              }
             }
             // set is complete and all upload parts are done, call done callback
             //console.debug("Check upload state: All done.")
-            this._onDone(this);
-          }
-        }
-      }
-    }
-
-    export interface ServerPersistable{
-        serverPersisted:boolean;
-    }
-
-    export class Uploader {
-        POST_MIN_TIMEOUT = 120000; // 2min plus ...
-        POST_TIMEOUT_PER_KB = 1000;  // ... 1s per kB
-
-        RETRY_DELAY: number = 30000; // retry every 30s
-        DEBUG_DELAY: number = 0;
-        //DEBUG_DELAY:number=0;
-        private status: UploaderStatus = UploaderStatus.DONE;
-        private readonly que: Array<Upload>;
-        listener: ((ue: UploaderStatusChangeEvent) => void) | null = null;
-        private _sizeQueued: number = 0;
-        private _sizeDone: number = 0;
-
-        private retryTimerRunning = false;
-        private retryTimerId: number | null = null;
-
-        private te:TextEncoder=new TextEncoder();
-
-        constructor(private http: HttpClient, private withCredentials: boolean = false) {
-            this.que = new Array<Upload>();
-        }
-
-        private dataSize(dt:Blob|FormData){
-            let si=0;
-            if(dt instanceof Blob){
-                si=dt.size;
-            }else if(dt instanceof  FormData){
-                dt.forEach((v,k)=>{
-                    if(v instanceof File){
-                        si+=v.size;
-                    }else if(typeof v ==='string'){
-                        // encode to UTF-8 to get upload size
-                        si+= this.te.encode().length;
-                    }
-                })
+            if(this._onDone) {
+                this._onDone(this);
             }
-            return si;
         }
+    }
+}
 
-        private  uploadDone(ul:Upload) {
+export class Uploader {
+    POST_MIN_TIMEOUT = 120000; // 2min plus ...
+    POST_TIMEOUT_PER_KB = 1000;  // ... 1s per kB
 
-            ul.done();
+    DEBUG_DELAY: number = 0;
+    //DEBUG_DELAY:number=0;
+    private status: UploaderStatus = UploaderStatus.DONE;
+    private readonly que: Array<Upload>;
+    listener: ((ue: UploaderStatusChangeEvent) => void) | null = null;
+    private _sizeQueued: number = 0;
+    private _sizeDone: number = 0;
 
-            // remove upload from queue
-            for (let i = 0; i < this.que.length; i++) {
-                if (this.que[i] === ul) {
-                    // found, remove
-                    this.que.splice(i, 1);
-                    let ulSize = this.dataSize(ul.data);
-                    this._sizeDone += ulSize;
-                    break;
+    private retryTimerRunning = false;
+    private retryTimerId: number | null = null;
+    // guards against reentrant process() calls (listener callbacks may synchronously re-enter)
+    private processing = false;
+
+    private readonly uploadCfg: Required<UploadConfig>;
+
+    private te:TextEncoder=new TextEncoder();
+
+    constructor(private http: HttpClient, private withCredentials: boolean = false, uploadCfg: UploadConfig = {}) {
+        this.que = new Array<Upload>();
+        this.uploadCfg = Object.assign({}, DEFAULT_UPLOAD_CONFIG, uploadCfg);
+    }
+
+    get failedUploads(): number {
+        let cnt = 0;
+        for (let ul of this.que) {
+            if (ul.status === UploadStatus.FAILED) {
+                cnt++;
+            }
+        }
+        return cnt;
+    }
+
+    private lastFailedError(): UploadError|null {
+        for (let ul of this.que) {
+            if (ul.status === UploadStatus.FAILED && ul.lastError) {
+                return ul.lastError;
+            }
+        }
+        return null;
+    }
+
+    private dataSize(dt:Blob|FormData){
+        let si=0;
+        if(dt instanceof Blob){
+            si=dt.size;
+        }else if(dt instanceof  FormData){
+            dt.forEach((v,k)=>{
+                if(v instanceof File){
+                    si+=v.size;
+                }else if(typeof v ==='string'){
+                    // encode to UTF-8 to get upload size
+                    si+= this.te.encode(v).length;
+                }
+            })
+        }
+        return si;
+    }
+
+    private uploadSucceeded(ul:Upload) {
+
+        ul.succeeded();
+
+        // remove upload from queue
+        for (let i = 0; i < this.que.length; i++) {
+            if (this.que[i] === ul) {
+                // found, remove
+                this.que.splice(i, 1);
+                let ulSize = this.dataSize(ul.data);
+                this._sizeDone += ulSize;
+                break;
+            }
+        }
+        // set to done for now...
+        this.status = UploaderStatus.NEXT;
+        // continue
+        this.process();
+    }
+
+    // normalize any error into an UploadError and classify it (terminal vs. transient)
+    private classifyError(err: unknown): UploadError {
+        let status = 0;
+        let message = '';
+        if (err instanceof HttpErrorResponse) {
+            status = err.status;
+            // The response body may contain clues as to what went wrong
+            // (Angular types HttpErrorResponse.error as any; narrow it defensively)
+            const errBody: unknown = err.error;
+            if (typeof errBody === 'string') {
+                message = errBody;
+            } else if (errBody !== null && typeof errBody === 'object') {
+                if ('error' in errBody && typeof errBody.error === 'string') {
+                    message = errBody.error;
+                } else if ('message' in errBody && typeof errBody.message === 'string') {
+                    message = errBody.message;
                 }
             }
-            // set to done for now...
-            this.status = UploaderStatus.NEXT;
-            // continue
-            this.process();
+        }
+        if (!message && err !== null && typeof err === 'object' && 'message' in err && typeof err.message === 'string') {
+            message = err.message;
+        }
+        if (message.length > 200) {
+            message = message.slice(0, 200);
+        }
+        // client side errors (network, timeout), request timeout, rate limiting and server errors are transient
+        const terminal = !(status === 0 || status === 408 || status === 425 || status === 429 || status >= 500);
+        return {status: status, message: message, terminal: terminal};
+    }
+
+    private ackSatisfied(resp: unknown): boolean {
+        if (!this.uploadCfg.requireStoredAck) {
+            return true;
+        }
+        return resp !== null && typeof resp === 'object' && 'stored' in resp && resp.stored === true;
+    }
+
+    private startUpload(ul:Upload) {
+
+        ul.status = UploadStatus.UPLOADING;
+        ul.attemptCount++;
+        if (UploaderStatus.ERR === this.status) {
+            this.status = UploaderStatus.TRY_UPLOADING;
+        } else {
+            this.status = UploaderStatus.UPLOADING;
         }
 
-        private startUpload(ul:Upload) {
+        let dSize=this.dataSize(ul.data);
+        let timeoutForDataSize=dSize*this.POST_TIMEOUT_PER_KB/1000;
+        let timeoVal:number=Math.round(this.POST_MIN_TIMEOUT+timeoutForDataSize)
+        // pipe(timeout()) is not the same as xhr.timeout
+        // Note: a timeout aborts the request on the client side only. The server may still have
+        // stored the payload. The idempotency key allows the server to deduplicate a retry.
 
-            ul.status = UploadStatus.UPLOADING;
-            if (UploaderStatus.ERR === this.status) {
-                this.status = UploaderStatus.TRY_UPLOADING;
-            } else {
-                this.status = UploaderStatus.UPLOADING;
-            }
-
-            let dSize=this.dataSize(ul.data);
-            let timeoutForDataSize=dSize*this.POST_TIMEOUT_PER_KB/1000;
-            let timeoVal:number=Math.round(this.POST_MIN_TIMEOUT+timeoutForDataSize)
-            // pipe(timeout()) is not the same as xhr.timeout
-
-          let uploadedUpload:Upload|null=null;
-            //console.debug("Post upload: "+ul)
-            this.http.post(ul.url,ul.data,{withCredentials:this.withCredentials}).pipe(timeout(timeoVal)).subscribe(
+        let uploadedUpload:Upload|null=null;
+        let uploadFailedAck=false;
+        //console.debug("Post upload: "+ul)
+        let headers=new HttpHeaders().set(this.uploadCfg.idempotencyHeader,ul.idempotencyKey);
+        this.http.post(ul.url,ul.data,{withCredentials:this.withCredentials,headers:headers}).pipe(timeout(timeoVal)).subscribe(
+            {
+                next: (resp)=>
                 {
-                    next: (data)=>
-                    {
+                    if (this.ackSatisfied(resp)) {
                         uploadedUpload = ul;
                         //console.debug('Next method called for upload: '+uploadedUpload)
+                    } else {
+                        uploadFailedAck=true;
+                        this.processError(ul,{status: 200, message: 'Server did not confirm that the upload was stored.', terminal: true});
                     }
-                    , error:(err: HttpErrorResponse) => {
-                        if (err.error instanceof Error) {
-                            // A client-side or network error occurred. Handle it accordingly.
-                            console.error('Upload error occurred:', err.error.message);
-                        } else {
-                            // The backend returned an unsuccessful response code.
-                            // The response body may contain clues as to what went wrong,
-                            console.error(`Upload error: Server returned code ${err.status}`);
-                        }
-                        this.processError(ul)
-                    }, complete: () => {
-                        //console.debug('Upload complete method called')
-                        if (uploadedUpload) {
-                            if (this.DEBUG_DELAY > 0) {
-                                window.setTimeout(() => {
-                                    this.uploadDone(ul);
-                                }, this.DEBUG_DELAY);
-                            } else {
-                                this.uploadDone(uploadedUpload)
-                            }
-                        } else {
-                            console.error('Upload post complete, but upload not set in next method!')
-                        }
+                }
+                , error:(err: unknown) => {
+                    if (err instanceof Error && !(err instanceof HttpErrorResponse)) {
+                        // A client-side or network error occurred. Handle it accordingly.
+                        console.error('Upload error occurred:', err.message);
+                    } else if (err instanceof HttpErrorResponse) {
+                        // The backend returned an unsuccessful response code.
+                        // The response body may contain clues as to what went wrong,
+                        console.error(`Upload error: Server returned code ${err.status}`);
                     }
-                });
-        }
+                    this.processError(ul,this.classifyError(err))
+                }, complete: () => {
+                    //console.debug('Upload complete method called')
+                    if (uploadedUpload) {
+                        if (this.DEBUG_DELAY > 0) {
+                            window.setTimeout(() => {
+                                this.uploadSucceeded(ul);
+                            }, this.DEBUG_DELAY);
+                        } else {
+                            this.uploadSucceeded(uploadedUpload)
+                        }
+                    } else if (!uploadFailedAck) {
+                        console.error('Upload post complete, but upload not set in next method!')
+                    }
+                }
+            });
+    }
 
-        private processError(ul:Upload) {
-            //console.debug("Process upload error...")
-            ul.status=UploadStatus.ERR
+    private retryDelayMs(ul:Upload):number {
+        // exponential backoff: base * 2^(attempt-1), capped, with jitter
+        let exp = Math.min(ul.attemptCount - 1, 30);
+        let delay = this.uploadCfg.baseRetryDelayMs * Math.pow(2, exp);
+        delay = Math.min(delay, this.uploadCfg.maxRetryDelayMs);
+        let jitter = this.uploadCfg.jitterRatio;
+        if (jitter > 0) {
+            delay = Math.round(delay * (1 - jitter + 2 * jitter * Math.random()));
+        }
+        return Math.max(0, delay);
+    }
+
+    private scheduleRetry(ul:Upload) {
+        // Set the running flag before setTimeout: process() may run synchronously in between and
+        // must be able to clear the timer (race condition otherwise).
+        this.retryTimerRunning=true;
+        this.retryTimerId=window.setTimeout(() => {
+            this.retryTimerRunning=false;
+            this.retryTimerId=null;
+            //console.debug("Upload retry timer expired. Continue processing...")
+            this.process();
+        }, this.retryDelayMs(ul));
+        //console.debug("Started upload retry timer "+delay+"ms ...")
+    }
+
+    private processError(ul:Upload, err:UploadError) {
+        //console.debug("Process upload error...")
+        ul.lastError = err;
+        if (err.terminal || ul.attemptCount >= this.uploadCfg.maxAttempts) {
+            ul.failed(err);
+            // continue with the next upload in the queue resp. report the partial state
+            this.status = UploaderStatus.ERR;
+            this.process();
+        } else {
+            ul.status=UploadStatus.ERR;
             this.status = UploaderStatus.ERR;
 
-            let ue = new UploaderStatusChangeEvent(this._sizeQueued, this._sizeDone, this.status);
+            let ue = new UploaderStatusChangeEvent(this._sizeQueued, this._sizeDone, this.status, this.failedUploads, err);
             if (this.listener) {
                 this.listener(ue);
             }
 
-            // set retry timer
-            this.retryTimerId=window.setTimeout(() => {
-                this.retryTimerRunning=false;
-                //console.debug("Upload retry timer expired. Continue processing...")
-                this.process();
-            }, this.RETRY_DELAY);
-
-            this.retryTimerRunning=true;
-            //console.debug("Started upload retry timer "+this.RETRY_DELAY+"ms ...")
+            this.scheduleRetry(ul);
         }
+    }
 
-      private process() {
+    private process() {
+        if (this.processing) {
+            return;
+        }
+        this.processing = true;
+        try {
+            this.processInternal();
+        } finally {
+            this.processing = false;
+        }
+    }
+
+    private processInternal() {
         // clear retry timer if set
         if(this.retryTimerRunning){
             if(this.retryTimerId) {
                 window.clearTimeout(this.retryTimerId)
             }
-          this.retryTimerRunning=false
-          //console.debug("Cleared retry timer.")
+            this.retryTimerRunning=false
+            this.retryTimerId=null
+            //console.debug("Cleared retry timer.")
         }
 
         let pul: Upload | null = null;
@@ -363,51 +566,66 @@
 
         if (s>0 && UploaderStatus.UPLOADING != this.status && UploaderStatus.TRY_UPLOADING != this.status) {
 
-          for (let i = 0; i < s; i++) {
-            let ul = this.que[i];
-            //console.log("Upload "+ul+" status:"+ul.status)
-            if (ul.status === UploadStatus.IDLE) {
-              //console.log("Upload "+ul+" startUpload")
-              this.startUpload(ul);
-              pul = ul;
-              break;
-            }
-          }
-          if (!pul) {
-            //console.log("Check ERR uploads...")
-            // now failed uploads
-            //console.debug("No regular upload found. Looking for error state uploads.")
             for (let i = 0; i < s; i++) {
-              let ul = this.que[i];
-              //console.log("Upload "+ul+" status:"+ul.status)
-              if (ul.status === UploadStatus.ERR) {
-                //console.log("Upload (ERR) "+ul+" startUpload")
-                //console.debug("Start error state upload "+ul)
-                this.startUpload(ul);
-                pul = ul;
-                break;
-              }
+                let ul = this.que[i];
+                //console.log("Upload "+ul+" status:"+ul.status)
+                if (ul.status === UploadStatus.IDLE) {
+                    //console.log("Upload "+ul+" startUpload")
+                    this.startUpload(ul);
+                    pul = ul;
+                    break;
+                }
             }
-          }
+            if (!pul) {
+                //console.log("Check ERR uploads...")
+                // now failed uploads
+                //console.debug("No regular upload found. Looking for error state uploads.")
+                for (let i = 0; i < s; i++) {
+                    let ul = this.que[i];
+                    //console.log("Upload "+ul+" status:"+ul.status)
+                    if (ul.status === UploadStatus.ERR) {
+                        //console.log("Upload (ERR) "+ul+" startUpload")
+                        //console.debug("Start error state upload "+ul)
+                        this.startUpload(ul);
+                        pul = ul;
+                        break;
+                    }
+                }
+            }
         }
+        let failedCnt = this.failedUploads;
         if(s==0){
-          //console.debug("Upload done.")
-          this.status=UploaderStatus.DONE
-        }
-        let ue = new UploaderStatusChangeEvent(this._sizeQueued, this._sizeDone, this.status);
-        if (this.listener) {
-          this.listener(ue);
-        }
-      }
-
-        queueUpload(ul: Upload) {
-            if (ul) {
-                let ulSize = this.dataSize(ul.data);
-                this.que.push(ul);
-                this._sizeQueued += ulSize;
-                this.process();
+            //console.debug("Upload done.")
+            this.status = (failedCnt>0)?UploaderStatus.PARTIAL:UploaderStatus.DONE;
+        }else if(!pul && UploaderStatus.UPLOADING != this.status && UploaderStatus.TRY_UPLOADING != this.status){
+            // nothing startable: all remaining uploads terminally failed
+            if(failedCnt>0) {
+                this.status = UploaderStatus.PARTIAL;
             }
+        }
+        let ue = new UploaderStatusChangeEvent(this._sizeQueued, this._sizeDone, this.status, failedCnt, this.lastFailedError());
+        if (this.listener) {
+            this.listener(ue);
         }
     }
 
+    queueUpload(ul: Upload) {
+        if (ul) {
+            let ulSize = this.dataSize(ul.data);
+            this.que.push(ul);
+            this._sizeQueued += ulSize;
+            this.process();
+        }
+    }
 
+    retryFailedUploads():void {
+        for (let ul of this.que) {
+            if (ul.status === UploadStatus.FAILED) {
+                ul.status = UploadStatus.IDLE;
+                ul.attemptCount = 0;
+                ul.lastError = null;
+            }
+        }
+        this.process();
+    }
+}

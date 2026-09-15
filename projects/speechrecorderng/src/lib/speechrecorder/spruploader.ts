@@ -8,6 +8,6 @@ import {SPEECHRECORDER_CONFIG, SpeechRecorderConfig} from "../spr.config";
  export class SpeechRecorderUploader extends Uploader{
 
   constructor(private httpClient:HttpClient,@Inject(SPEECHRECORDER_CONFIG) private config?:SpeechRecorderConfig){
-    super(httpClient,(config)?config.withCredentials:false);
+    super(httpClient,(config)?config.withCredentials:false,config?.uploadConfig);
   }
 }

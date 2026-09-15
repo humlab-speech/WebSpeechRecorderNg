@@ -237,6 +237,7 @@ export abstract class BasicRecorder extends ResponsiveComponent{
 
   uploadProgress: number = 100;
   uploadStatus: string = 'ok'
+  uploadStatusMsg: string|null = null;
   protected uploadSet:UploadSet|null=null;
 
   audioSignalCollapsed = true;

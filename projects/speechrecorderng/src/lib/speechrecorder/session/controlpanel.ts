@@ -75,6 +75,8 @@ export class UploadStatus {
   displayValue:string|null=null;
   toolTipText:string='';
 
+  @Input() statusMsg: string|null = null;
+
   private _updateSpinner(){
 
     let uplMsg;
@@ -92,7 +94,11 @@ export class UploadStatus {
       }
     }
     if(this.status==='warn'){
-      uplMsg='Upload error occurred. Please check your network connection. '+uplMsg
+      if(this.statusMsg){
+        uplMsg=this.statusMsg
+      }else{
+        uplMsg='Upload error occurred. Please check your network connection. '+uplMsg
+      }
     }
     this.toolTipText=uplMsg
   }
@@ -385,7 +391,7 @@ export class ReadyStateIndicator {
         <app-sprtransport style="flex:10 0 0" [readonly]="readonly" [actions]="transportActions" [navigationEnabled]="navigationEnabled"></app-sprtransport>
         @if (enableUploadRecordings) {
           <app-uploadstatus style="flex:0 0 0" [value]="uploadProgress"
-          [status]="uploadStatus" [awaitNewUpload]="processing"></app-uploadstatus>
+          [status]="uploadStatus" [statusMsg]="uploadStatusMsg" [awaitNewUpload]="processing"></app-uploadstatus>
         }
         <app-readystateindicator [ready]="_ready"></app-readystateindicator>
       </div>
@@ -397,7 +403,7 @@ export class ReadyStateIndicator {
           class="hidden-xs"></app-sprstatusdisplay>
           @if (enableUploadRecordings) {
             <app-uploadstatus style="flex:0 0 0" [value]="uploadProgress"
-            [status]="uploadStatus" [awaitNewUpload]="processing"></app-uploadstatus>
+            [status]="uploadStatus" [statusMsg]="uploadStatusMsg" [awaitNewUpload]="processing"></app-uploadstatus>
           }
           <app-readystateindicator [ready]="_ready"></app-readystateindicator>
         </div>
@@ -425,6 +431,7 @@ export class ControlPanel extends ResponsiveComponent {
   @Input() statusAlertType!: string;
   @Input() statusWaiting!: boolean;
   @Input() uploadStatus!: string;
+  @Input() uploadStatusMsg: string|null = null;
   @Input() uploadProgress!: number;
   @Input() currentRecording: AudioBuffer| null| undefined;
   @Input() enableUploadRecordings!: boolean;

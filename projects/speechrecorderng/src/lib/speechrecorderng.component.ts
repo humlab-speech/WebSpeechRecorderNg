@@ -285,7 +285,12 @@ export class SpeechrecorderngComponent extends RecorderComponent implements OnIn
     //console.debug("Uploader: status: "+upStatus+", "+percentUpl+"%, Bytes in queue: "+sizeInQueue+' ('+DataSize.formatBytesToBinaryUnits(sizeInQueue)+')');
     if (UploaderStatus.ERR === upStatus) {
       this.sm.uploadStatus = 'warn'
+      this.sm.uploadStatusMsg = ue.lastError ? 'Upload error: ' + ue.lastError.message : null;
+    } else if (UploaderStatus.PARTIAL === upStatus) {
+      this.sm.uploadStatus = 'warn'
+      this.sm.uploadStatusMsg = ue.lastError ? 'Upload failed: ' + ue.lastError.message : 'Some uploads failed. Recordings were not stored on the server.';
     } else {
+      this.sm.uploadStatusMsg = null;
       if (percentUpl < 50) {
         this.sm.uploadStatus = 'accent'
       } else {

@@ -78,7 +78,7 @@ export const enum Status {
         @if (screenXs && enableUploadRecordings) {
           <app-uploadstatus class="ricontrols dark" style="flex:0 0 0"
             [value]="uploadProgress"
-          [status]="uploadStatus" [awaitNewUpload]="processingRecording"></app-uploadstatus>
+          [status]="uploadStatus" [statusMsg]="uploadStatusMsg" [awaitNewUpload]="processingRecording"></app-uploadstatus>
         }
         @if (screenXs) {
           <app-wakelockindicator class="ricontrols dark" style="flex:0 0 0" [screenLocked]="screenLocked"></app-wakelockindicator>
@@ -107,7 +107,7 @@ export const enum Status {
         @if (!screenXs && enableUploadRecordings) {
           <app-uploadstatus class="ricontrols"
             [value]="uploadProgress"
-          [status]="uploadStatus" [awaitNewUpload]="processingRecording"></app-uploadstatus>
+          [status]="uploadStatus" [statusMsg]="uploadStatusMsg" [awaitNewUpload]="processingRecording"></app-uploadstatus>
         }
         @if (!screenXs) {
           <app-wakelockindicator  class="ricontrols" [screenLocked]="screenLocked"></app-wakelockindicator>
@@ -950,6 +950,9 @@ export class AudioRecorder extends BasicRecorder implements OnInit,AfterViewInit
                     //console.debug("upload set on done: Call ready provider.ready");
                     netAs.ready();
                   }
+                  this.uploadSet.onFail=(uploadSet)=>{
+                    this.error('Upload failed. Recordings were not stored on the server.','Please check your connection and retry.');
+                  }
                 }
 
               }
@@ -995,6 +998,9 @@ export class AudioRecorder extends BasicRecorder implements OnInit,AfterViewInit
                   this.uploadSet.onDone = (uploadSet) => {
                     //console.debug("upload set on done: Call ready provider.ready");
                     netAs.ready();
+                  }
+                  this.uploadSet.onFail = (uploadSet) => {
+                    this.error('Upload failed. Recordings were not stored on the server.','Please check your connection and retry.');
                   }
                 }
               }
@@ -1288,7 +1294,12 @@ export class AudioRecorderComponent extends RecorderComponent  implements OnInit
     let percentUpl = ue.percentDone();
     if (UploaderStatus.ERR === upStatus) {
       this.ar.uploadStatus = 'warn'
+      this.ar.uploadStatusMsg = ue.lastError ? 'Upload error: ' + ue.lastError.message : null;
+    } else if (UploaderStatus.PARTIAL === upStatus) {
+      this.ar.uploadStatus = 'warn'
+      this.ar.uploadStatusMsg = ue.lastError ? 'Upload failed: ' + ue.lastError.message : 'Some uploads failed. Recordings were not stored on the server.';
     } else {
+      this.ar.uploadStatusMsg = null;
       if (percentUpl < 50) {
         this.ar.uploadStatus = 'accent'
       } else {

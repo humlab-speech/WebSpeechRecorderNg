@@ -1,4 +1,5 @@
 import {Injectable, InjectionToken} from "@angular/core";
+import {UploadConfig} from "./net/uploader";
 
 export const SPEECHRECORDER_CONFIG = new InjectionToken<SpeechRecorderConfig>('speechrecorder.config');
 
@@ -14,6 +15,7 @@ export class SpeechRecorderConfig{
   withCredentials?: boolean=false;
   enableDownloadRecordings?: boolean=false;
   enableUploadRecordings?: boolean=true;
+  uploadConfig?: UploadConfig;
   constructor(){
     this.apiEndPoint=null;
     this.apiType=null;
