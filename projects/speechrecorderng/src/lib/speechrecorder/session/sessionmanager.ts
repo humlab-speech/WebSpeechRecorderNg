@@ -1447,7 +1447,7 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
     this.updateStartActionDisableState();
   }
 
-  postChunkAudioBuffer(audioBuffer: AudioBuffer, chunkIdx: number): void {
+  postChunkAudioBuffer(buffers: Array<Float32Array>, sampleRate: number, chunkIdx: number): void {
     this.processingRecording = true;
     const ww = new WavWriter(this._clientMediaStorageFormat?.audioEncoding===AudioStorageFormatEncoding.PCM_FLOAT,this._clientMediaStorageFormat?.audioPCMsampleSizeInBits);
     let sessionsUrl = this.sessionsBaseUrl();
@@ -1458,7 +1458,9 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
       this.uploadSet.add(ulh);
     }
 
-    ww.writeAsync(audioBuffer, (wavFile) => {
+    const channels=buffers.length;
+    const frameLength=channels>0?buffers[0].length:0;
+    ww.writeAsyncPlanar(channels,sampleRate,frameLength,buffers, (wavFile) => {
       this.postRecording(wavFile, recUrl,null,ulh);
       this.processingRecording = false
     });

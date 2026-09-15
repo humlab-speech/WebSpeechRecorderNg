@@ -14,7 +14,12 @@ export enum SampleSize {INT16=16,INT32=32}
      private sampleSize=WavWriter.DEFAULT_SAMPLE_SIZE;
      private sampleSizeInBits=this.sampleSize.valueOf();
      private bw:BinaryByteWriter;
-     private workerURL: string|null=null;
+     // Shared encoder worker: a single worker and blob URL are reused for all WAV encodings.
+     // Jobs are dispatched by id, so parallel writeAsync/writeAsyncPlanar calls stay ordered.
+     private static workerURL: string|null=null;
+     private static worker: Worker|null=null;
+     private static jobSeq: number=0;
+     private static pendingJobs: Map<number, (wavFileData:ArrayBuffer)=>void> = new Map<number, (wavFileData:ArrayBuffer)=>void>();
 
      constructor(encodingFloat?:boolean,sampleSize?:SampleSize) {
        //console.debug("WavWriter: "+encodingFloat+", "+sampleSize);
@@ -39,7 +44,7 @@ export enum SampleSize {INT16=16,INT32=32}
      /*
       *  Method used as worker code.
       */
-     workerFunction() {
+     static workerFunction() {
        self.onmessage = function (msg:MessageEvent) {
 
          const valView = new DataView(msg.data.buf,msg.data.bufPos);
@@ -70,24 +75,24 @@ export enum SampleSize {INT16=16,INT32=32}
 
            }
          }
-         postMessage({buf:msg.data.buf}, [msg.data.buf]);
+         postMessage({buf:msg.data.buf,id:msg.data.id}, [msg.data.buf]);
          //self.close()
        }
      }
 
 
-     writeFmtChunk(audioBuffer:AudioBuffer){
+     writeFmtChunk(chs:number,sampleRate:number){
 
        if(this.encodingFloat===true){
          this.bw.writeUint16(WavFileFormat.WAVE_FORMAT_IEEE_FLOAT, true);
        }else {
          this.bw.writeUint16(WavFileFormat.PCM, true);
        }
-       const frameSize=this.sampleSizeInBytes*audioBuffer.numberOfChannels;
-       this.bw.writeUint16(audioBuffer.numberOfChannels,true);
-       this.bw.writeUint32(audioBuffer.sampleRate,true);
+       const frameSize=this.sampleSizeInBytes*chs;
+       this.bw.writeUint16(chs,true);
+       this.bw.writeUint32(sampleRate,true);
          // dwAvgBytesPerSec
-       this.bw.writeUint32(frameSize*audioBuffer.sampleRate,true);
+       this.bw.writeUint32(frameSize*sampleRate,true);
        this.bw.writeUint16(frameSize,true);
        // sample size in bits (PCM format only)
        this.bw.writeUint16(this.sampleSizeInBits,true);
@@ -96,12 +101,8 @@ export enum SampleSize {INT16=16,INT32=32}
        }
      }
 
-     writeFactChunk(audioBuffer:AudioBuffer){
-       const ch0=audioBuffer.getChannelData(0);
-       let sampleLen=0;
-       if(ch0){
-         sampleLen=ch0.length;
-       }
+     writeFactChunk(frameLen:number){
+       let sampleLen=frameLen;
         this.bw.writeUint32(sampleLen,true);
      }
 
@@ -145,32 +146,52 @@ export enum SampleSize {INT16=16,INT32=32}
        this.bw.writeUint32(chkLen,true);
      }
 
-     writeAsync(audioBuffer:AudioBuffer,callback: (wavFileData:ArrayBuffer)=> any){
+    writeAsync(audioBuffer:AudioBuffer,callback: (wavFileData:ArrayBuffer)=> void){
 
-       const dataChkByteLen=this.writeHeader(audioBuffer);
-       if (!this.workerURL) {
-         this.workerURL = WorkerHelper.buildWorkerBlobURL(this.workerFunction)
+      const chs = audioBuffer.numberOfChannels;
+      const frameLength = chs>0?audioBuffer.getChannelData(0).length:0;
+      const channelData = new Array<Float32Array>(chs);
+      for (let ch = 0; ch < chs; ch++) {
+        channelData[ch]=audioBuffer.getChannelData(ch);
+      }
+      this.writeAsyncPlanar(chs,audioBuffer.sampleRate,frameLength,channelData,callback);
+    }
+
+    // Encode planar (per channel) float data without an intermediate AudioBuffer.
+    writeAsyncPlanar(channels:number,sampleRate:number,frameLength:number,channelData:Array<Float32Array>,callback: (wavFileData:ArrayBuffer)=> void): void{
+      const dataChkByteLen=this.writeHeaderParams(channels,sampleRate,frameLength);
+
+      // interleave the planar channel data for the encoder
+      const ad = new Float32Array(channels * frameLength);
+      for (let ch = 0; ch < channels; ch++) {
+        if (channelData[ch]) {
+          ad.set(channelData[ch].subarray(0, frameLength), ch * frameLength);
         }
-       const wo = new Worker(this.workerURL);
+      }
+      // ensureCapacity blocks !!!
+      this.bw.ensureCapacity(dataChkByteLen);
 
-       const chs = audioBuffer.numberOfChannels;
+      if (!WavWriter.workerURL) {
+        WavWriter.workerURL = WorkerHelper.buildWorkerBlobURL(WavWriter.workerFunction);
+      }
+      if (!WavWriter.worker) {
+        WavWriter.worker = new Worker(WavWriter.workerURL);
+        WavWriter.worker.onmessage = (me) => {
+          const msgData = me.data;
+          if (msgData !== null && typeof msgData === 'object' && 'id' in msgData && typeof msgData.id === 'number' && 'buf' in msgData && msgData.buf instanceof ArrayBuffer) {
+            const job = WavWriter.pendingJobs.get(msgData.id);
+            if (job) {
+              WavWriter.pendingJobs.delete(msgData.id);
+              job(msgData.buf);
+            }
+          }
+        };
+      }
+      const jobId = ++WavWriter.jobSeq;
+      WavWriter.pendingJobs.set(jobId, callback);
+      WavWriter.worker.postMessage({encodingFloat:this.encodingFloat,sampleSizeInBits:this.sampleSizeInBits, chs: channels, frameLength: frameLength, audioData: ad,buf:this.bw.buf,bufPos:this.bw.pos,id:jobId}, [ad.buffer,this.bw.buf]);
 
-       const frameLength = audioBuffer.getChannelData(0).length;
-       const ad = new Float32Array(chs * frameLength);
-       for (let ch = 0; ch < chs; ch++) {
-         ad.set(audioBuffer.getChannelData(ch), ch * frameLength);
-       }
-         // ensureCapacity blocks !!!
-       this.bw.ensureCapacity(dataChkByteLen);
-       wo.onmessage = (me) => {
-         callback(me.data.buf);
-         wo.terminate();
-       }
-
-
-       wo.postMessage({encodingFloat:this.encodingFloat,sampleSizeInBits:this.sampleSizeInBits, chs: chs, frameLength: frameLength, audioData: ad,buf:this.bw.buf,bufPos:this.bw.pos}, [ad.buffer,this.bw.buf]);
-
-     }
+    }
 
      write(audioBuffer:AudioBuffer):Uint8Array{
        this.writeHeader(audioBuffer);
@@ -180,14 +201,13 @@ export enum SampleSize {INT16=16,INT32=32}
 
 
       writeHeader(audioBuffer:AudioBuffer):number{
+        return this.writeHeaderParams(audioBuffer.numberOfChannels,audioBuffer.sampleRate,audioBuffer.numberOfChannels>0?audioBuffer.getChannelData(0).length:0);
+      }
+
+      private writeHeaderParams(abChs:number,sampleRate:number,frameLen:number):number{
         this.bw.writeAscii(WavFileFormat.RIFF_KEY);
-        let dataChkByteLen=0;
-        //const dataChkByteLen=audioBuffer.getChannelData(0).length*WavWriter.DEFAULT_SAMPLE_SIZE_BYTES*audioBuffer.numberOfChannels;
-        const abChs=audioBuffer.numberOfChannels;
-        if(abChs>0){
-          const abCh0=audioBuffer.getChannelData(0);
-          dataChkByteLen=abCh0.length*this.sampleSizeInBytes*abChs;
-        }
+        let dataChkByteLen=frameLen*this.sampleSizeInBytes*abChs;
+
         let headerCnts=3; //Wave,fmt and data
 
         let fmtChunkSize=16;
@@ -207,11 +227,11 @@ export enum SampleSize {INT16=16,INT32=32}
         this.bw.writeAscii(WavFileFormat.WAV_KEY);
 
         this.writeChunkHeader('fmt ',fmtChunkSize);
-        this.writeFmtChunk(audioBuffer);
+        this.writeFmtChunk(abChs,sampleRate);
         if(this.encodingFloat===true){
           SprLogger.debug("Write WAV header: Write 'fact' chunk.");
           this.writeChunkHeader('fact',4);
-          this.writeFactChunk(audioBuffer);
+          this.writeFactChunk(frameLen);
         }
         this.writeChunkHeader('data',dataChkByteLen);
         return dataChkByteLen;

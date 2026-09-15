@@ -39,4 +39,36 @@ describe('WavWriter', () => {
         expect(readInt16(wav, 2)).toBe(Math.round(-0.75 * 32768));
         expect(readInt16(wav, 3)).toBe(Math.round(-0.25 * 32768));
     });
+
+    it('encodes planar channel data via the shared encoder worker', (done) => {
+        const ww = new WavWriter(false, SampleSize.INT16);
+        const ch0 = new Float32Array([0.5, -0.5]);
+        const ch1 = new Float32Array([0.25, -0.25]);
+        ww.writeAsyncPlanar(2, 44100, 2, [ch0, ch1], (wavFile) => {
+            const wav = new Uint8Array(wavFile);
+            expect(readInt16(wav, 0)).toBe(Math.round(0.5 * 32768));
+            expect(readInt16(wav, 1)).toBe(Math.round(0.25 * 32768));
+            expect(readInt16(wav, 2)).toBe(Math.round(-0.5 * 32768));
+            expect(readInt16(wav, 3)).toBe(Math.round(-0.25 * 32768));
+            done();
+        });
+    });
+
+    it('dispatches concurrent worker encodings to the right jobs', (done) => {
+        const ww1 = new WavWriter(false, SampleSize.INT16);
+        const ww2 = new WavWriter(false, SampleSize.INT16);
+        let results = 0;
+        ww1.writeAsyncPlanar(1, 44100, 2, [new Float32Array([0.1, 0.2])], (wavFile) => {
+            const wav = new Uint8Array(wavFile);
+            expect(readInt16(wav, 0)).toBe(Math.round(0.1 * 32768));
+            expect(readInt16(wav, 1)).toBe(Math.round(0.2 * 32768));
+            if (++results === 2) { done(); }
+        });
+        ww2.writeAsyncPlanar(1, 44100, 2, [new Float32Array([0.9, -0.9])], (wavFile) => {
+            const wav = new Uint8Array(wavFile);
+            expect(readInt16(wav, 0)).toBe(Math.round(0.9 * 32768));
+            expect(readInt16(wav, 1)).toBe(Math.round(-0.9 * 32768));
+            if (++results === 2) { done(); }
+        });
+    });
 });

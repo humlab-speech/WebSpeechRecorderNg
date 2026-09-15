@@ -23,14 +23,12 @@ import {
   SequenceAudioFloat32OutStreamMultiplier
 } from "../../audio/io/stream";
 import {RecordingFile, SprRecordingFile} from "../recording";
-import {AudioContextProvider} from "../../audio/context";
 import {UUID} from "../../utils/utils";
 import {WakeLockManager} from "../../utils/wake_lock";
 import {State as LiveLevelState} from "../../audio/ui/livelevel"
 import {PersistentAudioStorageTarget} from "../../audio/inddb_audio_buffer";
 import {ResponsiveComponent} from "../../ui/responsive_component";
 import {BreakpointObserver} from "@angular/cdk/layout";
-import {SampleSize} from "../../audio/impl/wavwriter";
 import {SprLogger} from "../../utils/logger";
 
 export const FORCE_REQUEST_AUDIO_PERMISSIONS=false;
@@ -43,7 +41,7 @@ export const NOSLEEP_VIDEO_TITLE='No Sleep';
 
 export interface ChunkAudioBufferReceiver{
   postAudioStreamStart():void;
-  postChunkAudioBuffer(audioBuffer:AudioBuffer,chunkIdx:number,sampleSize?:SampleSize):void;
+  postChunkAudioBuffer(buffers:Array<Float32Array>,sampleRate:number,chunkIdx:number):void;
   postAudioStreamEnd(chunkCount:number):void;
 }
 
@@ -84,51 +82,13 @@ export class ChunkManager implements SequenceAudioFloat32OutStream{
   }
 
   write(buffers: Array<Float32Array<ArrayBuffer>>): number {
-    let aCtx=AudioContextProvider.audioContextInstance();
     let bChs=buffers.length;
-    let frameLen=0;
-    if(aCtx && bChs>0) {
-      frameLen=buffers[0].length;
-      try {
-        let ad = aCtx.createBuffer(this.channels, frameLen, this.sampleRate);
-        for (let ch = 0; ch < this.channels; ch++) {
-          ad.copyToChannel(buffers[ch],ch);
-        }
-        this.chunkAudioBufferReceiver.postChunkAudioBuffer(ad,this.chunkIdx);
-        this.chunkIdx++;
-      }catch(err){
-        // TODO Handle errors
-        // iOS Safari sometimes throws NotSupportedError
-        SprLogger.error("Could not create audio buffer for chunked upload.");
-        SprLogger.error("Nr. of chs: "+this.channels+", frame length: "+frameLen+", sample rate: "+this.sampleRate);
-        if(err instanceof DOMException){
-          SprLogger.error("DOM exception: Name: "+err.name+", Msg: "+err.message);
-          if(err.name==='NotSupportedError'){
-            if(frameLen==0){
-              // Empty buffers are not supported by Chromium
-             // No data to transfer, but this case should never happen
-              return frameLen;
-            }else{
-              throw err;
-            }
-          }else if(err.name==='RangeError'){
-            SprLogger.error("DOM RangeError");
-            // Out of memory
-            // TODO What to do ??
-            throw err;
-          }else{
-            SprLogger.error("DOM Exception unknown");
-            throw err;
-          }
-        }else if (err instanceof RangeError){
-          SprLogger.error("RangeError: Name: "+err.name+", Msg: "+err.message);
-          // Out of memory
-          // TODO What to do ??
-          throw err;
-        }else{
-          throw err;
-        }
-      }
+    let frameLen=bChs>0?buffers[0].length:0;
+    if(bChs>0 && frameLen>0) {
+      // Pass the planar float data directly to the encoder; building an intermediate
+      // AudioBuffer here would copy the chunk data once more.
+      this.chunkAudioBufferReceiver.postChunkAudioBuffer(buffers,this.sampleRate,this.chunkIdx);
+      this.chunkIdx++;
     }
     return frameLen;
   }
@@ -749,7 +709,7 @@ protected sessionsBaseUrl():string {
   return  apiEndPoint + SessionService.SESSION_API_CTX;
 }
 
-  abstract postChunkAudioBuffer(audioBuffer: AudioBuffer, chunkIdx: number): void;
+  abstract postChunkAudioBuffer(buffers: Array<Float32Array>, sampleRate: number, chunkIdx: number): void;
 
   postAudioStreamEnd(chunkCount: number): void {
 
