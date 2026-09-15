@@ -210,4 +210,81 @@ describe('IndexedDbAudioBuffer',
     }
   );
 
+
+  it('stores and reads encrypted chunk data', (done) => {
+      let DB_NAME = 'inddb_audio_buffer_enc_spec_test_db';
+      let STORE = 'rec_file_chunks';
+      let CHUNK_COUNT = 3;
+      let CHUNK_SIZE = 16;
+      let CHS = 2;
+      let uuid = UUID.generate();
+
+      let openReq = indexedDB.open(DB_NAME, 1);
+      openReq.onupgradeneeded = () => {
+        let db = openReq.result;
+        if (!db.objectStoreNames.contains(STORE)) {
+          db.createObjectStore(STORE);
+        }
+      };
+      openReq.onsuccess = () => {
+        let db = openReq.result;
+        let pt = new PersistentAudioStorageTarget(db, STORE);
+        let aab = new IndexedDbAudioBuffer(pt, CHS, 44100, CHUNK_SIZE, CHUNK_COUNT * CHUNK_SIZE, uuid, true);
+        let data = new Array<Array<Float32Array>>(CHS);
+        for (let ch = 0; ch < CHS; ch++) {
+          data[ch] = new Array<Float32Array>();
+          for (let ci = 0; ci < CHUNK_COUNT; ci++) {
+            let cc = new Float32Array(CHUNK_SIZE);
+            for (let si = 0; si < CHUNK_SIZE; si++) {
+              cc[si] = ch * 1000 + ci * 100 + si;
+            }
+            data[ch].push(cc);
+          }
+        }
+        aab.appendRawAudioData(data).subscribe({
+          complete: () => {
+            // stored records must be encrypted ArrayBuffers, not raw float arrays
+            let tr = db.transaction(STORE, 'readonly');
+            let os = tr.objectStore(STORE);
+            let allReq = os.getAll(IDBKeyRange.bound([uuid,0,0],[uuid,CHUNK_COUNT-1,CHS]));
+            allReq.onsuccess = () => {
+              let recs = allReq.result;
+              expect(recs.length).toBe(CHUNK_COUNT*CHS);
+              expect(recs[0] instanceof ArrayBuffer).toBe(true);
+              expect((recs[0] as ArrayBuffer).byteLength).toBe(12 + CHUNK_SIZE*4 + 16);
+              // read back through the random access stream (decrypts transparently)
+              let ras = new IndexedDbRandomAccessStream(aab);
+              let bufs = new Array<Float32Array>(CHS);
+              for (let ch = 0; ch < CHS; ch++) {
+                bufs[ch] = new Float32Array(CHUNK_COUNT*CHUNK_SIZE);
+              }
+              let filledTotal = 0;
+              ras.framesObs(0, CHUNK_COUNT*CHUNK_SIZE, bufs).subscribe({
+                next: (read: number) => {
+                  filledTotal += read;
+                },
+                complete: () => {
+                  expect(filledTotal).toBe(CHUNK_COUNT*CHUNK_SIZE);
+                  for (let ch = 0; ch < CHS; ch++) {
+                    for (let si = 0; si < CHUNK_COUNT*CHUNK_SIZE; si++) {
+                      let ci = Math.floor(si/CHUNK_SIZE);
+                      let exp = ch*1000 + ci*100 + (si%CHUNK_SIZE);
+                      expect(bufs[ch][si]).toBe(exp);
+                    }
+                  }
+                  db.close();
+                  indexedDB.deleteDatabase(DB_NAME);
+                  done();
+                },
+                error: (err: unknown) => { done.fail(err instanceof Error ? err : new Error(String(err))); }
+              });
+            };
+            allReq.onerror = () => { done.fail('getAll failed'); };
+          },
+          error: (err: unknown) => { done.fail(err instanceof Error ? err : new Error(String(err))); }
+        });
+      };
+      openReq.onerror = () => { done.fail('open failed'); };
+  });
+
 });

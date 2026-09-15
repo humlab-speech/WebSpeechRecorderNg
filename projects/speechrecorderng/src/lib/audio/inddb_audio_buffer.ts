@@ -4,6 +4,81 @@ import {UUID} from "../utils/utils";
 import {AudioSource, BasicAudioSource, RandomAccessAudioStream} from "./audio_data_holder"
 import {SprLogger} from "../utils/logger";
 
+// ---- Encryption of audio chunks at rest (AES-GCM, WebCrypto) ----
+// The key is session scoped: stored raw in sessionStorage, so a page reload within the
+// same browser session can still decrypt. A browser restart loses the key (like the
+// recording session itself); stale encrypted chunks become unreadable garbage.
+const ENC_KEY_STORAGE='spr_encryption_key';
+let encKeyPromise:Promise<CryptoKey>|null=null;
+
+function encryptionKey():Promise<CryptoKey>{
+  if(!encKeyPromise){
+    encKeyPromise=(async()=>{
+      const stored=sessionStorage.getItem(ENC_KEY_STORAGE);
+      if(stored){
+        const raw=Uint8Array.from(atob(stored),(c)=>c.charCodeAt(0));
+        return crypto.subtle.importKey('raw',raw,{name:'AES-GCM'},false,['encrypt','decrypt']);
+      }
+      const key=await crypto.subtle.generateKey({name:'AES-GCM',length:256},true,['encrypt','decrypt']);
+      const raw=new Uint8Array(await crypto.subtle.exportKey('raw',key));
+      let bin='';
+      for(const b of raw){bin+=String.fromCharCode(b);}
+      sessionStorage.setItem(ENC_KEY_STORAGE,btoa(bin));
+      return key;
+    })();
+  }
+  return encKeyPromise;
+}
+
+async function encryptChunk(data:ArrayBuffer):Promise<ArrayBuffer>{
+  const key=await encryptionKey();
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const cipher=await crypto.subtle.encrypt({name:'AES-GCM',iv:iv},key,data);
+  const out=new Uint8Array(12+cipher.byteLength);
+  out.set(iv,0);
+  out.set(new Uint8Array(cipher),12);
+  return out.buffer;
+}
+
+async function decryptChunk(data:ArrayBuffer):Promise<ArrayBuffer>{
+  const key=await encryptionKey();
+  const bytes=new Uint8Array(data);
+  const iv=bytes.slice(0,12);
+  const cipher=bytes.slice(12);
+  return crypto.subtle.decrypt({name:'AES-GCM',iv:iv},key,cipher);
+}
+
+async function encryptDataArray(data:Array<Array<Float32Array>>,channelCount:number):Promise<Array<Array<ArrayBuffer>>>{
+  const enc=new Array<Array<ArrayBuffer>>(channelCount);
+  for(let ch=0;ch<channelCount;ch++){
+    enc[ch]=new Array<ArrayBuffer>();
+    const chData=data[ch];
+    for(let ci=0;ci<chData.length;ci++){
+      const buf=chData[ci].buffer;
+      if(!(buf instanceof ArrayBuffer)){
+        throw new Error('Unexpected buffer type of audio chunk data.');
+      }
+      enc[ch].push(await encryptChunk(buf));
+    }
+  }
+  return enc;
+}
+
+async function decryptChunkArray(records:Array<unknown>,ccChs:number):Promise<Array<Float32Array>>{
+  const arrBuf=new Array<Float32Array>();
+  for(let ch=0;ch<ccChs;ch++){
+    const rec=records[ch];
+    if(!(rec instanceof ArrayBuffer)){
+      throw new Error('Unexpected stored chunk type.');
+    }
+    const plain=await decryptChunk(rec);
+    arrBuf.push(new Float32Array(plain));
+  }
+  return arrBuf;
+}
+
+
+
 export class PersistentAudioStorageTarget{
   get indexedDb(): IDBDatabase {
     return this._indexedDb;
@@ -66,7 +141,7 @@ export class IndexedDbAudioBuffer extends BasicAudioSource implements AudioSourc
   private _storeError:Error|null=null;
 
 
-  constructor(private _persistentAudioStorageTarget:PersistentAudioStorageTarget,private _channelCount: number, private _sampleRate: number,private _chunkFrameLen:number,private _frameLen:number, private _uuid:string) {
+  constructor(private _persistentAudioStorageTarget:PersistentAudioStorageTarget,private _channelCount: number, private _sampleRate: number,private _chunkFrameLen:number,private _frameLen:number, private _uuid:string,readonly encryptData:boolean=false) {
     super();
     this.ready();
   }
@@ -144,6 +219,8 @@ export class IndexedDbAudioBuffer extends BasicAudioSource implements AudioSourc
 
   return new Observable<void>(subscriber => {
 
+    const storeAll=(encData:Array<Array<ArrayBuffer>>|null):void=>{
+
     if (this._persistentAudioStorageTarget && this._uuid) {
       let tr = this._persistentAudioStorageTarget.indexedDb.transaction(this._persistentAudioStorageTarget.storeName, 'readwrite');
       let recFileObjStore = tr.objectStore(this._persistentAudioStorageTarget.storeName);
@@ -159,7 +236,11 @@ export class IndexedDbAudioBuffer extends BasicAudioSource implements AudioSourc
             bufLen = chChk.length;
             //let cacheId = uuid + '_' + ch + '_' + chCkIdx;
             let chkDbId = [this._uuid, this.indDbChkIdx + chCkIdx, ch];
-            let cr = recFileObjStore.add(chChk, chkDbId);
+            let storeVal:Float32Array|ArrayBuffer=chChk;
+            if(encData){
+              storeVal=encData[ch][chCkIdx];
+            }
+            let cr = recFileObjStore.add(storeVal, chkDbId);
             //console.debug("Added: "+ch+" "+(this.indDbChkIdx+chCkIdx));
             cr.onsuccess = () => {
               //console.debug("Stored audio data to indexed db");
@@ -204,6 +285,16 @@ export class IndexedDbAudioBuffer extends BasicAudioSource implements AudioSourc
         subscriber.error(new Error('Transfer audio data error: ' + err));
       }
     }
+      };
+      if (this.encryptData) {
+        encryptDataArray(data,this.channelCount).then((encData)=>{
+          storeAll(encData);
+        }).catch((encErr)=>{
+          subscriber.error(new Error('Error encrypting audio data: '+encErr));
+        });
+      } else {
+        storeAll(null);
+      }
   });
   }
 
@@ -392,6 +483,15 @@ export class IndexedDbRandomAccessStream implements RandomAccessAudioStream{
       }
       let arrBuf=new Array<Float32Array>();
       let ccLen=cc0.length;
+      // Records may be stored encrypted (AES-GCM); the stored value type tells them apart
+      if (cc[0] instanceof ArrayBuffer) {
+        decryptChunkArray(cc,ccChs).then((plain)=>{
+          cb(plain);
+        }).catch((decErr)=>{
+          errCb(new Error('Error decrypting audio data: '+decErr));
+        });
+        return;
+      }
       for(let ch=0;ch<ccChs;ch++){
         let chArr=new Float32Array(ccLen);
         for(let si=0;si<ccLen;si++){

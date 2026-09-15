@@ -119,6 +119,7 @@ All library log output goes through a level gated logger. The level is configure
 * Prefer token based authentication via the `Authorization` header over cookies.
 * A strict Content-Security-Policy must allow blob workers and blob audio worklet modules: `worker-src 'self' blob:`, `media-src blob:`.
 * Recording files and their metadata are considered personal data; the server should apply access control, transport encryption and retention policies accordingly.
+* When recordings are stored client side in IndexedDB (`DB_CHUNKED` storage), they are plaintext by default. Set `encryptPersistentRecordings: true` in `SpeechRecorderConfig` to encrypt chunks at rest with AES-GCM (WebCrypto). The key is session scoped: a page reload in the same browser session can still decrypt, a browser restart cannot (stale encrypted chunks become unreadable and should be cleaned up server side). Playback and download of encrypted recordings work transparently.
 
 ## SpeechRecorder REST API description
 

@@ -166,6 +166,8 @@ export class AudioCapture {
 
   private _audioStorageType:AudioStorageType=AudioStorageType.MEM_ENTIRE;
   private _persistentAudioStorageTarget:PersistentAudioStorageTarget|null=null;
+  // Encrypt audio chunks before storing them in IndexedDB
+  encryptPersistentRecordings: boolean=false;
 
   private persisted=true;
   private persistError:Error|null=null;
@@ -199,7 +201,7 @@ export class AudioCapture {
     //console.debug("Audio capture initialize storage for type: "+this._audioStorageType);
     if(AudioStorageType.DB_CHUNKED === this._audioStorageType && this._persistentAudioStorageTarget && this._recUUID) {
       //console.debug("Create indexed db audio buffer.");
-      this.inddbAudioBuffer = new IndexedDbAudioBuffer(this._persistentAudioStorageTarget, this.channelCount,this.currentSampleRate,AudioCapture.BUFFER_SIZE,0,this._recUUID)
+      this.inddbAudioBuffer = new IndexedDbAudioBuffer(this._persistentAudioStorageTarget, this.channelCount,this.currentSampleRate,AudioCapture.BUFFER_SIZE,0,this._recUUID,this.encryptPersistentRecordings)
     }
     if(!(AudioStorageType.NET_CHUNKED === this._audioStorageType)) {
       // Initialize audio data array except for net audio buffer mode

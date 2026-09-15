@@ -347,6 +347,7 @@ export abstract class BasicRecorder extends ResponsiveComponent{
       if(AudioStorageType.DB_CHUNKED===this._clientAudioStorageType && this._persistentAudioStorageTarget!==null) {
         this.ac.persistentAudioStorageTarget = this._persistentAudioStorageTarget;
       }
+      this.ac.encryptPersistentRecordings = this.config?.encryptPersistentRecordings===true;
     }
   }
 

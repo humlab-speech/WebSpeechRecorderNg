@@ -18,6 +18,8 @@ export class SpeechRecorderConfig{
   enableUploadRecordings?: boolean=true;
   uploadConfig?: UploadConfig;
 logLevel?: SprLogLevel;
+// Encrypt audio chunks at rest in IndexedDB (AES-GCM, session scoped key). Default: false
+encryptPersistentRecordings?: boolean=false;
   constructor(){
     this.apiEndPoint=null;
     this.apiType=null;
