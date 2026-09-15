@@ -5,8 +5,31 @@
   </button>
   <mat-menu #menu="matMenu" yPosition="below" [overlapTrigger]="false">
     <button mat-menu-item  [matMenuTriggerFor]="helpMenu">Help</button>
-    <mat-menu #helpMenu="matMenu" xPosition="after" [overlapTrigger]="false">
-      <p>WebSpeechRecorderNg {{sprVersion}}</p>
+    <mat-menu #helpMenu="matMenu" xPosition="after" [overlapTrigger]="false" class="spr-help-menu">
+      <div class="spr-help">
+        <h3 class="spr-help-title">WebSpeechRecorderNg {{sprVersion}}</h3>
+        <p class="spr-help-lead">Records speech against scripted prompts.</p>
+
+        <h4>Controls</h4>
+        <ul>
+          <li><strong>Start / Stop / Next</strong> — begin, end, or advance the recording.</li>
+          <li><strong>Pause</strong> — pause the current recording.</li>
+          <li><strong>Back / Forward</strong> — step through prompts.</li>
+          <li><strong>Next recording</strong> — jump to the next unrecorded prompt.</li>
+        </ul>
+
+        <h4>Keyboard</h4>
+        <table class="spr-help-table">
+          <thead>
+            <tr><th>Key</th><th>Action</th></tr>
+          </thead>
+          <tbody>
+            @for (b of keyBindings; track b.key) {
+              <tr><td class="spr-help-key">{{b.label}}</td><td>{{b.description}}</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
     </mat-menu>
   </mat-menu>
   &nbsp;@if (!screenXs) {

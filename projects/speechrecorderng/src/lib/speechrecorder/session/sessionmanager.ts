@@ -17,6 +17,7 @@ import {
 } from "@angular/core";
 import {SessionService} from "./session.service";
 import {State as StartStopSignalState} from "../startstopsignal/startstopsignal";
+import {KEY} from "./keybindings";
 import {MatDialog} from "@angular/material/dialog";
 import {SpeechRecorderUploader} from "../spruploader";
 import {SPEECHRECORDER_CONFIG, SpeechRecorderConfig} from "../../spr.config";
@@ -345,7 +346,7 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
 
   @HostListener('window:keypress', ['$event'])
   onKeyPress(ke: KeyboardEvent) {
-    if (ke.key == ' ') {
+    if (ke.key == KEY.START_STOP) {
       this.transportActions.startAction.perform();
       this.transportActions.nextAction.perform();
       this.transportActions.stopNonrecordingAction.perform();
@@ -354,14 +355,14 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
 
   @HostListener('window:keydown', ['$event'])
   onKeyDown(ke: KeyboardEvent) {
-    if (ke.key == ' ') {
+    if (ke.key == KEY.START_STOP) {
       this.transportActions.stopAction.perform();
     }
-    if (ke.key == 'p') {
+    if (ke.key == KEY.PAUSE) {
       this.transportActions.pauseAction.perform();
     }
 
-    if (ke.key == 'Escape') {
+    if (ke.key == KEY.STOP) {
       if(!this.audioSignalCollapsed){
         this.audioSignalCollapsed=true;
       }
@@ -369,13 +370,13 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
       this.transportActions.pauseAction.perform();
     }
 
-    if (ke.key == 'MediaPlayPause') {
+    if (ke.key == KEY.PLAY) {
       this.playStartAction.perform();
     }
-    if (ke.key === 'ArrowRight') {
+    if (ke.key === KEY.FORWARD) {
       this.transportActions.fwdAction.perform();
     }
-    if (ke.key === 'ArrowLeft') {
+    if (ke.key === KEY.BACKWARD) {
       this.transportActions.bwdAction.perform();
     }
   }

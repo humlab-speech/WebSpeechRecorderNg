@@ -16,6 +16,7 @@ import {
 } from "@angular/core";
 import {SessionService} from "./session.service";
 import {MatDialog} from "@angular/material/dialog";
+import {KEY} from "./keybindings";
 import {SpeechRecorderUploader} from "../spruploader";
 import {SPEECHRECORDER_CONFIG, SpeechRecorderConfig} from "../../spr.config";
 import {Session} from "./session";
@@ -299,27 +300,19 @@ export class AudioRecorder extends BasicRecorder implements OnInit,AfterViewInit
     }
   }
 
-  @HostListener('window:keypress', ['$event'])
-  onKeyPress(ke: KeyboardEvent) {
-    if (ke.key == ' ') {
-      //this.transportActions.startAction.perform();
-      //this.transportActions.nextAction.perform();
-    }
-  }
-
   @HostListener('window:keydown', ['$event'])
   onKeyDown(ke: KeyboardEvent) {
-    if (ke.key == ' ') {
+    if (ke.key == KEY.START_STOP) {
       if(!this.transportActions.startAction.disabled){
         this.transportActions.startAction.perform();
       }else if(!this.transportActions.stopAction.disabled) {
         this.transportActions.stopAction.perform();
       }
     }
-    if (ke.key == 'p') {
+    if (ke.key == KEY.PAUSE) {
       this.transportActions.pauseAction.perform();
     }
-    if (ke.key == 'Escape') {
+    if (ke.key == KEY.STOP) {
       if (!this.audioSignalCollapsed) {
         this.audioSignalCollapsed = true;
       }
@@ -327,13 +320,13 @@ export class AudioRecorder extends BasicRecorder implements OnInit,AfterViewInit
       this.transportActions.pauseAction.perform();
     }
 
-    if (ke.key == 'MediaPlayPause') {
+    if (ke.key == KEY.PLAY) {
       this.playStartAction.perform();
     }
-    if (ke.key === 'ArrowRight') {
+    if (ke.key === KEY.FORWARD) {
       this.transportActions.fwdAction.perform();
     }
-    if (ke.key === 'ArrowLeft') {
+    if (ke.key === KEY.BACKWARD) {
       this.transportActions.bwdAction.perform();
     }
   }

@@ -8,6 +8,7 @@ import {ProgressSpinnerMode} from "@angular/material/progress-spinner";
 import {BreakpointObserver, Breakpoints} from "@angular/cdk/layout";
 import {ResponsiveComponent} from "../../ui/responsive_component";
 import {ThemePalette} from "@angular/material/core";
+import {KEY, keyLabel} from "./keybindings";
 
 
 
@@ -182,11 +183,11 @@ export class TransportActions {
     template: `
     @if (navigationEnabled) {
       <button id="bwdBtn"  (click)="actions.bwdAction.perform()" [disabled]="bwdDisabled()"
-        mat-raised-button class="transport-button-icon">
+        mat-raised-button class="transport-button-icon" [matTooltip]="bwdTooltip" [attr.aria-label]="bwdTooltip">
         <span><mat-icon>chevron_left</mat-icon></span>
       </button>
     }
-    <button (click)="startStopNextPerform()" [disabled]="startDisabled() && stopDisabled() && nextDisabled() && stopNonrecordingDisabled()"  mat-raised-button  class="transport-button-icon">
+    <button (click)="startStopNextPerform()" [disabled]="startDisabled() && stopDisabled() && nextDisabled() && stopNonrecordingDisabled()"  mat-raised-button  class="transport-button-icon" [matTooltip]="startStopNextTooltip" [attr.aria-label]="startStopNextTooltip">
       <span><mat-icon class="transport-button-icon" [style.color]="startStopNextIconColor()">{{startStopNextIconName()}}</mat-icon>@if (!nextDisabled() || !stopNonrecordingDisabled()) {
       <mat-icon class="transport-button-icon" [style.color]="nextDisabled() ? 'grey' : 'black'">chevron_right</mat-icon>
     }</span>
@@ -195,7 +196,7 @@ export class TransportActions {
     }
     </button>
     @if (pausingEnabled) {
-      <button (click)="actions.pauseAction.perform()" [disabled]="pauseDisabled()" mat-raised-button  class="transport-button-icon">
+      <button (click)="actions.pauseAction.perform()" [disabled]="pauseDisabled()" mat-raised-button  class="transport-button-icon" [matTooltip]="pauseTooltip" [attr.aria-label]="pauseTooltip">
         <span><mat-icon class="transport-button-icon">pause</mat-icon></span>
         @if (!screenXs) {
           <span class="transport-button-text">Pause</span>
@@ -203,12 +204,12 @@ export class TransportActions {
       </button>
     }
     @if (navigationEnabled && !screenXs) {
-      <button id="fwdNextBtn" (click)="actions.fwdNextAction.perform()" [disabled]="fwdNextDisabled()" mat-raised-button class="transport-button-icon">
+      <button id="fwdNextBtn" (click)="actions.fwdNextAction.perform()" [disabled]="fwdNextDisabled()" mat-raised-button class="transport-button-icon" matTooltip="Next recording" aria-label="Next recording">
         <span><mat-icon>redo</mat-icon></span>
       </button>
     }
     @if (navigationEnabled) {
-      <button id="fwdBtn"  (click)="actions.fwdAction.perform()" [disabled]="fwdDisabled()" mat-raised-button class="transport-button-icon">
+      <button id="fwdBtn"  (click)="actions.fwdAction.perform()" [disabled]="fwdDisabled()" mat-raised-button class="transport-button-icon" [matTooltip]="fwdTooltip" [attr.aria-label]="fwdTooltip">
         <span><mat-icon>chevron_right</mat-icon></span>
       </button>
     }
@@ -258,6 +259,22 @@ export class TransportPanel extends ResponsiveComponent{
     constructor(breakpointObserver: BreakpointObserver) {
       super(breakpointObserver);
     }
+
+  get bwdTooltip():string {
+    return `Backward (${keyLabel(KEY.BACKWARD)})`;
+  }
+
+  get startStopNextTooltip():string {
+    return `Start / Stop / Next (${keyLabel(KEY.START_STOP)})`;
+  }
+
+  get pauseTooltip():string {
+    return `Pause (${keyLabel(KEY.PAUSE)})`;
+  }
+
+  get fwdTooltip():string {
+    return `Forward (${keyLabel(KEY.FORWARD)})`;
+  }
 
   startDisabled() {
     return !this.actions || this.readonly || this.actions.startAction.disabled

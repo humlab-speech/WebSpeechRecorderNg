@@ -44,3 +44,4 @@ export {RecordingFileUI} from './lib/speechrecorder/session/recordingfile/record
 export {SpeechRecorderConfig,ApiType} from './lib/spr.config'
 export {UploadConfig,UploadError,UploaderStatus,UploaderStatusChangeEvent} from './lib/net/uploader'
 export {SpeechrecorderngComponent} from './lib/speechrecorderng.component'
+export {KEY, KEY_BINDINGS, KeyBinding, keyLabel} from './lib/speechrecorder/session/keybindings'
