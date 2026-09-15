@@ -284,6 +284,68 @@ There might be multiple uploads for one recording item, when the subject repeats
 The server should apply a unique identifier for each uploaded recording file. Subsequent recording uploads for the same itemcode should get different IDs and should be stored with a version number starting with zero.    
 A GET request to the URL should return the latest upload.  
 
+### Upload robustness and backend requirements
+
+The upload queue is failure tolerant: every upload request carries an idempotency key, transient failures are retried with exponential backoff and permanent failures are reported to the user.
+
+#### Idempotency
+
+All upload POST requests (recording file, prepare, chunk and concat endpoints) include the header:
+
+```
+Idempotency-Key: <uuid>
+```
+
+The key identifies one logical upload and is identical across retries of the same request. A request may be retried because the client aborted a previous attempt after a timeout even though the server had already stored the payload.
+
+The server should:
+
+* treat the pair (idempotency key, target URL) as unique within a TTL (e.g. 24h) and return the result of the original request instead of storing a duplicate;
+* additionally deduplicate chunk uploads by the recording file UUID and chunk index (`{uuid}/{chunkIdx}`);
+* reject `concatChunksRequest` with a 4xx status when the stored chunk count does not match the requested `chunkCount`.
+
+#### Chunked upload endpoints
+
+When the client streams recordings (NET_CHUNKED storage), it uses these endpoints:
+
+* `POST {apiEndPoint}session/{sessionId}/recfile/{uuid}/prepareChunksRequest` — FormData: `uuid`, `startedDate` (ISO date). Opens the recording file for chunked upload.
+* `POST {apiEndPoint}session/{sessionId}/recfile/{uuid}/{chunkIdx}` — body: WAVE encoded audio chunk, `chunkIdx` 0-based and ascending. The `spr` route variant posts to `recfile/{itemcode}/{uuid}/{chunkIdx}` instead.
+* `POST {apiEndPoint}session/{sessionId}/recfile/{uuid}/concatChunksRequest` — FormData: `uuid`, `chunkCount`. Concatenates the stored chunks and closes the recording file.
+
+#### Status codes
+
+The client classifies failures as follows:
+
+| Response | Handling |
+|---|---|
+| 2xx | Success. The recording is marked as server persisted. |
+| 408, 425, 429, 5xx | Transient: retried with exponential backoff + jitter (default up to 8 attempts, delays 1s..60s). |
+| other 4xx | Permanent: not retried. The upload is marked failed and an error message is shown. The user can retry all failed uploads. |
+| Network error / timeout | Transient, retried (the idempotency key prevents duplicates). |
+
+Permanent conditions (unknown session or recording file, size limits, authentication) must therefore be answered with 4xx statuses other than 408/425/429.
+
+#### Error responses
+
+On 4xx the response body should be JSON `{"error": "human readable message"}` or plain text. The message is shown to the user.
+
+#### Strict acknowledgement (optional)
+
+By default any 2xx response counts as stored. If the server confirms storage explicitly, set `uploadConfig.requireStoredAck = true` in `SpeechRecorderConfig`; every successful store must then respond with the JSON body `{"stored": true}`.
+
+#### Client configuration
+
+`SpeechRecorderConfig.uploadConfig` accepts:
+
+* `maxAttempts` (default 8) — total POST attempts per upload.
+* `baseRetryDelayMs` (default 1000) and `maxRetryDelayMs` (default 60000) — bounds of the exponential retry backoff.
+* `jitterRatio` (default 0.25) — relative jitter applied to retry delays.
+* `requireStoredAck` (default false) — require the `{"stored": true}` response body.
+* `idempotencyHeader` (default `Idempotency-Key`) — header name carrying the idempotency key.
+
+A recording is only marked as server persisted after the server acknowledges the upload. While uploads are pending or have terminally failed, the client blocks page navigation and does not mark the session as complete.
+
+
 ### Start a recording session
 
 The default routing path to start a recording session is `/spr/session/{sessionId}`. If you call this router link from your Angular application
