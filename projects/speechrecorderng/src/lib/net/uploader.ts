@@ -1,7 +1,9 @@
 import { HttpClient, HttpErrorResponse, HttpHeaders } from "@angular/common/http";
 import { timeout } from 'rxjs/operators'
+import {Observable} from "rxjs";
 import {UUID} from "../utils/utils";
 import {SprLogger} from "../utils/logger";
+import {SprDb} from "../db/inddb";
 
 // state of an upload
 export enum UploadStatus {IDLE = 1, UPLOADING = 2,  ABORT = 3, DONE = 0, ERR = -1, FAILED = -2}
@@ -43,6 +45,9 @@ export interface UploadConfig {
     // The server must answer GET {chunkUrl}/{chunkIdx} with 2xx (stored) or 404 (not stored).
     // Enables safe re-upload after a crash or reload. Default: false
     checkStoredChunkBeforeUpload?: boolean;
+    // If true, persist Blob uploads to IndexedDB before POSTing and remove them on success.
+    // Restore with Uploader.restorePersistedUploads() after a page reload. Default: false
+    persistQueue?: boolean;
 }
 
 export const DEFAULT_UPLOAD_CONFIG: Required<UploadConfig> = {
@@ -53,7 +58,8 @@ export const DEFAULT_UPLOAD_CONFIG: Required<UploadConfig> = {
     requireStoredAck: false,
     idempotencyHeader: 'Idempotency-Key',
     maxConcurrentUploads: 1,
-    checkStoredChunkBeforeUpload: false
+    checkStoredChunkBeforeUpload: false,
+    persistQueue: false
 };
 
 export class UploaderStatusChangeEvent {
@@ -110,6 +116,19 @@ export interface ServerPersistable{
     serverPersisted:boolean;
 }
 
+export interface PersistedUploadEntry {
+    idempotencyKey: string;
+    url: string;
+    blob: Blob;
+}
+
+function isPersistedUploadEntry(value: unknown): value is PersistedUploadEntry {
+    return value !== null && typeof value === 'object'
+        && 'idempotencyKey' in value && typeof value.idempotencyKey === 'string'
+        && 'url' in value && typeof value.url === 'string'
+        && 'blob' in value && value.blob instanceof Blob;
+}
+
 export class Upload {
 
     get serverPersistable(): ServerPersistable | null {
@@ -130,11 +149,12 @@ export class Upload {
     // error of the last failed attempt, if any
     lastError: UploadError|null=null;
 
-    constructor(blob:Blob|FormData, url:string,private _serverPersistable:ServerPersistable|null=null) {
+    constructor(blob:Blob|FormData, url:string,private _serverPersistable:ServerPersistable|null=null, idempotencyKey?:string) {
         this._data = blob;
         this._url = url;
         this.status = UploadStatus.IDLE;
-        this.idempotencyKey=(typeof crypto!=='undefined' && typeof crypto.randomUUID==='function')?crypto.randomUUID():UUID.generate();
+        this.idempotencyKey= idempotencyKey !== undefined ? idempotencyKey
+            : ((typeof crypto!=='undefined' && typeof crypto.randomUUID==='function')?crypto.randomUUID():UUID.generate());
     }
 
     get url():string {
@@ -390,6 +410,7 @@ export class Uploader {
     private uploadSucceeded(ul:Upload) {
 
         this.inflight--;
+        this.removePersistedUpload(ul);
         ul.succeeded();
 
         // remove upload from queue
@@ -623,8 +644,90 @@ export class Uploader {
             let ulSize = this.dataSize(ul.data);
             this.que.push(ul);
             this._sizeQueued += ulSize;
+            this.persistUpload(ul);
             this.process();
         }
+    }
+
+    // Persists the blob payload of an upload to IndexedDB so it can be re-queued
+    // after a page reload (see restorePersistedUploads). Only Blob payloads are
+    // persisted; FormData control requests (prepare/concat) are re-creatable.
+    private persistUpload(ul: Upload): void {
+        if (!this.uploadCfg.persistQueue || !(ul.data instanceof Blob)) {
+            return;
+        }
+        SprDb.prepare().subscribe({
+            next: (db) => {
+                try {
+                    const tr = db.transaction(SprDb.UPLOAD_QUEUE_OBJECT_STORE_NAME, 'readwrite');
+                    tr.objectStore(SprDb.UPLOAD_QUEUE_OBJECT_STORE_NAME)
+                        .put({idempotencyKey: ul.idempotencyKey, url: ul.url, blob: ul.data});
+                } catch (err) {
+                    SprLogger.error('Could not persist upload for later resume: ' + err);
+                }
+            },
+            error: (err: unknown) => {
+                SprLogger.error('Could not persist upload for later resume: ' + err);
+            }
+        });
+    }
+
+    private removePersistedUpload(ul: Upload): void {
+        if (!this.uploadCfg.persistQueue) {
+            return;
+        }
+        SprDb.prepare().subscribe({
+            next: (db) => {
+                try {
+                    const tr = db.transaction(SprDb.UPLOAD_QUEUE_OBJECT_STORE_NAME, 'readwrite');
+                    tr.objectStore(SprDb.UPLOAD_QUEUE_OBJECT_STORE_NAME).delete(ul.idempotencyKey);
+                } catch (err) {
+                    SprLogger.error('Could not remove persisted upload: ' + err);
+                }
+            },
+            error: () => {
+                // removing a stale queue entry is best effort
+            }
+        });
+    }
+
+    // Restores uploads persisted before a page reload and queues them again.
+    // Restored uploads keep their idempotency keys, so the server can deduplicate
+    // uploads that succeeded before the reload. Persisted entries are removed
+    // once the restored upload succeeds.
+    restorePersistedUploads(): Observable<number> {
+        return new Observable<number>((subscriber) => {
+            SprDb.prepare().subscribe({
+                next: (db) => {
+                    try {
+                        const tr = db.transaction(SprDb.UPLOAD_QUEUE_OBJECT_STORE_NAME, 'readonly');
+                        const req = tr.objectStore(SprDb.UPLOAD_QUEUE_OBJECT_STORE_NAME).getAll();
+                        req.onsuccess = () => {
+                            let restored = 0;
+                            const entries: unknown = req.result;
+                            if (Array.isArray(entries)) {
+                                for (const entry of entries) {
+                                    if (isPersistedUploadEntry(entry)) {
+                                        this.queueUpload(new Upload(entry.blob, entry.url, null, entry.idempotencyKey));
+                                        restored++;
+                                    }
+                                }
+                            }
+                            subscriber.next(restored);
+                            subscriber.complete();
+                        };
+                        req.onerror = () => {
+                            subscriber.error(req.error ?? new Error('Could not read persisted upload queue.'));
+                        };
+                    } catch (err) {
+                        subscriber.error(err);
+                    }
+                },
+                error: (err: unknown) => {
+                    subscriber.error(err);
+                }
+            });
+        });
     }
 
     retryFailedUploads():void {

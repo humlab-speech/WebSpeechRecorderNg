@@ -245,11 +245,21 @@ export class SpeechrecorderngComponent extends RecorderComponent implements OnIn
 		    return this.dataSaved && !this.sm.isActive()
         }
 
-		init():boolean {
-      //TODO Duplicate code in AudioRecorderComponent
-        this.uploader.listener = (ue) => {
-          this.uploadUpdate(ue);
+  init():boolean {
+    //TODO Duplicate code in AudioRecorderComponent
+    this.uploader.listener = (ue) => {
+      this.uploadUpdate(ue);
+    }
+    this.uploader.restorePersistedUploads().subscribe({
+      next: (restored: number) => {
+        if (restored > 0) {
+          SprLogger.info('Restored ' + restored + ' persisted uploads.');
         }
+      },
+      error: (err: unknown) => {
+        SprLogger.error('Could not restore persisted uploads: ' + err);
+      }
+    });
         window.addEventListener('beforeunload', (e) => {
           //console.debug("Before page unload event");
 

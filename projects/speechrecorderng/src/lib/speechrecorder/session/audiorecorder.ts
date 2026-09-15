@@ -1256,6 +1256,16 @@ export class AudioRecorderComponent extends RecorderComponent  implements OnInit
     this.uploader.listener = (ue) => {
       this.uploadUpdate(ue);
     }
+    this.uploader.restorePersistedUploads().subscribe({
+      next: (restored: number) => {
+        if (restored > 0) {
+          SprLogger.info('Restored ' + restored + ' persisted uploads.');
+        }
+      },
+      error: (err: unknown) => {
+        SprLogger.error('Could not restore persisted uploads: ' + err);
+      }
+    });
     this.route.queryParams.subscribe((params: Params) => {
       if (params['sessionId']) {
         this.fetchSession(params['sessionId']);

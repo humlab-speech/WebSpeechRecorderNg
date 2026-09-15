@@ -287,6 +287,50 @@ describe('Uploader', () => {
         expect(events[events.length - 1].status).toBe(UploaderStatus.DONE);
     });
 
+    it('persists blob uploads and restores them with the same key after a reload', async () => {
+        // clean state
+        await new Promise<void>((resolve) => {
+            const dr = indexedDB.deleteDatabase('speechrecorder');
+            dr.onsuccess = () => resolve();
+            dr.onerror = () => resolve();
+        });
+        // first uploader: upload fails terminally (maxAttempts 1), entry stays persisted
+        const upl1 = uploader({persistQueue: true, maxAttempts: 1});
+        const ul1 = new Upload(blob(10), '/api/persisted');
+        upl1.queueUpload(ul1);
+        const req1 = httpMock.expectOne('/api/persisted');
+        const key = req1.request.headers.get('Idempotency-Key');
+        req1.error(networkError());
+        expect(ul1.status).toBe(UploadStatus.FAILED);
+        // wait for the persistence put to commit
+        await wait(50);
+        // simulate a reload: a fresh uploader restores the persisted upload
+        const upl2 = uploader({persistQueue: true});
+        let restored = -1;
+        await new Promise<void>((resolve) => {
+            upl2.restorePersistedUploads().subscribe({next: (n) => { restored = n; }, complete: () => resolve()});
+        });
+        expect(restored).toBe(1);
+        // the restored upload re-posts with the SAME idempotency key
+        const req2 = httpMock.expectOne('/api/persisted');
+        expect(req2.request.headers.get('Idempotency-Key')).toBe(key);
+        req2.flush({});
+        // wait for the persisted entry removal on success
+        await wait(50);
+        // a third uploader must not restore anything anymore
+        const upl3 = uploader({persistQueue: true});
+        let restored2 = -1;
+        await new Promise<void>((resolve) => {
+            upl3.restorePersistedUploads().subscribe({next: (n) => { restored2 = n; }, complete: () => resolve()});
+        });
+        expect(restored2).toBe(0);
+        await new Promise<void>((resolve) => {
+            const dr = indexedDB.deleteDatabase('speechrecorder');
+            dr.onsuccess = () => resolve();
+            dr.onerror = () => resolve();
+        });
+    });
+
     it('fires onDone assigned after complete() once all uploads are done (late assignment)', () => {
         const upl = uploader();
         const set = new UploadSet();
