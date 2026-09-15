@@ -16,3 +16,13 @@ getTestBed().initTestEnvironment(
     teardown: { destroyAfterEach: false }
 }
 );
+
+// Chrome throws a benign 'ResizeObserver loop completed with undelivered notifications'
+// error when Angular CDK's BreakpointObserver is exercised in headless tests.
+// It is not an application error; swallow it to keep karma connected.
+window.onerror = function (message: string | Event) {
+  if (/ResizeObserver/.test(String(message))) {
+    return true;
+  }
+  return undefined;
+};

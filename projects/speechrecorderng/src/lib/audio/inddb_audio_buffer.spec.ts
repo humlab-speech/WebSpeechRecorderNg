@@ -203,6 +203,8 @@ describe('IndexedDbAudioBuffer',
       };
       or.onsuccess = () => {
         console.info("Opened indexed database");
+        let pt = new PersistentAudioStorageTarget(or.result, RECORDING_FILE_CHUNKS_OBJECT_STORE_NAME);
+        aab = new IndexedDbAudioBuffer(pt, 2, 44100, 50, 0, UUID.generate());
         test1Loop(aab, RECORDING_FILE_CHUNKS_OBJECT_STORE_NAME, or, 0, 0, done);
       }
     }
