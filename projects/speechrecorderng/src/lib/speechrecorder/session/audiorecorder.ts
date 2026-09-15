@@ -1098,16 +1098,40 @@ export class AudioRecorder extends BasicRecorder implements OnInit,AfterViewInit
 
   postChunkAudioBuffer(buffers: Array<Float32Array>, sampleRate: number, chunkIdx: number): void {
     this.processingRecording = true;
-    const ww = new WavWriter(this.project?.mediaStorageFormat?.audioEncoding===AudioStorageFormatEncoding.PCM_FLOAT,this.project?.mediaStorageFormat?.audioPCMsampleSizeInBits);
-    let sessionsUrl = this.sessionsBaseUrl();
-    let recUrl: string = sessionsUrl + '/' + encodeURIComponent(this.session?.sessionId ?? '') + '/' + RECFILE_API_CTX + '/' + encodeURIComponent(this.rfUuid ?? '')+'/'+chunkIdx;
-    let rf=this._recordingFile;
 
     // The upload holder is required to add the upload now to the upload set. The real upload is created async in postrecording and the upload set is already complete at that time.
     let ulh=new UploadHolder();
     if(this.uploadSet){
       this.uploadSet.add(ulh);
     }
+    const chunkBaseUrl = this.sessionsBaseUrl() + '/' + encodeURIComponent(this.session?.sessionId ?? '') + '/' + RECFILE_API_CTX + '/' + encodeURIComponent(this.rfUuid ?? '');
+    if (this.config?.uploadConfig?.checkStoredChunkBeforeUpload===true) {
+      this.recFileService.chunkStoredRequest(chunkBaseUrl, chunkIdx).subscribe({
+        next: (stored: boolean) => {
+          if (stored) {
+            // server already holds this chunk: mark the upload done without re-posting
+            const skipUl = new Upload(new Blob([]), chunkBaseUrl + '/' + chunkIdx);
+            ulh.upload = skipUl;
+            skipUl.succeeded();
+            this.processingRecording = false;
+          } else {
+            this.encodeAndPostChunk(buffers, sampleRate, chunkIdx, ulh);
+          }
+        },
+        error: () => {
+          // stored check failed: fall back to a blind upload (the idempotency key still protects against duplicates)
+          this.encodeAndPostChunk(buffers, sampleRate, chunkIdx, ulh);
+        }
+      });
+    } else {
+      this.encodeAndPostChunk(buffers, sampleRate, chunkIdx, ulh);
+    }
+  }
+
+  private encodeAndPostChunk(buffers: Array<Float32Array>, sampleRate: number, chunkIdx: number, ulh: UploadHolder): void {
+    const ww = new WavWriter(this.project?.mediaStorageFormat?.audioEncoding===AudioStorageFormatEncoding.PCM_FLOAT,this.project?.mediaStorageFormat?.audioPCMsampleSizeInBits);
+    let recUrl: string = this.sessionsBaseUrl() + '/' + encodeURIComponent(this.session?.sessionId ?? '') + '/' + RECFILE_API_CTX + '/' + encodeURIComponent(this.rfUuid ?? '')+'/'+chunkIdx;
+    let rf=this._recordingFile;
     const channels=buffers.length;
     const frameLength=channels>0?buffers[0].length:0;
     ww.writeAsyncPlanar(channels,sampleRate,frameLength,buffers, (wavFile) => {

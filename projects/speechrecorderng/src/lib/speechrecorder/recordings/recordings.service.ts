@@ -111,6 +111,35 @@ export class RecordingService extends BasicRecordingService{
 
   }
 
+  // Checks whether the server already holds the audio chunk with the given index.
+  // Resolves to true on 2xx (stored), false on 404 (not stored); other responses error.
+  chunkStoredRequest(baseChunkUrl:string, chunkIdx:number): Observable<boolean> {
+    let recUrl = baseChunkUrl + '/' + chunkIdx;
+    let headers = new HttpHeaders();
+    headers = headers.set('Accept', 'audio/wav');
+    return new Observable<boolean>((observer) => {
+      this.http.get(recUrl, {
+        headers: headers,
+        observe: 'response',
+        responseType: 'arraybuffer',
+        withCredentials: this.withCredentials
+      }).subscribe({
+        next: () => {
+          observer.next(true);
+          observer.complete();
+        },
+        error: (err: unknown) => {
+          if (err instanceof HttpErrorResponse && err.status === 404) {
+            observer.next(false);
+            observer.complete();
+          } else {
+            observer.error(err);
+          }
+        }
+      });
+    });
+  }
+
 
 
 

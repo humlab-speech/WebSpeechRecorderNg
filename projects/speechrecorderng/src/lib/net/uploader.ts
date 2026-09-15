@@ -39,6 +39,10 @@ export interface UploadConfig {
     // When >1 the server must tolerate uploads arriving out of order, e.g. chunk POSTs
     // being in flight while the prepare request is still being processed.
     maxConcurrentUploads?: number;
+    // If true, check via GET whether the server already holds a chunk before uploading it.
+    // The server must answer GET {chunkUrl}/{chunkIdx} with 2xx (stored) or 404 (not stored).
+    // Enables safe re-upload after a crash or reload. Default: false
+    checkStoredChunkBeforeUpload?: boolean;
 }
 
 export const DEFAULT_UPLOAD_CONFIG: Required<UploadConfig> = {
@@ -48,7 +52,8 @@ export const DEFAULT_UPLOAD_CONFIG: Required<UploadConfig> = {
     jitterRatio: 0.25,
     requireStoredAck: false,
     idempotencyHeader: 'Idempotency-Key',
-    maxConcurrentUploads: 1
+    maxConcurrentUploads: 1,
+    checkStoredChunkBeforeUpload: false
 };
 
 export class UploaderStatusChangeEvent {
