@@ -353,6 +353,7 @@ By default any 2xx response counts as stored. If the server confirms storage exp
 * `jitterRatio` (default 0.25) — relative jitter applied to retry delays.
 * `requireStoredAck` (default false) — require the `{"stored": true}` response body.
 * `idempotencyHeader` (default `Idempotency-Key`) — header name carrying the idempotency key.
+* `maxConcurrentUploads` (default 1) — maximum number of POST requests in flight. When set above 1, the server must tolerate uploads arriving out of order (e.g. chunk POSTs in flight while the prepare request is still being processed).
 
 A recording is only marked as server persisted after the server acknowledges the upload. While uploads are pending or have terminally failed, the client blocks page navigation and does not mark the session as complete.
 

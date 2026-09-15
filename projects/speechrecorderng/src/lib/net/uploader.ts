@@ -35,6 +35,10 @@ export interface UploadConfig {
     requireStoredAck?: boolean;
     // HTTP header name carrying the idempotency key. Default: 'Idempotency-Key'
     idempotencyHeader?: string;
+    // Maximum number of POST requests in flight. Default: 1 (sequential).
+    // When >1 the server must tolerate uploads arriving out of order, e.g. chunk POSTs
+    // being in flight while the prepare request is still being processed.
+    maxConcurrentUploads?: number;
 }
 
 export const DEFAULT_UPLOAD_CONFIG: Required<UploadConfig> = {
@@ -43,7 +47,8 @@ export const DEFAULT_UPLOAD_CONFIG: Required<UploadConfig> = {
     maxRetryDelayMs: 60000,
     jitterRatio: 0.25,
     requireStoredAck: false,
-    idempotencyHeader: 'Idempotency-Key'
+    idempotencyHeader: 'Idempotency-Key',
+    maxConcurrentUploads: 1
 };
 
 export class UploaderStatusChangeEvent {
@@ -326,6 +331,8 @@ export class Uploader {
     private retryTimerId: number | null = null;
     // guards against reentrant process() calls (listener callbacks may synchronously re-enter)
     private processing = false;
+    // number of POST requests currently in flight
+    private inflight = 0;
 
     private readonly uploadCfg: Required<UploadConfig>;
 
@@ -334,6 +341,9 @@ export class Uploader {
     constructor(private http: HttpClient, private withCredentials: boolean = false, uploadCfg: UploadConfig = {}) {
         this.que = new Array<Upload>();
         this.uploadCfg = Object.assign({}, DEFAULT_UPLOAD_CONFIG, uploadCfg);
+        if (this.uploadCfg.maxConcurrentUploads < 1) {
+            this.uploadCfg.maxConcurrentUploads = 1;
+        }
     }
 
     get failedUploads(): number {
@@ -374,6 +384,7 @@ export class Uploader {
 
     private uploadSucceeded(ul:Upload) {
 
+        this.inflight--;
         ul.succeeded();
 
         // remove upload from queue
@@ -433,6 +444,7 @@ export class Uploader {
 
         ul.status = UploadStatus.UPLOADING;
         ul.attemptCount++;
+        this.inflight++;
         if (UploaderStatus.ERR === this.status) {
             this.status = UploaderStatus.TRY_UPLOADING;
         } else {
@@ -459,6 +471,7 @@ export class Uploader {
                         //console.debug('Next method called for upload: '+uploadedUpload)
                     } else {
                         uploadFailedAck=true;
+                        this.inflight--;
                         this.processError(ul,{status: 200, message: 'Server did not confirm that the upload was stored.', terminal: true});
                     }
                 }
@@ -471,6 +484,7 @@ export class Uploader {
                         // The response body may contain clues as to what went wrong,
                         SprLogger.error(`Upload error: Server returned code ${err.status}`);
                     }
+                    this.inflight--;
                     this.processError(ul,this.classifyError(err))
                 }, complete: () => {
                     //console.debug('Upload complete method called')
@@ -558,51 +572,40 @@ export class Uploader {
             //console.debug("Cleared retry timer.")
         }
 
-        let pul: Upload | null = null;
+        let startedCnt = 0;
 
         //console.debug("Uploader status: "+this.status)
 
         let s = this.que.length;
         //console.debug(s+" uploads are in the queue.")
 
-        if (s>0 && UploaderStatus.UPLOADING != this.status && UploaderStatus.TRY_UPLOADING != this.status) {
-
-            for (let i = 0; i < s; i++) {
-                let ul = this.que[i];
-                //console.log("Upload "+ul+" status:"+ul.status)
-                if (ul.status === UploadStatus.IDLE) {
-                    //console.log("Upload "+ul+" startUpload")
-                    this.startUpload(ul);
-                    pul = ul;
-                    break;
-                }
-            }
-            if (!pul) {
-                //console.log("Check ERR uploads...")
-                // now failed uploads
-                //console.debug("No regular upload found. Looking for error state uploads.")
-                for (let i = 0; i < s; i++) {
-                    let ul = this.que[i];
-                    //console.log("Upload "+ul+" status:"+ul.status)
-                    if (ul.status === UploadStatus.ERR) {
-                        //console.log("Upload (ERR) "+ul+" startUpload")
-                        //console.debug("Start error state upload "+ul)
-                        this.startUpload(ul);
-                        pul = ul;
-                        break;
-                    }
-                }
+        // start uploads while concurrency capacity remains
+        for (let i = 0; i < s && this.inflight < this.uploadCfg.maxConcurrentUploads; i++) {
+            let ul = this.que[i];
+            //console.log("Upload "+ul+" status:"+ul.status)
+            if (ul.status === UploadStatus.IDLE) {
+                //console.log("Upload "+ul+" startUpload")
+                this.startUpload(ul);
+                startedCnt++;
             }
         }
+        // then retry previously failed (transient) uploads with remaining capacity
+        for (let i = 0; i < s && this.inflight < this.uploadCfg.maxConcurrentUploads; i++) {
+            let ul = this.que[i];
+            if (ul.status === UploadStatus.ERR) {
+                //console.debug("Start error state upload "+ul)
+                this.startUpload(ul);
+                startedCnt++;
+            }
+        }
+
         let failedCnt = this.failedUploads;
-        if(s==0){
+        if(s==0 && this.inflight===0){
             //console.debug("Upload done.")
             this.status = (failedCnt>0)?UploaderStatus.PARTIAL:UploaderStatus.DONE;
-        }else if(!pul && UploaderStatus.UPLOADING != this.status && UploaderStatus.TRY_UPLOADING != this.status){
-            // nothing startable: all remaining uploads terminally failed
-            if(failedCnt>0) {
-                this.status = UploaderStatus.PARTIAL;
-            }
+        }else if(startedCnt===0 && this.inflight===0 && s>0 && failedCnt>0){
+            // nothing startable and nothing in flight: all remaining uploads terminally failed
+            this.status = UploaderStatus.PARTIAL;
         }
         let ue = new UploaderStatusChangeEvent(this._sizeQueued, this._sizeDone, this.status, failedCnt, this.lastFailedError());
         if (this.listener) {

@@ -241,6 +241,52 @@ describe('Uploader', () => {
         httpMock.expectNone('/api/second');
     });
 
+    it('stays sequential by default (one request in flight)', () => {
+        const upl = uploader();
+        const first = new Upload(blob(10), '/api/first');
+        const second = new Upload(blob(10), '/api/second');
+        upl.queueUpload(first);
+        upl.queueUpload(second);
+        httpMock.expectNone('/api/second');
+        httpMock.expectOne('/api/first').flush({});
+        httpMock.expectOne('/api/second').flush({});
+        expect(first.status).toBe(UploadStatus.DONE);
+        expect(second.status).toBe(UploadStatus.DONE);
+    });
+
+    it('uploads concurrently up to maxConcurrentUploads', () => {
+        const upl = uploader({maxConcurrentUploads: 2});
+        const events = collectEvents(upl);
+        const first = new Upload(blob(10), '/api/first');
+        const second = new Upload(blob(10), '/api/second');
+        const third = new Upload(blob(10), '/api/third');
+        upl.queueUpload(first);
+        upl.queueUpload(second);
+        upl.queueUpload(third);
+        // capacity 2: the third upload waits
+        httpMock.expectNone('/api/third');
+        // completing one frees capacity for the third
+        httpMock.expectOne('/api/first').flush({});
+        httpMock.expectOne('/api/third').flush({});
+        httpMock.expectOne('/api/second').flush({});
+        expect(first.status).toBe(UploadStatus.DONE);
+        expect(second.status).toBe(UploadStatus.DONE);
+        expect(third.status).toBe(UploadStatus.DONE);
+        expect(events[events.length - 1].status).toBe(UploaderStatus.DONE);
+    });
+
+    it('reports DONE only when the queue is empty and nothing is in flight', () => {
+        const upl = uploader({maxConcurrentUploads: 3});
+        const events = collectEvents(upl);
+        upl.queueUpload(new Upload(blob(10), '/api/first'));
+        upl.queueUpload(new Upload(blob(10), '/api/second'));
+        // first completes while second is still in flight: no DONE yet
+        httpMock.expectOne('/api/first').flush({});
+        expect(events[events.length - 1].status).not.toBe(UploaderStatus.DONE);
+        httpMock.expectOne('/api/second').flush({});
+        expect(events[events.length - 1].status).toBe(UploaderStatus.DONE);
+    });
+
     it('fires onDone assigned after complete() once all uploads are done (late assignment)', () => {
         const upl = uploader();
         const set = new UploadSet();
