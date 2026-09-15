@@ -1,3 +1,4 @@
+import {SprLogger} from "../../utils/logger";
 // Code from audio_source_worklet.js as string constant to be loaded as module
 // Changes in audio_source_worklet.js must be copied and pasted to this string constant
 
@@ -160,7 +161,7 @@ export class AudioSourceWorkletModuleLoader{
           AudioSourceWorkletModuleLoader.moduleLoaded = true;
           resolve.call(self);
         }).catch((reason) => {
-          console.error(reason);
+          SprLogger.error(reason);
           reject.call(reason);
         });
 

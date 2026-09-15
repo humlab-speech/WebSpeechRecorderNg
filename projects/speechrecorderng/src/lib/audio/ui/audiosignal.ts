@@ -3,6 +3,7 @@ import {AudioCanvasLayerComponent} from "./audio_canvas_layer_comp";
 import {WorkerHelper} from "../../utils/utils";
 import {AudioBufferSource, AudioDataHolder} from "../audio_data_holder";
 import {Subscription} from "rxjs";
+import {SprLogger} from "../../utils/logger";
 
 declare function postMessage(message: any, transfer: Array<any>): void;
 
@@ -314,7 +315,7 @@ export class AudioSignal extends AudioCanvasLayerComponent{
                             }
                           },
                           error: (err) => {
-                            console.error("AudioSignal: Error reading audio data: " + err);
+                            SprLogger.error("AudioSignal: Error reading audio data: " + err);
                           }
                         }
                       )
@@ -407,7 +408,7 @@ export class AudioSignal extends AudioCanvasLayerComponent{
                           }
                         },
                         error: (err) => {
-                          console.error("AudioSignal: Error reading audio data: " + err);
+                          SprLogger.error("AudioSignal: Error reading audio data: " + err);
                         }
                       }
                     );

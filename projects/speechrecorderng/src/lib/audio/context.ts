@@ -1,4 +1,6 @@
 
+import {SprLogger} from "../utils/logger";
+
 export class AudioContextProvider
 {
   private static _audioContext:AudioContext| null=null;
@@ -12,13 +14,13 @@ export class AudioContextProvider
         this._audioContext=null;
         throw new Error('Browser does not support Web Audio API!');
       } else {
-        console.debug("Get new audio context...");
+        SprLogger.debug("Get new audio context...");
         this._audioContext= new window.AudioContext();
-        console.debug("Created new audio context.");
+        SprLogger.debug("Created new audio context.");
         this._audioContext.addEventListener('statechange', () => {
-          console.debug("Audio context state changed: "+this._audioContext?.state);
+          SprLogger.debug("Audio context state changed: "+this._audioContext?.state);
         });
-        console.debug("Created new audio context with state: "+this._audioContext?.state);
+        SprLogger.debug("Created new audio context with state: "+this._audioContext?.state);
       }
     }
     return this._audioContext;

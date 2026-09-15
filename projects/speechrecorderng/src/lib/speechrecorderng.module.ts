@@ -21,6 +21,7 @@ import {SessionService} from "./speechrecorder/session/session.service";
 import {ScriptService} from "./speechrecorder/script/script.service";
 import {RouterModule, Routes} from "@angular/router";
 import {SpeechRecorderConfig, SPEECHRECORDER_CONFIG} from "./spr.config";
+import {SprLogger} from "./utils/logger";
 import {SpeechRecorderUploader} from "./speechrecorder/spruploader";
 import {ProjectService} from "./speechrecorder/project/project.service";
 import {
@@ -93,6 +94,7 @@ export const SPR_ROUTES: Routes = [
 export class SpeechrecorderngModule{
 
   static forRoot(config: SpeechRecorderConfig): ModuleWithProviders<SpeechrecorderngModule> {
+    SprLogger.init(config.logLevel);
     return {
       ngModule: SpeechrecorderngModule,
       providers: [

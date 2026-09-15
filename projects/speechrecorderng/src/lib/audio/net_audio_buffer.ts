@@ -2,7 +2,8 @@ import {Observable} from "rxjs";
 import {AsyncFloat32ArrayInputStream, Float32ArrayInputStream} from "../io/stream";
 import {AudioSource, BasicAudioSource, RandomAccessAudioStream} from "./audio_data_holder";
 import { HttpErrorResponse } from "@angular/common/http";
-import {BasicRecordingService} from "../speechrecorder/recordings/basic_recording.service";
+import {BasicRecordingService} from "../speechrecorder/recordings/basic_recording.service"
+import {SprLogger} from "../utils/logger";
 
 
 export class NetAudioBuffer extends BasicAudioSource implements AudioSource{
@@ -154,11 +155,11 @@ export class NetRandomAccessAudioStream implements RandomAccessAudioStream{
            if(errEv.status===404){
              cb(null,null);
            } else{
-             console.error("Net audio buffer chunk audio request Http error event: "+errEv.status+", "+errEv.name+", "+errEv.message);
+             SprLogger.error("Net audio buffer chunk audio request Http error event: "+errEv.status+", "+errEv.name+", "+errEv.message);
              errCb(new Error(errEv.toString()));
            }
           }else {
-            console.error("Net audio buffer chunk audio request error event: "+errEv.message);
+            SprLogger.error("Net audio buffer chunk audio request error event: "+errEv.message);
             errCb(new Error(errEv.toString()));
           }
         }

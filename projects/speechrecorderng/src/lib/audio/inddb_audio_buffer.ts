@@ -1,7 +1,8 @@
 import {Observable} from "rxjs";
 import {AsyncFloat32ArrayInputStream, Float32ArrayInputStream} from "../io/stream";
 import {UUID} from "../utils/utils";
-import {AudioSource, BasicAudioSource, RandomAccessAudioStream} from "./audio_data_holder";
+import {AudioSource, BasicAudioSource, RandomAccessAudioStream} from "./audio_data_holder"
+import {SprLogger} from "../utils/logger";
 
 export class PersistentAudioStorageTarget{
   get indexedDb(): IDBDatabase {
@@ -28,15 +29,15 @@ export class PersistentAudioStorageTarget{
       let os = this.objectStore('readwrite');
       let clearReq=os.clear();
       clearReq.onsuccess=()=>{
-        console.debug("Cleared audio storage object store.");
+        SprLogger.debug("Cleared audio storage object store.");
         os.transaction.commit();
       }
       clearReq.onerror=()=>{
         os.transaction.abort();
-        console.error("Could not clear object store: "+clearReq.error);
+        SprLogger.error("Could not clear object store: "+clearReq.error);
       }
       os.transaction.oncomplete = () => {
-        console.debug("Transaction complete: Clear audio storage object store.");
+        SprLogger.debug("Transaction complete: Clear audio storage object store.");
           subscriber.complete();
       }
       os.transaction.onerror = (err) => {
@@ -169,7 +170,7 @@ export class IndexedDbAudioBuffer extends BasicAudioSource implements AudioSourc
             cr.onerror = () => {
               if(!this._storeError) {
                 // Only log the first error
-                console.error("Error storing audio data of " + chChk.byteLength + " bytes to indexed db: " + cr.error);
+                SprLogger.error("Error storing audio data of " + chChk.byteLength + " bytes to indexed db: " + cr.error);
               }
             }
           }
@@ -181,7 +182,7 @@ export class IndexedDbAudioBuffer extends BasicAudioSource implements AudioSourc
         tr.onerror = (ev) => {
           if(!this._storeError) {
             // Only log the first error
-            console.error("Failed to store audio data to indexed db, transaction error: "+tr.error);
+            SprLogger.error("Failed to store audio data to indexed db, transaction error: "+tr.error);
             this._storeError = tr.error;
           }
           subscriber.error(tr.error);
@@ -190,7 +191,7 @@ export class IndexedDbAudioBuffer extends BasicAudioSource implements AudioSourc
           // If Chrome reaches quota it aborts the transaction
           if(!this._storeError) {
             // Only log the first error
-            console.error("Failed to store audio data to indexed db, transaction aborted: "+tr.error);
+            SprLogger.error("Failed to store audio data to indexed db, transaction aborted: "+tr.error);
             this._storeError = tr.error;
           }
           subscriber.error(tr.error);
@@ -264,13 +265,13 @@ export class IndexedDbAudioBuffer extends BasicAudioSource implements AudioSourc
                   // iPad asks for more storage and if denied, the error is thrown here
                   if(!this._storeError) {
                     // Only log the first error
-                    console.error("Error storing audio data of " + chChk.byteLength + " bytes to indexed db: " + cr.error);
+                    SprLogger.error("Error storing audio data of " + chChk.byteLength + " bytes to indexed db: " + cr.error);
                   }
                   //subscriber.error(cr.error);
                 }
               }catch(err1:any){
                 if(!this._storeError) {
-                  console.error("Error adding audio data to indexed db store: " + err1);
+                  SprLogger.error("Error adding audio data to indexed db store: " + err1);
                   this._storeError=(err1 instanceof Error)?err1:new Error(err1);
                 }
                 subscriber.error(err1);
@@ -281,7 +282,7 @@ export class IndexedDbAudioBuffer extends BasicAudioSource implements AudioSourc
           tr.onerror = (ev) => {
             if(!this._storeError) {
               // Only log the first error
-              console.error("Failed to store audio data to indexed db, transaction error: "+tr.error);
+              SprLogger.error("Failed to store audio data to indexed db, transaction error: "+tr.error);
               this._storeError = tr.error;
             }
             subscriber.error(tr.error);
@@ -290,7 +291,7 @@ export class IndexedDbAudioBuffer extends BasicAudioSource implements AudioSourc
             // If Chrome reaches quota it aborts the transaction
             if(!this._storeError) {
               // Only log the first error
-              console.error("Failed to store audio data to indexed db, transaction aborted: "+tr.error);
+              SprLogger.error("Failed to store audio data to indexed db, transaction aborted: "+tr.error);
               this._storeError = tr.error;
             }
             subscriber.error(tr.error);
@@ -306,7 +307,7 @@ export class IndexedDbAudioBuffer extends BasicAudioSource implements AudioSourc
           }
           tr.commit();
         } catch (err) {
-          console.error('Catched error: '+err);
+          SprLogger.error('Catched error: '+err);
           subscriber.error(new Error('Transfer audio data error: ' + err));
         }
       }

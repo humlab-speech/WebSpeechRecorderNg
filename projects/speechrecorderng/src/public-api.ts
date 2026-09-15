@@ -11,6 +11,7 @@ export {SPEECHRECORDER_ENVIRONMENT_DEFAULTS} from './lib/environment/environment
 export {SPEECHRECORDER_CONFIG} from './lib/spr.config'
 
 export {UUID} from "./lib/utils/utils"
+export {SprLogger, SprLogLevel} from "./lib/utils/logger"
 export {Action} from "./lib/action/action";
 
 export {ResponsiveComponent} from './lib/ui/responsive_component'
@@ -41,4 +42,5 @@ export {RecordingFileService} from './lib/speechrecorder/session/recordingfile/r
 export {RecordingFileViewComponent} from './lib/speechrecorder/session/recordingfile/recording-file-view.component'
 export {RecordingFileUI} from './lib/speechrecorder/session/recordingfile/recording-file-u-i.component'
 export {SpeechRecorderConfig,ApiType} from './lib/spr.config'
+export {UploadConfig,UploadError,UploaderStatus,UploaderStatusChangeEvent} from './lib/net/uploader'
 export {SpeechrecorderngComponent} from './lib/speechrecorderng.component'

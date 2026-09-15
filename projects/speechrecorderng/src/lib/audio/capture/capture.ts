@@ -6,6 +6,7 @@ import {ArrayAudioBuffer} from "../array_audio_buffer";
 import {UUID} from "../../utils/utils";
 import {IndexedDbAudioBuffer, PersistentAudioStorageTarget} from "../inddb_audio_buffer";
 import {AudioContextProvider} from "../context";
+import {SprLogger} from "../../utils/logger";
 
 
 export const CHROME_ACTIVATE_ECHO_CANCELLATION_WITH_AGC=false;
@@ -246,7 +247,7 @@ export class AudioCapture {
       if (!labelsAvailable) {
         //console.debug("Media device enumeration: No labels.")
         if (retry) {
-            console.info("Starting dummy session to request audio permissions...")
+            SprLogger.info("Starting dummy session to request audio permissions...")
 
             this.dummySession().then((s: MediaStream) => {
             // and stop it immediately
@@ -311,7 +312,7 @@ export class AudioCapture {
     for (let i = 0; i < l.length; i++) {
       let di = l[i];
       if (AudioCapture.DEBUG_DEVICES) {
-        console.log("Audio device: Id: " + di.deviceId + " groupId: " + di.groupId + " label: " + di.label + " kind: " + di.kind);
+        SprLogger.info("Audio device: Id: " + di.deviceId + " groupId: " + di.groupId + " label: " + di.label + " kind: " + di.kind);
       }
     }
   }
@@ -325,7 +326,7 @@ export class AudioCapture {
       if (ev instanceof ErrorEvent) {
         msg = ev.message;
       }
-      console.error("Capture audio worklet error: " + msg);
+      SprLogger.error("Capture audio worklet error: " + msg);
       if (this.listener) {
         this.listener.error(msg);
       }
@@ -338,7 +339,7 @@ export class AudioCapture {
           let chs = dt.chs;
           let adaLen = dt.data.length;
           if (DEBUG_TRACE_LEVEL > 8) {
-            console.debug('Received data from worklet: ' + chs + ' ' + dt.len + ' Data chs: ' + adaLen);
+            SprLogger.debug('Received data from worklet: ' + chs + ' ' + dt.len + ' Data chs: ' + adaLen);
           }
           let chunk = new Array<Float32Array>(chs);
           const samples = this.framesRecorded * chs;
@@ -377,11 +378,11 @@ export class AudioCapture {
                 this.persistError = new Error('Error handling recorded audio data');
               }
 
-              console.error("Capture error: " + err);
+              SprLogger.error("Capture error: " + err);
               try {
                 this.stop();
               } catch (err2) {
-                console.error("Capture next error (ignored): " + err2);
+                SprLogger.error("Capture next error (ignored): " + err2);
               } finally {
                 if (this.listener) {
                   let errExpl = '';
@@ -428,12 +429,12 @@ export class AudioCapture {
         //console.debug("Capture open (ctx resumed): ctx state: "+this.context.state);
         this._open(channelCount, selDeviceId, autoGainControlConfigs,allowEchoCancellation);
       }).catch((err)=>{
-        console.error(err.message);
+        SprLogger.error(err.message);
         throw err;
       })
     }else if(this.context.state==='closed') {
         const msg='Error on start capture: The audio context is already closed.';
-        console.error(msg);
+        SprLogger.error(msg);
         throw new Error(msg);
     }else {
       this._open(channelCount, selDeviceId, autoGainControlConfigs,allowEchoCancellation);
@@ -467,7 +468,7 @@ export class AudioCapture {
     // TODO test if input is unprocessed
 
     let msc:MediaStreamConstraints;
-    console.info('User agent: '+navigator.userAgent);
+    SprLogger.info('User agent: '+navigator.userAgent);
 
 
       let ua=UserAgentBuilder.userAgent();
@@ -519,7 +520,7 @@ export class AudioCapture {
 
       // Microsoft Edge sends unmodified audio
       // The constraint can follow the specification
-      console.info("Setting media track constraints for Microsoft Edge.");
+      SprLogger.info("Setting media track constraints for Microsoft Edge.");
       msc = {
         audio: {
           deviceId: selDeviceId,
@@ -531,7 +532,7 @@ export class AudioCapture {
       };
     } else if (ua.detectedBrowser===Browser.Chrome) {
       // Google Chrome: we need to switch of each of the preprocessing units including the
-      console.info("Setting media track constraints for Google Chrome.");
+      SprLogger.info("Setting media track constraints for Google Chrome.");
 
       // Chrome 60 -> 61 changed
       // it works now without mandatory/optional sub-objects
@@ -550,7 +551,7 @@ export class AudioCapture {
       }
 
     } else if (ua.detectedBrowser===Browser.Firefox) {
-      console.info("Setting media track constraints for Mozilla Firefox.");
+      SprLogger.info("Setting media track constraints for Mozilla Firefox.");
       // Firefox
       msc = {
         audio: {
@@ -564,7 +565,7 @@ export class AudioCapture {
       }
 
     } else if (ua.detectedBrowser===Browser.Safari) {
-      console.info("Setting media track constraints for Safari browser.")
+      SprLogger.info("Setting media track constraints for Safari browser.")
       //console.info("Apply workaround for Safari: Avoid disconnect of streams.");
 
       this.disconnectStreams = true;
@@ -585,7 +586,7 @@ export class AudioCapture {
 
 
 
-    console.debug("Audio capture, AGC: "+this.agcStatus)
+    SprLogger.debug("Audio capture, AGC: "+this.agcStatus)
 
     let ump = navigator.mediaDevices.getUserMedia(msc);
     ump.then((s) => {
@@ -599,19 +600,19 @@ export class AudioCapture {
         let aTrack = aTracks[i];
 
         if (AudioCapture.DEBUG_DEVICES) {
-          console.info("Track audio info: id: " + aTrack.id + " kind: " + aTrack.kind + " label: \"" + aTrack.label + "\"");
+          SprLogger.info("Track audio info: id: " + aTrack.id + " kind: " + aTrack.kind + " label: \"" + aTrack.label + "\"");
         }
         let mtrSts = aTrack.getSettings();
 
         // Typescript lib.dom.ts MediaTrackSettings.channelCount is missing
         // https://github.com/mdn/browser-compat-data/blob/5493d8f937e05b2ddbd41b99f5bdfad4a1f2ed85/api/MediaTrackSettings.json
         //@ts-ignore
-        console.info("Track audio settings: Ch cnt: " + mtrSts.channelCount + ", AGC: " + mtrSts.autoGainControl + ", Echo cancell.: " + mtrSts.echoCancellation);
+        SprLogger.info("Track audio settings: Ch cnt: " + mtrSts.channelCount + ", AGC: " + mtrSts.autoGainControl + ", Echo cancell.: " + mtrSts.echoCancellation);
         if (mtrSts.autoGainControl) {
           this.agcStatus = mtrSts.autoGainControl;
         }
 
-        console.debug("Echo cancellation: "+mtrSts.echoCancellation);
+        SprLogger.debug("Echo cancellation: "+mtrSts.echoCancellation);
 
       }
 
@@ -619,17 +620,17 @@ export class AudioCapture {
       for (let i = 0; i < vTracks.length; i++) {
         let vTrack = vTracks[i];
         if (AudioCapture.DEBUG_DEVICES) {
-          console.info("Track video info: id: " + vTrack.id + " kind: " + vTrack.kind + " label: " + vTrack.label);
+          SprLogger.info("Track video info: id: " + vTrack.id + " kind: " + vTrack.kind + " label: " + vTrack.label);
         }
       }
       this.mediaStream = this.context.createMediaStreamSource(s);
       // stream channel count ( is always 2 !)
       let streamChannelCount: number = this.mediaStream.channelCount;
-      console.info("Stream channel count: " + streamChannelCount);
+      SprLogger.info("Stream channel count: " + streamChannelCount);
       // is not set!!
       //this.currentSampleRate = this.mediaStream.sampleRate;
       this.currentSampleRate = this.context.sampleRate;
-      console.info("Source audio node: channels: " + streamChannelCount + " samplerate: " + this.currentSampleRate);
+      SprLogger.info("Source audio node: channels: " + streamChannelCount + " samplerate: " + this.currentSampleRate);
       if (this.audioOutStream) {
         this.audioOutStream.setFormat(this.channelCount, this.currentSampleRate);
       }
@@ -663,7 +664,7 @@ export class AudioCapture {
                 this.addCaptureInterceptor();
               }
           ).catch((error: any) => {
-            console.log('Could not add module ' + error);
+            SprLogger.info('Could not add module ' + error);
           });
         }
       } else if (this.context.createScriptProcessor) {
@@ -687,7 +688,7 @@ export class AudioCapture {
                   this.data[ch].push(chSamplesCopy);
                 }
                 if (DEBUG_TRACE_LEVEL > 8) {
-                  console.debug("Process " + chSamplesCopy.length + " samples.");
+                  SprLogger.debug("Process " + chSamplesCopy.length + " samples.");
                 }
                 this.framesRecorded += chSamplesCopy.length;
               }
@@ -709,7 +710,7 @@ export class AudioCapture {
       }
     }
         }, (e) => {
-          console.error(e + " Error name: " +e.name);
+          SprLogger.error(e + " Error name: " +e.name);
           if (this.listener) {
             if('NotAllowedError' === e.name){
               this.listener.error('Not allowed to use your microphone.','Please make sure that microphone access is allowed for this web page and reload the page.');
@@ -749,9 +750,9 @@ export class AudioCapture {
       if (aSt === 'running') {
         this._start();
       } else {
-        console.debug("Capture start: audio context not running, state: " + aSt + ", resuming...");
+        SprLogger.debug("Capture start: audio context not running, state: " + aSt + ", resuming...");
         this.context.resume().then(() => {
-          console.debug("Capture start: audio context resumed, starting...");
+          SprLogger.debug("Capture start: audio context resumed, starting...");
           this._start();
         })
       }
@@ -772,7 +773,7 @@ export class AudioCapture {
         this.audioOutStream.flush();
       }
     }catch(err){
-      console.error("Could not flush capture stream.");
+      SprLogger.error("Could not flush capture stream.");
      throw err;
     }finally {
       this.capturing = false;
@@ -870,7 +871,7 @@ export class AudioCapture {
           // Only log the first error
           if(!this.persistError) {
             this.persistError = err;
-            console.error("Error persisting audio data: " + err);
+            SprLogger.error("Error persisting audio data: " + err);
           }
         }
       });

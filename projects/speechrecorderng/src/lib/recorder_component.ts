@@ -2,6 +2,7 @@ import {SpeechRecorderUploader} from "./speechrecorder/spruploader";
 import {SprDb} from "./db/inddb";
 import {Observable} from "rxjs";
 import {PersistentAudioStorageTarget} from "./audio/inddb_audio_buffer";
+import {SprLogger} from "./utils/logger";
 
 
 export interface ReadyStateProvider {
@@ -20,10 +21,10 @@ export abstract class RecorderComponent implements ReadyStateProvider{
       // Safari seems not to support the estimate function.
       if(navigator.storage && navigator.storage.estimate instanceof Function) {
         navigator.storage.estimate().then((se) => {
-          console.info("Estimated storage usage: " + se.usage + ", quota: " + se.quota);
+          SprLogger.info("Estimated storage usage: " + se.usage + ", quota: " + se.quota);
         }).catch((err) => "Could not get get storage infos: " + err.message);
       }else{
-        console.info("User agent does not support storage manager estimate function.");
+        SprLogger.info("User agent does not support storage manager estimate function.");
       }
     }
 
@@ -45,7 +46,7 @@ export abstract class RecorderComponent implements ReadyStateProvider{
                 },
                 complete:()=>{
                   //console.info('Storage info after deletion of all ('+delCnt+') entries:');
-                  console.info('Persistent audio storage object store cleared.');
+                  SprLogger.info('Persistent audio storage object store cleared.');
                   this.printStorageInfos();
                   subscriber.complete();
                 },

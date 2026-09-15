@@ -1,5 +1,6 @@
 import {Injectable} from "@angular/core";
 import {Observable} from "rxjs";
+import {SprLogger} from "../utils/logger";
 
 
 export class Sync{
@@ -45,7 +46,7 @@ export class SprDb {
     static prepare():Observable<IDBDatabase> {
         let obs = new Observable<IDBDatabase>((subscriber) => {
 
-                console.info("Prepare indexed database...")
+                SprLogger.info("Prepare indexed database...")
                 if (indexedDB) {
                     let or: IDBOpenDBRequest;
                     or = indexedDB.open(SprDb.dbName, SprDb.dbVersion);
@@ -88,13 +89,13 @@ export class SprDb {
                             let rfStore=db.createObjectStore(SprDb.RECORDING_FILE_CACHE_OBJECT_STORE_NAME);
                         }
                         if (ev.oldVersion) {
-                            console.info("Upgraded indexed database " + SprDb.dbName + " schema from version " + ev.oldVersion + " to " + ev.newVersion)
+                            SprLogger.info("Upgraded indexed database " + SprDb.dbName + " schema from version " + ev.oldVersion + " to " + ev.newVersion)
                         } else {
-                            console.info("Created indexed database " + SprDb.dbName + " schema version " + ev.newVersion)
+                            SprLogger.info("Created indexed database " + SprDb.dbName + " schema version " + ev.newVersion)
                         }
                     }
                     or.onsuccess = (ev) => {
-                        console.info("Opened indexed database")
+                        SprLogger.info("Opened indexed database")
 
                       let db=or.result;
                       //   // iPad WEbKit workaround
@@ -123,11 +124,11 @@ export class SprDb {
                     }
 
                     or.onerror = (err) => {
-                        console.error("Could not open indexed database: " + SprDb.dbName + ": " + err)
+                        SprLogger.error("Could not open indexed database: " + SprDb.dbName + ": " + err)
                         subscriber.error(err)
                     }
                 } else {
-                    console.info("Browser does not support indexed databases")
+                    SprLogger.info("Browser does not support indexed databases")
                     subscriber.error();
                 }
         });

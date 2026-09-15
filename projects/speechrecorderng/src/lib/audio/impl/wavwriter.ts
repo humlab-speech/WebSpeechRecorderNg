@@ -1,6 +1,7 @@
 import { WavFileFormat } from './wavformat'
 import { BinaryByteWriter } from '../../io/BinaryWriter'
 import {WorkerHelper} from "../../utils/utils";
+import {SprLogger} from "../../utils/logger";
 declare function postMessage (message:any, transfer:Array<any>):void;
 
 
@@ -201,14 +202,14 @@ export enum SampleSize {INT16=16,INT32=32}
         wavChunkByteLen+=factChunkSize;
         wavChunkByteLen+=dataChkByteLen;
 
-        console.debug("Write WAV header: Wav chunk len: "+wavChunkByteLen);
+        SprLogger.debug("Write WAV header: Wav chunk len: "+wavChunkByteLen);
         this.bw.writeUint32(wavChunkByteLen,true); // must be set to file length-8 later
         this.bw.writeAscii(WavFileFormat.WAV_KEY);
 
         this.writeChunkHeader('fmt ',fmtChunkSize);
         this.writeFmtChunk(audioBuffer);
         if(this.encodingFloat===true){
-          console.debug("Write WAV header: Write 'fact' chunk.");
+          SprLogger.debug("Write WAV header: Write 'fact' chunk.");
           this.writeChunkHeader('fact',4);
           this.writeFactChunk(audioBuffer);
         }

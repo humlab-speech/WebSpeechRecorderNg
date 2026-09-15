@@ -37,6 +37,7 @@ import {ArrayAudioBuffer} from "../../audio/array_audio_buffer";
 import {NetAudioBuffer} from "../../audio/net_audio_buffer";
 import {IndexedDbAudioBuffer} from "../../audio/inddb_audio_buffer";
 import {BreakpointObserver} from "@angular/cdk/layout";
+import {SprLogger} from "../../utils/logger";
 
 export const enum Status {
   BLOCKED, IDLE,STARTING, RECORDING,  STOPPING_STOP, ERROR
@@ -376,7 +377,7 @@ export class AudioRecorder extends BasicRecorder implements OnInit,AfterViewInit
               this.recorderCombiPane.addRecFile(rf);
             })
           } else {
-            console.error('Expected type array for list of already recorded files ')
+            SprLogger.error('Expected type array for list of already recorded files ')
           }
 
         } else {
@@ -395,7 +396,7 @@ export class AudioRecorder extends BasicRecorder implements OnInit,AfterViewInit
       this.statusAlertType = 'error';
       this.statusMsg = 'No project definiton.';
       this.statusWaiting = false;
-      console.error(this.statusMsg);
+      SprLogger.error(this.statusMsg);
     }
   }
 
@@ -405,13 +406,13 @@ export class AudioRecorder extends BasicRecorder implements OnInit,AfterViewInit
     let chCnt = ProjectUtil.DEFAULT_AUDIO_CHANNEL_COUNT;
 
     if (project) {
-      console.info("Project name: " + project.name)
+      SprLogger.info("Project name: " + project.name)
       if (project.recordingDeviceWakeLock === true) {
         this.wakeLock = true;
       }
       this.audioDevices = project.audioDevices;
       chCnt = ProjectUtil.audioChannelCount(project);
-      console.info("Project requested recording channel count: " + chCnt);
+      SprLogger.info("Project requested recording channel count: " + chCnt);
       this.autoGainControlConfigs = project.autoGainControlConfigs;
       if(project.allowEchoCancellation!==undefined) {
         this.allowEchoCancellation = project.allowEchoCancellation;
@@ -425,7 +426,7 @@ export class AudioRecorder extends BasicRecorder implements OnInit,AfterViewInit
         this.clientAudioStorageType = project.clientAudioStorageType;
       }
     } else {
-      console.error("Empty project configuration!")
+      SprLogger.error("Empty project configuration!")
     }
     this.channelCount = chCnt;
   }
@@ -657,7 +658,7 @@ export class AudioRecorder extends BasicRecorder implements OnInit,AfterViewInit
                   this.showRecording();
                 },
                 error: err => {
-                  console.error("Could not load recording file from server: " + err);
+                  SprLogger.error("Could not load recording file from server: " + err);
                   this.liveLevelDisplayState = LiveLevelState.READY;
                   this.statusMsg = 'Recording file could not be loaded: ' + err;
                   this.statusAlertType = 'error';
@@ -703,7 +704,7 @@ export class AudioRecorder extends BasicRecorder implements OnInit,AfterViewInit
                 this.showRecording();
               },
               error: err => {
-                console.error("Could not load recording file from server: " + err);
+                SprLogger.error("Could not load recording file from server: " + err);
                 this.liveLevelDisplayState = LiveLevelState.READY;
                 this.statusMsg = 'Recording file could not be loaded: ' + err;
                 this.statusAlertType = 'error';
@@ -743,7 +744,7 @@ export class AudioRecorder extends BasicRecorder implements OnInit,AfterViewInit
                 this.showRecording();
               },
               error: err => {
-                console.error("Could not load recording file from server: " + err);
+                SprLogger.error("Could not load recording file from server: " + err);
                 this.liveLevelDisplayState = LiveLevelState.READY;
                 this.statusMsg = 'Recording file could not be loaded: ' + err;
                 this.statusAlertType = 'error';
@@ -762,7 +763,7 @@ export class AudioRecorder extends BasicRecorder implements OnInit,AfterViewInit
                     this.recorderCombiPane.setRecFileAudioData(rf, fabDh);
                   }
                 } else {
-                  console.error('Recording file could not be loaded.');
+                  SprLogger.error('Recording file could not be loaded.');
                   this.statusMsg = 'Recording file could not be loaded.';
                   this.statusAlertType = 'error';
                 }
@@ -777,7 +778,7 @@ export class AudioRecorder extends BasicRecorder implements OnInit,AfterViewInit
                 }
                 this.showRecording();
               }, error: err => {
-                console.error("Could not load recording file from server: " + err);
+                SprLogger.error("Could not load recording file from server: " + err);
                 this.liveLevelDisplayState = LiveLevelState.READY;
                 this.statusMsg = 'Recording file could not be loaded: ' + err;
                 this.statusAlertType = 'error';
@@ -937,7 +938,7 @@ export class AudioRecorder extends BasicRecorder implements OnInit,AfterViewInit
                   burl = this.recFileService.audioFileUrlByUUID(this.session.project, this.session.sessionId, rUUID);
                 }
               }else{
-                console.error("Could not create net audio buffer.");
+                SprLogger.error("Could not create net audio buffer.");
               }
               if (burl) {
                 const sr = this.ac.currentSampleRate;
@@ -986,7 +987,7 @@ export class AudioRecorder extends BasicRecorder implements OnInit,AfterViewInit
                   burl = this.recFileService.audioFileUrlByUUID(this.session.project, this.session.sessionId, rUUID);
                 }
               }else{
-                console.error("Could not create net audio buffer.");
+                SprLogger.error("Could not create net audio buffer.");
               }
               if (burl) {
                 const sr = this.ac.currentSampleRate;
@@ -1196,7 +1197,7 @@ export class AudioRecorderComponent extends RecorderComponent  implements OnInit
 
     //TODO Duplicate code in SpeechRecorderComponent
     window.addEventListener('beforeunload', (e) => {
-      console.debug("Before page unload event");
+      SprLogger.debug("Before page unload event");
 
       if (this.ready()) {
         return;
@@ -1272,18 +1273,18 @@ export class AudioRecorderComponent extends RecorderComponent  implements OnInit
               this.ar.statusMsg=reason;
               this.ar.statusAlertType='error';
               this.ar.statusWaiting=false;
-              console.error("Error fetching project config: "+reason)
+              SprLogger.error("Error fetching project config: "+reason)
             }});
 
           } else {
-            console.info("Session has no associated project. Using default configuration.")
+            SprLogger.info("Session has no associated project. Using default configuration.")
           }
         },
         error:(reason) => {
           this.ar.statusMsg = reason;
           this.ar.statusAlertType = 'error';
           this.ar.statusWaiting=false;
-          console.error("Error fetching session " + reason)
+          SprLogger.error("Error fetching session " + reason)
         }});
     }
   }

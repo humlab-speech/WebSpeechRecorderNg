@@ -1,6 +1,7 @@
 import { HttpClient, HttpErrorResponse, HttpHeaders } from "@angular/common/http";
 import { timeout } from 'rxjs/operators'
 import {UUID} from "../utils/utils";
+import {SprLogger} from "../utils/logger";
 
 // state of an upload
 export enum UploadStatus {IDLE = 1, UPLOADING = 2,  ABORT = 3, DONE = 0, ERR = -1, FAILED = -2}
@@ -464,11 +465,11 @@ export class Uploader {
                 , error:(err: unknown) => {
                     if (err instanceof Error && !(err instanceof HttpErrorResponse)) {
                         // A client-side or network error occurred. Handle it accordingly.
-                        console.error('Upload error occurred:', err.message);
+                        SprLogger.error('Upload error occurred:', err.message);
                     } else if (err instanceof HttpErrorResponse) {
                         // The backend returned an unsuccessful response code.
                         // The response body may contain clues as to what went wrong,
-                        console.error(`Upload error: Server returned code ${err.status}`);
+                        SprLogger.error(`Upload error: Server returned code ${err.status}`);
                     }
                     this.processError(ul,this.classifyError(err))
                 }, complete: () => {
@@ -482,7 +483,7 @@ export class Uploader {
                             this.uploadSucceeded(uploadedUpload)
                         }
                     } else if (!uploadFailedAck) {
-                        console.error('Upload post complete, but upload not set in next method!')
+                        SprLogger.error('Upload post complete, but upload not set in next method!')
                     }
                 }
             });

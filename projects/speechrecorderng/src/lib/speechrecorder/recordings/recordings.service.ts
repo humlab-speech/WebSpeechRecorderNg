@@ -16,6 +16,7 @@ import {IndexedDbAudioBuffer, PersistentAudioStorageTarget} from "../../audio/in
 import {NetAudioBuffer} from "../../audio/net_audio_buffer";
 import {BasicRecordingService} from "./basic_recording.service";
 import {AudioContextProvider} from "../../audio/context";
+import {SprLogger} from "../../utils/logger";
 
 @Injectable()
 export class RecordingService extends BasicRecordingService{
@@ -153,7 +154,7 @@ export class RecordingService extends BasicRecordingService{
                       },
                       error: (err) => {
                         // iPad may throw QuotaExceededError here
-                        console.error("chunkAudioRequestToIndDb: Built inddb ab from chunk ab error: " + err);
+                        SprLogger.error("chunkAudioRequestToIndDb: Built inddb ab from chunk ab error: " + err);
                         subscriber.error(err);
                       }
                     })
@@ -177,19 +178,19 @@ export class RecordingService extends BasicRecordingService{
                     })
                   }
                 }).catch(error => {
-                  console.error('chunkAudioRequestToIndDb: error: ' + error);
+                  SprLogger.error('chunkAudioRequestToIndDb: error: ' + error);
                   //if(error instanceof HttpErrorResponse) {
                   subscriber.error(error);
                   //}
                 })
           } else {
             const errMsg='chunkAudioRequestToIndDb: Fetching audio file: response has no body';
-            console.error(errMsg);
+            SprLogger.error(errMsg);
             subscriber.error(new Error(errMsg));
           }
         },
         error:(error) => {
-          console.error('chunkAudioRequestToIndDb: error: '+error);
+          SprLogger.error('chunkAudioRequestToIndDb: error: '+error);
           subscriber.error(error);
           //subscriber.complete();
         }
@@ -361,12 +362,12 @@ export class RecordingService extends BasicRecordingService{
               //   observer.complete()
             } else {
               // all other states are (real) errors
-              console.error("chunkedInddbAudioRequest: Error: "+err.message);
+              SprLogger.error("chunkedInddbAudioRequest: Error: "+err.message);
               subscriber.error(err);
             }
           }else {
             // all other errors are (real) errors
-            console.error("chunkedInddbAudioRequest: Error: "+err);
+            SprLogger.error("chunkedInddbAudioRequest: Error: "+err);
             subscriber.error(err);
           }
         }

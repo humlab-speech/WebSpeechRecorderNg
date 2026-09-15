@@ -1,4 +1,6 @@
 
+import {SprLogger} from "./logger";
+
   export class UUID {
 
     static generate():string {
@@ -85,13 +87,13 @@
       }
       let  woFctNm = workerFct.name
       if (WorkerHelper.DEBUG) {
-        console.info("Worker method name: " + woFctNm)
+        SprLogger.info("Worker method name: " + woFctNm)
       }
 
       let woFctStr = workerFct.toString()
       if (WorkerHelper.DEBUG) {
-        console.info("Worker method string:")
-        console.info(woFctStr)
+        SprLogger.info("Worker method string:")
+        SprLogger.info(woFctStr)
       }
 
 
@@ -102,21 +104,21 @@
       let piWoFctStr = woFctStr.replace(/^function +/, '');
 
       if(WorkerHelper.DEBUG){
-        console.info("Worker platform independent function string:")
-        console.info(piWoFctStr)
+        SprLogger.info("Worker platform independent function string:")
+        SprLogger.info(piWoFctStr)
       }
 
       // Convert to anonymous function
       let anonWoFctStr = piWoFctStr.replace(woFctNm + '()', 'function()')
       if(WorkerHelper.DEBUG){
-        console.info("Worker anonymous function string:")
-        console.info(piWoFctStr)
+        SprLogger.info("Worker anonymous function string:")
+        SprLogger.info(piWoFctStr)
       }
       // Self executing
       let ws = '(' + anonWoFctStr + ')();'
       if(WorkerHelper.DEBUG){
-        console.info("Worker self executing anonymous function string:")
-        console.info(anonWoFctStr)
+        SprLogger.info("Worker self executing anonymous function string:")
+        SprLogger.info(anonWoFctStr)
       }
       // Build the worker blob
       let wb = new Blob([ws], {type: 'text/javascript'});

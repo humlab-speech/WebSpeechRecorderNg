@@ -10,6 +10,7 @@ import {NetAudioBuffer} from "../net_audio_buffer";
 import {NetAudioBufferSourceNode} from "./net_audio_buffer_source_node";
 import {AudioBufferSource, AudioSource} from "../audio_data_holder";
 import {AudioContextProvider} from "../context";
+import {SprLogger} from "../../utils/logger";
 
 
 
@@ -184,7 +185,7 @@ import {AudioContextProvider} from "../context";
                     if (this.listener) {
                         this.listener.audioPlayerUpdate(new AudioPlayerEvent(EventType.CLOSED));
                     }
-                    console.error('Could not add module ' + error);
+                    SprLogger.error('Could not add module ' + error);
                 });
             }
         }
@@ -198,7 +199,7 @@ import {AudioContextProvider} from "../context";
               if (ev instanceof ErrorEvent) {
                 msg = ev.message;
               }
-              console.error("Audio source worklet error: " + msg);
+              SprLogger.error("Audio source worklet error: " + msg);
               if (this.listener) {
                 // TODO
                 // this.listener.error(msg);
@@ -232,12 +233,12 @@ import {AudioContextProvider} from "../context";
                         this.context.resume().then(() => {
                             this._start();
                         }).catch((reason) => {
-                            console.error(reason.message());
+                            SprLogger.error(reason.message());
                             throw reason;
                         })
                     } else if (this.context.state === 'closed') {
                         const msg = 'Error: Cannot start playback. Audio context is already closed!';
-                        console.error(msg);
+                        SprLogger.error(msg);
                         throw new Error(msg);
                     } else {
                         this._start();
@@ -328,7 +329,7 @@ import {AudioContextProvider} from "../context";
                           if (ev instanceof ErrorEvent) {
                               msg = ev.message;
                           }
-                          console.error("Audio source worklet error: " + msg);
+                          SprLogger.error("Audio source worklet error: " + msg);
                           if (this.listener) {
                               this.listener.audioPlayerUpdate(new AudioPlayerEvent(EventType.ERROR));
                           }
@@ -363,7 +364,7 @@ import {AudioContextProvider} from "../context";
                   }
               }
               }).catch((error: any) => {
-                  console.error(error.message);
+                  SprLogger.error(error.message);
                   this.ready = false;
                   this.updateStartActions();
                   if (this.listener) {
@@ -387,12 +388,12 @@ import {AudioContextProvider} from "../context";
             this.context.resume().then(() => {
               this._start(true);
             }).catch((reason) => {
-              console.error(reason.message);
+              SprLogger.error(reason.message);
               throw reason;
             })
           }else if(this.context.state==='closed'){
             const msg='Error: Cannot start playback of selection. Audio context is already closed!';
-            console.error(msg);
+            SprLogger.error(msg);
             throw new Error(msg);
           }else{
             this._start(true);

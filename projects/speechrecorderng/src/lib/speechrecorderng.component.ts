@@ -20,6 +20,7 @@ import {Arrays, DataSize} from "./utils/utils";
 import {RecorderComponent} from "./recorder_component";
 import {BasicRecorder} from "./speechrecorder/session/basicrecorder";
 import {SprDb} from "./db/inddb";
+import {SprLogger} from "./utils/logger";
 
 export enum Mode {SINGLE_SESSION,DEMO}
 
@@ -68,7 +69,7 @@ export class SpeechrecorderngComponent extends RecorderComponent implements OnIn
       }
       this.sm.statusMsg=errMsg;
       this.sm.statusAlertType='error';
-      console.error(errMsg)
+      SprLogger.error(errMsg)
     }
 
   ngOnInit() {
@@ -134,13 +135,13 @@ export class SpeechrecorderngComponent extends RecorderComponent implements OnIn
                     this.sm.statusMsg = reason;
                     this.sm.statusAlertType = 'error';
                     this.sm.statusWaiting = false;
-                    console.error("Error fetching project config: " + reason)
+                    SprLogger.error("Error fetching project config: " + reason)
                   }
                 }
               );
 
             } else {
-              console.info("Session has no associated project. Using default configuration.")
+              SprLogger.info("Session has no associated project. Using default configuration.")
               this.fetchScript(sess);
             }
           },
@@ -149,7 +150,7 @@ export class SpeechrecorderngComponent extends RecorderComponent implements OnIn
             this.sm.statusMsg = reason;
             this.sm.statusAlertType = 'error';
             this.sm.statusWaiting = false;
-            console.error("Error fetching session " + reason)
+            SprLogger.error("Error fetching session " + reason)
           }
         });
       }
@@ -170,7 +171,7 @@ export class SpeechrecorderngComponent extends RecorderComponent implements OnIn
           this.fetchRecordings(sess, this.script)
         }, error: (reason) => {
           let errMsg = "Error fetching recording script: " + reason
-          console.error(errMsg)
+          SprLogger.error(errMsg)
           this.sm.statusMsg = errMsg;
           this.sm.statusAlertType = 'error';
           this.sm.statusWaiting = false;
@@ -178,7 +179,7 @@ export class SpeechrecorderngComponent extends RecorderComponent implements OnIn
       });
     } else {
       let errMsg = "No recording script is defined for this session with ID " + sess.sessionId;
-      console.error(this.sm.statusMsg)
+      SprLogger.error(this.sm.statusMsg)
       this.sm.statusMsg = errMsg;
       this.sm.statusAlertType = 'error';
 
@@ -205,7 +206,7 @@ export class SpeechrecorderngComponent extends RecorderComponent implements OnIn
                 this.sm.addRecordingFileByDescriptor(rf);
               })
             } else {
-              console.error('Expected type array for list of already recorded files ')
+              SprLogger.error('Expected type array for list of already recorded files ')
             }
           } else {
             //console.debug("Recording file list: " + rfs);
@@ -346,11 +347,11 @@ export class SpeechrecorderngComponent extends RecorderComponent implements OnIn
     let chCnt = ProjectUtil.DEFAULT_AUDIO_CHANNEL_COUNT;
 
     if (project) {
-      console.info("Project name: " + project.name)
+      SprLogger.info("Project name: " + project.name)
       if(project.recordingDeviceWakeLock===true){
         this.sm.wakeLock=true;
       }
-      console.info("Audio storage type: "+project.clientAudioStorageType);
+      SprLogger.info("Audio storage type: "+project.clientAudioStorageType);
       if(AudioStorageType.DB_CHUNKED===project.clientAudioStorageType){
         SprDb.prepare().subscribe()
       }
@@ -361,13 +362,13 @@ export class SpeechrecorderngComponent extends RecorderComponent implements OnIn
 
       this.sm.audioDevices = project.audioDevices;
       chCnt = ProjectUtil.audioChannelCount(project);
-      console.info("Project requested recording channel count: " + chCnt);
+      SprLogger.info("Project requested recording channel count: " + chCnt);
       this.sm.autoGainControlConfigs=project.autoGainControlConfigs;
       if(project.allowEchoCancellation!==undefined) {
         this.sm.allowEchoCancellation = project.allowEchoCancellation;
       }
       if(project.chunkedRecording===true){
-        console.debug("Enable chunked upload: chunkSize: "+BasicRecorder.DEFAULT_CHUNK_SIZE_SECONDS)
+        SprLogger.debug("Enable chunked upload: chunkSize: "+BasicRecorder.DEFAULT_CHUNK_SIZE_SECONDS)
         this.sm.uploadChunkSizeSeconds=BasicRecorder.DEFAULT_CHUNK_SIZE_SECONDS;
       }else{
         this.sm.uploadChunkSizeSeconds=null;
@@ -376,7 +377,7 @@ export class SpeechrecorderngComponent extends RecorderComponent implements OnIn
         this.sm.showSessionCompleteMessage=project.showSessionCompleteMessage;
       }
     } else {
-      console.error("Empty project configuration!")
+      SprLogger.error("Empty project configuration!")
     }
     this.sm.channelCount = chCnt;
 
@@ -411,7 +412,7 @@ export class SpeechrecorderngComponent extends RecorderComponent implements OnIn
           callback();
         }
         pLoader.onerror = (e) => {
-          console.error("Error downloading project data ...");
+          SprLogger.error("Error downloading project data ...");
         }
         pLoader.send();
       }

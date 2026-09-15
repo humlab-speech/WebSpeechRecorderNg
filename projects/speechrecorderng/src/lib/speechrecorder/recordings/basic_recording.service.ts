@@ -7,6 +7,7 @@ import {UUID} from "../../utils/utils";
 import {WavReader} from "../../audio/impl/wavreader";
 import {PCMAudioFormat} from "../../audio/format";
 import {AudioContextProvider} from "../../audio/context";
+import {SprLogger} from "../../utils/logger";
 
 export class ChunkDownload{
   get orgPCMAudioFormat(): PCMAudioFormat {
@@ -123,19 +124,19 @@ export class BasicRecordingService{
                                       //   observer.complete()
                                       // } else {
                                       //   // all other states are errors
-                                      console.error("Recordings service chunkAudioRequest error decoding audio data: " + error.name + ": " + error.message);
+                                      SprLogger.error("Recordings service chunkAudioRequest error decoding audio data: " + error.name + ": " + error.message);
                                       observer.error(error);
                                       // }
                                       // }
                                     });
                             } else {
                                 const errMsg = 'Could not parse audio header for format and/or frame length of download.';
-                                console.error(errMsg);
+                                SprLogger.error(errMsg);
                                 observer.error(errMsg);
                             }
                         } else {
                             const errMsg = 'Fetching audio file: response has no body';
-                            console.error(errMsg);
+                            SprLogger.error(errMsg);
                             observer.error(errMsg);
                         }
                     }, error:
@@ -205,18 +206,18 @@ export class BasicRecordingService{
                                     subscriber.complete();
                                 }
                             }).catch(error => {
-                                console.error('chunkAudioRequestToNetAb: error: '+error);
+                                SprLogger.error('chunkAudioRequestToNetAb: error: '+error);
                                 //if(error instanceof HttpErrorResponse) {
                                 subscriber.error(error);
                                 //}
                             })
                     } else {
-                        console.error('chunkAudioRequestToNetAb: Fetching audio file: response has no body');
+                        SprLogger.error('chunkAudioRequestToNetAb: Fetching audio file: response has no body');
                         subscriber.error('chunkAudioRequestToNetAb: Fetching audio file: response has no body');
                     }
                 },
                 error:(error) => {
-                    console.error('chunkAudioRequestToNetAb: error: '+error);
+                    SprLogger.error('chunkAudioRequestToNetAb: error: '+error);
                     subscriber.error(error);
                     //subscriber.complete();
                 }

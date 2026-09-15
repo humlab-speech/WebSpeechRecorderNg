@@ -1,5 +1,6 @@
 import {Float32ArrayInputStream} from "../io/stream";
 import {ArrayAudioBuffer} from "./array_audio_buffer";
+import {SprLogger} from "../utils/logger";
 export class ArrayAudioBufferInputStream implements Float32ArrayInputStream{
 
   private _framePos=0;
@@ -79,7 +80,7 @@ export class ArrayAudioBufferInputStream implements Float32ArrayInputStream{
     this._framePos+=read;
       //console.debug("Read: "+read+", frame pos: "+this.framePos)
     if(this._framePos>this.arrayAudioBuffer.frameLen){
-      console.error("Array audio input stream frame pos: "+this._framePos+" greater then frame length: "+this.arrayAudioBuffer.frameLen);
+      SprLogger.error("Array audio input stream frame pos: "+this._framePos+" greater then frame length: "+this.arrayAudioBuffer.frameLen);
     }
     return read;
   }

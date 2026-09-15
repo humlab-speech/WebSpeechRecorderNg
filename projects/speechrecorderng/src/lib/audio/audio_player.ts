@@ -12,6 +12,7 @@ import {Action} from "../action/action";
 import {AudioDisplayScrollPane} from "./ui/audio_display_scroll_pane";
 import {AudioContextProvider} from "./context";
 import {AudioBufferSource, AudioDataHolder} from "./audio_data_holder";
+import {SprLogger} from "../utils/logger";
 
 @Component({
     selector: 'app-audiodisplayplayer',
@@ -96,7 +97,7 @@ export class AudioDisplayPlayer implements AudioPlayerListener, OnInit,AfterView
   ngAfterViewInit() {
       if (this.ap) {
           this.playStartAction.onAction = () => {
-            console.debug("Start action, player: "+this.ap)
+            SprLogger.debug("Start action, player: "+this.ap)
             this.ap?.start();
           }
           this.playSelectionAction.onAction = () => this.ap?.startSelected();
@@ -161,7 +162,7 @@ export class AudioDisplayPlayer implements AudioPlayerListener, OnInit,AfterView
         }
       }
       this.currentLoader.onerror = (e) => {
-        console.error("Error downloading ...");
+        SprLogger.error("Error downloading ...");
         this.currentLoader = null;
       }
       this.currentLoader.send();

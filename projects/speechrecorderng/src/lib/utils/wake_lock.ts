@@ -1,6 +1,7 @@
 import {BehaviorSubject} from "rxjs";
 import {WAKE_LOCK_VIDEO_MP4_URI} from "./wake_lock_media";
 import {Browser, UserAgent, UserAgentBuilder} from "./ua-parser";
+import {SprLogger} from "./logger";
 
 /**
  * Utility to prevent devices from screen lock.
@@ -28,7 +29,7 @@ export class WakeLockManager {
 
   constructor() {
     this.wakeLockApiSupported=('wakeLock' in navigator);
-    console.debug("Wake lock API supported: "+this.wakeLockApiSupported);
+    SprLogger.debug("Wake lock API supported: "+this.wakeLockApiSupported);
     this.userAgent=UserAgentBuilder.userAgent();
     this.randomSeekRequired=(this.userAgent?.detectedBrowser===Browser.Safari);
   }
@@ -39,10 +40,10 @@ export class WakeLockManager {
           navigator.wakeLock.request('screen').then((wls)=>{
             this.wakeLockSentinel=wls;
             this.wakeLockRetryCount=0;
-            console.debug('Wake lock screen request successful.');
+            SprLogger.debug('Wake lock screen request successful.');
             this._behaviorSubject.next(true);
           }).catch((reason:any)=>{
-            console.error('Wakelock failed: '+reason)
+            SprLogger.error('Wakelock failed: '+reason)
             this._behaviorSubject.error(reason);
 
           });
@@ -57,16 +58,16 @@ export class WakeLockManager {
           this.mp4VideoElement.src=WAKE_LOCK_VIDEO_MP4_URI;
 
           this.mp4VideoElement.addEventListener('play', (ev) => {
-            console.debug('Wake lock video playing...');
+            SprLogger.debug('Wake lock video playing...');
             this._behaviorSubject.next(true);
           })
           this.mp4VideoElement.addEventListener('ended', (ev) => {
-            console.debug('Wake lock video ended.');
+            SprLogger.debug('Wake lock video ended.');
             this._behaviorSubject.next(false);
           })
           this.mp4VideoElement.addEventListener('pause', (ev) => {
 
-            console.debug('Wake lock video pause.');
+            SprLogger.debug('Wake lock video pause.');
             this._behaviorSubject.next(false);
           })
           if(this.randomSeekRequired){
@@ -82,10 +83,10 @@ export class WakeLockManager {
             });
           }
           this.mp4VideoElement.addEventListener('error', (ev) => {
-            console.debug('Wake lock video error: '+ev.message);
+            SprLogger.debug('Wake lock video error: '+ev.message);
             this._behaviorSubject.error(ev.error);
           })
-          console.debug('Added listeners to wake lock video.');
+          SprLogger.debug('Added listeners to wake lock video.');
         }
         this.startWakeLockVideo();
       }
@@ -96,15 +97,15 @@ export class WakeLockManager {
       this.mp4VideoElement.play().then(()=>{
         this.wakeLockRetryCount=0;
       }).catch((err)=> {
-        console.debug('Failed starting wake lock video!');
+        SprLogger.debug('Failed starting wake lock video!');
         if (this.wakeLockRetryCount < 1) {
           window.setTimeout(() => {
             this.wakeLockRetryCount++;
-            console.debug('Retry wake lock video #' + this.wakeLockRetryCount);
+            SprLogger.debug('Retry wake lock video #' + this.wakeLockRetryCount);
             this.startWakeLockVideo();
           }, 4000)
         }else{
-          console.debug('Giving up to try to start wake lock video.');
+          SprLogger.debug('Giving up to try to start wake lock video.');
         }
       });
     }
@@ -114,10 +115,10 @@ export class WakeLockManager {
   disableWakeLock(){
     if(this.wakeLockApiSupported) {
         this.wakeLockSentinel.release().then(()=>{
-          console.debug('Wake lock release successful.');
+          SprLogger.debug('Wake lock release successful.');
           this._behaviorSubject.next(false);
         }).catch((reason:any)=>{
-          console.error('Wakelock release failed: '+reason)
+          SprLogger.error('Wakelock release failed: '+reason)
           this._behaviorSubject.error(reason);
         });
     }else {

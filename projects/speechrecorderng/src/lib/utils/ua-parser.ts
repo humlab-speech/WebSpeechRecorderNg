@@ -1,3 +1,5 @@
+import {SprLogger} from "./logger";
+
 export class UserAgentComponent{
   constructor(public name:string,public version:string|null,public comment?:string) {
 
@@ -76,7 +78,7 @@ export class UserAgentBuilder {
     // }
 
     let ua=navigator.userAgent;
-    console.debug("User agent: "+ua);
+    SprLogger.debug("User agent: "+ua);
     this.comps = new Array<UserAgentComponent>();
 
     let pp = 0;
@@ -117,7 +119,7 @@ export class UserAgentBuilder {
         pp++;
       }
       const uac=new UserAgentComponent(name, version, comment);
-      console.debug("user agent comp: "+uac);
+      SprLogger.debug("user agent comp: "+uac);
       this.comps.push(uac);
     }
 

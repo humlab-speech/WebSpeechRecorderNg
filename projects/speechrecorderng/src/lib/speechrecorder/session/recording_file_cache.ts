@@ -1,6 +1,7 @@
 import {RecordingFile, RecordingFileUtils, SprRecordingFile} from "../recording";
 import {Item} from "./item";
 import {AudioDataHolder} from "../../audio/audio_data_holder";
+import {SprLogger} from "../../utils/logger";
 
 export abstract class BasicRecFilesCache {
 
@@ -49,28 +50,28 @@ export class SprItemsCache extends BasicRecFilesCache{
 
 
     private tryExpire(toBeExpiredRf:SprRecordingFile){
-      if(BasicRecFilesCache.DEBUG)console.debug("Rec. files cache: " + toBeExpiredRf.toString()+" try expire:");
+      if(BasicRecFilesCache.DEBUG)SprLogger.debug("Rec. files cache: " + toBeExpiredRf.toString()+" try expire:");
       if(!RecordingFileUtils.equals(toBeExpiredRf,this.currentRecordingFile)) {
-        if(BasicRecFilesCache.DEBUG)console.debug("Rec. files cache: " + toBeExpiredRf.toString()+" not current file...");
+        if(BasicRecFilesCache.DEBUG)SprLogger.debug("Rec. files cache: " + toBeExpiredRf.toString()+" not current file...");
         if (toBeExpiredRf.serverPersisted) {
-          if(BasicRecFilesCache.DEBUG)console.debug("Rec. files cache: " + toBeExpiredRf.toString()+" is server persisted...");
+          if(BasicRecFilesCache.DEBUG)SprLogger.debug("Rec. files cache: " + toBeExpiredRf.toString()+" is server persisted...");
           // expire recording files first stored to the cache
           let expiredSamples = RecordingFileUtils.expireAudioData(toBeExpiredRf);
           this._sampleCount -= expiredSamples;
           if(expiredSamples>0) {
-            if (BasicRecFilesCache.DEBUG) console.debug("Rec. files cache: Expired: " + toBeExpiredRf.toString() + ". Cache samples now: " + this._sampleCount);
+            if (BasicRecFilesCache.DEBUG) SprLogger.debug("Rec. files cache: Expired: " + toBeExpiredRf.toString() + ". Cache samples now: " + this._sampleCount);
           }
         } else {
-          if(BasicRecFilesCache.DEBUG)console.debug("Rec. files cache: #" + toBeExpiredRf.toString() + " not yet persisted on server.");
+          if(BasicRecFilesCache.DEBUG)SprLogger.debug("Rec. files cache: #" + toBeExpiredRf.toString() + " not yet persisted on server.");
         }
       }else{
-        if(BasicRecFilesCache.DEBUG)console.debug("Rec. files cache: " + toBeExpiredRf.toString()+" is current file.");
+        if(BasicRecFilesCache.DEBUG)SprLogger.debug("Rec. files cache: " + toBeExpiredRf.toString()+" is current file.");
       }
     }
 
   protected expire() {
     // expire corrected versions first
-    if(BasicRecFilesCache.DEBUG)console.debug("Rec. files cache: Expire? current: "+this._sampleCount+", max: "+this.maxSampleCount);
+    if(BasicRecFilesCache.DEBUG)SprLogger.debug("Rec. files cache: Expire? current: "+this._sampleCount+", max: "+this.maxSampleCount);
     if (this._sampleCount > this.maxSampleCount) {
 
       // expire older versions of an item first
@@ -120,24 +121,24 @@ export class SprItemsCache extends BasicRecFilesCache{
     }
     item.recs[sprRecFile.version]=sprRecFile;
     this._sampleCount += RecordingFileUtils.sampleCount(sprRecFile);
-    if(BasicRecFilesCache.DEBUG)console.debug("Rec. files cache: Added. Cache samples: "+this._sampleCount);
+    if(BasicRecFilesCache.DEBUG)SprLogger.debug("Rec. files cache: Added. Cache samples: "+this._sampleCount);
   }
 
   setSprRecFileAudioData(sprRecFile:SprRecordingFile, adh:AudioDataHolder|null){
     this.expire();
-    if(BasicRecFilesCache.DEBUG)console.debug("Rec. files cache: Set audio data after expire. Cache samples: "+this._sampleCount);
+    if(BasicRecFilesCache.DEBUG)SprLogger.debug("Rec. files cache: Set audio data after expire. Cache samples: "+this._sampleCount);
     let currSampleCnt=RecordingFileUtils.sampleCount(sprRecFile);
     this._sampleCount-=currSampleCnt;
-    if(BasicRecFilesCache.DEBUG)console.debug("Rec. files cache: Set audio data subtracted curr sample count: "+currSampleCnt+". Cache samples: "+this._sampleCount);
+    if(BasicRecFilesCache.DEBUG)SprLogger.debug("Rec. files cache: Set audio data subtracted curr sample count: "+currSampleCnt+". Cache samples: "+this._sampleCount);
     RecordingFileUtils.setAudioData(sprRecFile,adh);
     let newSampleCnt=RecordingFileUtils.sampleCount(sprRecFile);
     this._sampleCount+=newSampleCnt;
-    if(BasicRecFilesCache.DEBUG)console.debug("Rec. files cache: Set audio data added new sample count: "+newSampleCnt+". Cache samples: "+this._sampleCount);
+    if(BasicRecFilesCache.DEBUG)SprLogger.debug("Rec. files cache: Set audio data added new sample count: "+newSampleCnt+". Cache samples: "+this._sampleCount);
     let fl=adh?.frameLen;
     if(sprRecFile.frames==null && fl){
       sprRecFile.frames=fl;
     }
-    if(BasicRecFilesCache.DEBUG)console.debug("Rec. files cache: Set audio data. Cache samples: "+this._sampleCount);
+    if(BasicRecFilesCache.DEBUG)SprLogger.debug("Rec. files cache: Set audio data. Cache samples: "+this._sampleCount);
   }
 }
 
@@ -172,13 +173,13 @@ export class RecFilesCache extends BasicRecFilesCache{
             let expiredSamples = RecordingFileUtils.expireAudioData(toBeExpiredRf);
             this._sampleCount -= expiredSamples;
             if(expiredSamples>0) {
-              if (BasicRecFilesCache.DEBUG) console.debug("Rec. files cache: Expired #" + rfI + ". Cache samples: " + this._sampleCount);
+              if (BasicRecFilesCache.DEBUG) SprLogger.debug("Rec. files cache: Expired #" + rfI + ". Cache samples: " + this._sampleCount);
             }
           }else{
-            if(BasicRecFilesCache.DEBUG)console.debug("Rec. files cache: #"+rfI+" is current file. (not expiring)");
+            if(BasicRecFilesCache.DEBUG)SprLogger.debug("Rec. files cache: #"+rfI+" is current file. (not expiring)");
           }
         }else{
-          if(BasicRecFilesCache.DEBUG)console.debug("Rec. files cache: #"+rfI+" not yet server persisted.");
+          if(BasicRecFilesCache.DEBUG)SprLogger.debug("Rec. files cache: #"+rfI+" not yet server persisted.");
         }
       }
     }
@@ -188,7 +189,7 @@ export class RecFilesCache extends BasicRecFilesCache{
     this.expire();
     this._recFiles.push(recFile);
     this._sampleCount += RecordingFileUtils.sampleCount(recFile);
-    if(BasicRecFilesCache.DEBUG)console.debug("Rec. files cache: Added. Cache samples: "+this._sampleCount);
+    if(BasicRecFilesCache.DEBUG)SprLogger.debug("Rec. files cache: Added. Cache samples: "+this._sampleCount);
   }
 
   setRecFileAudioData(recFile:RecordingFile, adh:AudioDataHolder|null){
@@ -196,7 +197,7 @@ export class RecFilesCache extends BasicRecFilesCache{
     this._sampleCount-=RecordingFileUtils.sampleCount(recFile);
     RecordingFileUtils.setAudioData(recFile,adh);
     this._sampleCount+=RecordingFileUtils.sampleCount(recFile);
-    if(BasicRecFilesCache.DEBUG)console.debug("Rec. files cache: Set audio data. Cache samples: "+this._sampleCount);
+    if(BasicRecFilesCache.DEBUG)SprLogger.debug("Rec. files cache: Set audio data. Cache samples: "+this._sampleCount);
   }
 }
 

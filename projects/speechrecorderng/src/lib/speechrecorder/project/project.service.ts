@@ -8,6 +8,7 @@ import {Project} from "./project";
 import {UUID} from "../../utils/utils";
 import {Observable} from "rxjs";
 import {PlatformLocation} from "@angular/common";
+import {SprLogger} from "../../utils/logger";
 
 
 
@@ -19,7 +20,7 @@ export class ProjectService {
 
   constructor(private http:HttpClient,private platformLocation:PlatformLocation,@Inject(SPEECHRECORDER_CONFIG) private config?:SpeechRecorderConfig) {
 
-    console.log("Base Href: "+platformLocation.getBaseHrefFromDOM());
+    SprLogger.info("Base Href: "+platformLocation.getBaseHrefFromDOM());
 
     let apiEndPoint = ''
 

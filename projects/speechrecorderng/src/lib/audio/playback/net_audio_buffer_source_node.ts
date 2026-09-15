@@ -3,6 +3,7 @@ import {ArrayAudioBufferSourceNode} from "./array_audio_buffer_source_node";
 import {EMPTY, expand, Observable, Subscription} from "rxjs";
 import {AudioSourceNode} from "./audio_source_node";
 import {NetAudioBuffer, NetAudioInputStream} from "../net_audio_buffer";
+import {SprLogger} from "../../utils/logger";
 
 export class NetAudioBufferSourceNode extends AudioSourceNode {
 
@@ -52,11 +53,11 @@ export class NetAudioBufferSourceNode extends AudioSourceNode {
             }, drainTime * 1000);
 
           }else if ('stalled' === evType) {
-            console.debug('Playback stalled...');
+            SprLogger.debug('Playback stalled...');
             this.stalled=true;
             this.stalledStartTime=this.context.currentTime;
           }else if ('resumed' === evType) {
-            console.debug('Playback resumed after stall.');
+            SprLogger.debug('Playback resumed after stall.');
             this.stalled=false;
             if(this.stalledStartTime!=null) {
               this.stalledTime += this.context.currentTime - this.stalledStartTime;

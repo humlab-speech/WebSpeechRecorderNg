@@ -108,6 +108,17 @@ Versions 2.x.x of WebSpeechRecorderNg use the REST API version v1, Versions 3.x.
 
 By default the API Endpoint ({apiEndPoint}) is an empty string, the API is then expected to be relative to the base path of the application. 
 
+### Logging
+
+All library log output goes through a level gated logger. The level is configured with `logLevel` in `SpeechRecorderConfig` (`SprLogLevel.DEBUG`, `INFO` (default), `WARN`, `ERROR`, `OFF`). With the default level, debug output is suppressed.
+
+### Security
+
+* The application must be served over HTTPS: browser microphone access requires a secure context, and recordings may contain sensitive personal information.
+* When `withCredentials: true` is configured (cookie based authentication), the server must implement CSRF protection, e.g. by requiring a CSRF token on state changing requests or by setting `SameSite=Strict`/`SameSite=Lax` on the session cookie. The client does not add a CSRF token.
+* Prefer token based authentication via the `Authorization` header over cookies.
+* A strict Content-Security-Policy must allow blob workers and blob audio worklet modules: `worker-src 'self' blob:`, `media-src blob:`.
+* Recording files and their metadata are considered personal data; the server should apply access control, transport encryption and retention policies accordingly.
 
 ## SpeechRecorder REST API description
 

@@ -1,5 +1,6 @@
 import {Injectable, InjectionToken} from "@angular/core";
 import {UploadConfig} from "./net/uploader";
+import {SprLogLevel} from "./utils/logger";
 
 export const SPEECHRECORDER_CONFIG = new InjectionToken<SpeechRecorderConfig>('speechrecorder.config');
 
@@ -16,6 +17,7 @@ export class SpeechRecorderConfig{
   enableDownloadRecordings?: boolean=false;
   enableUploadRecordings?: boolean=true;
   uploadConfig?: UploadConfig;
+logLevel?: SprLogLevel;
   constructor(){
     this.apiEndPoint=null;
     this.apiType=null;

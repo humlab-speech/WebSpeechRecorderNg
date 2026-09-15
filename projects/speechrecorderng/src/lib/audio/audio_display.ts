@@ -9,6 +9,7 @@ import {AudioClip, Selection} from './persistor'
 import {Action} from "../action/action";
 import {AudioDisplayScrollPane} from "./ui/audio_display_scroll_pane";
 import {AudioDataHolder} from "./audio_data_holder";
+import {SprLogger} from "../utils/logger";
 
 @Component({
     selector: 'app-audiodisplay',
@@ -115,7 +116,7 @@ export class AudioDisplay implements OnInit,AfterViewInit {
 
 
   started() {
-    console.log("Play started");
+    SprLogger.info("Play started");
     this.status = 'Playing...';
   }
 
@@ -124,7 +125,7 @@ export class AudioDisplay implements OnInit,AfterViewInit {
   set audioData(audioData: AudioDataHolder){
       this.audioDisplayScrollPane.audioData = audioData;
       if(this.playStartAction) {
-        console.debug("Play start action (by AudioDisplay::set audioData) disabled: "+(audioData==null));
+        SprLogger.debug("Play start action (by AudioDisplay::set audioData) disabled: "+(audioData==null));
           this.playStartAction.disabled = (audioData == null)
       }
   }

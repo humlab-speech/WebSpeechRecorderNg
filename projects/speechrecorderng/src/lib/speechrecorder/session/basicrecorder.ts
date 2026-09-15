@@ -31,6 +31,7 @@ import {PersistentAudioStorageTarget} from "../../audio/inddb_audio_buffer";
 import {ResponsiveComponent} from "../../ui/responsive_component";
 import {BreakpointObserver} from "@angular/cdk/layout";
 import {SampleSize} from "../../audio/impl/wavwriter";
+import {SprLogger} from "../../utils/logger";
 
 export const FORCE_REQUEST_AUDIO_PERMISSIONS=false;
 export const RECFILE_API_CTX = 'recfile';
@@ -98,10 +99,10 @@ export class ChunkManager implements SequenceAudioFloat32OutStream{
       }catch(err){
         // TODO Handle errors
         // iOS Safari sometimes throws NotSupportedError
-        console.error("Could not create audio buffer for chunked upload.");
-        console.error("Nr. of chs: "+this.channels+", frame length: "+frameLen+", sample rate: "+this.sampleRate);
+        SprLogger.error("Could not create audio buffer for chunked upload.");
+        SprLogger.error("Nr. of chs: "+this.channels+", frame length: "+frameLen+", sample rate: "+this.sampleRate);
         if(err instanceof DOMException){
-          console.error("DOM exception: Name: "+err.name+", Msg: "+err.message);
+          SprLogger.error("DOM exception: Name: "+err.name+", Msg: "+err.message);
           if(err.name==='NotSupportedError'){
             if(frameLen==0){
               // Empty buffers are not supported by Chromium
@@ -111,16 +112,16 @@ export class ChunkManager implements SequenceAudioFloat32OutStream{
               throw err;
             }
           }else if(err.name==='RangeError'){
-            console.error("DOM RangeError");
+            SprLogger.error("DOM RangeError");
             // Out of memory
             // TODO What to do ??
             throw err;
           }else{
-            console.error("DOM Exception unknown");
+            SprLogger.error("DOM Exception unknown");
             throw err;
           }
         }else if (err instanceof RangeError){
-          console.error("RangeError: Name: "+err.name+", Msg: "+err.message);
+          SprLogger.error("RangeError: Name: "+err.name+", Msg: "+err.message);
           // Out of memory
           // TODO What to do ??
           throw err;
@@ -281,13 +282,13 @@ export abstract class BasicRecorder extends ResponsiveComponent{
     this.userAgent=UserAgentBuilder.userAgent();
     const detPfm=this.userAgent.detectedPlatform;
     if(detPfm) {
-      console.debug("Detected platform: " +detPfm);
+      SprLogger.debug("Detected platform: " +detPfm);
     }
     const detBr=this.userAgent.detectedBrowser;
     const detBrVers=this.userAgent.detectedBrowserVersion;
     if(detBr) {
       let detBrVersStr=(detBrVers)?' '+detBrVers:'';
-      console.debug("Detected browser: " +detBr+detBrVersStr);
+      SprLogger.debug("Detected browser: " +detBr+detBrVersStr);
     }
     this.transportActions = new TransportActions();
     this.playStartAction = new Action('Play');
@@ -313,7 +314,7 @@ export abstract class BasicRecorder extends ResponsiveComponent{
               this._screenLocked = v;
             },
             error: (err) => {
-              console.error("Wake lock error!")
+              SprLogger.error("Wake lock error!")
               this._screenLocked = false;
             }
           }
@@ -557,7 +558,7 @@ export abstract class BasicRecorder extends ResponsiveComponent{
               // push../projects/speechrecorderng/src/lib/audio/capture/capture.ts.AudioCapture.open @ capture.ts:128
 
               //this.ac.open(this._channelCount, fdi.deviceId);
-              console.info("Set selected audio device: \'" + fdi.label + "\' Id: \'" + fdi.deviceId + "\'");
+              SprLogger.info("Set selected audio device: \'" + fdi.label + "\' Id: \'" + fdi.deviceId + "\'");
               this._selectedDeviceId = fdi.deviceId;
 
               this.enableStartUserGesture()
@@ -675,9 +676,9 @@ export abstract class BasicRecorder extends ResponsiveComponent{
     if (this.ac) {
       if (!this.ac.opened) {
         if (this._selectedDeviceId) {
-          console.log("Open session with audio device Id: \'" + this._selectedDeviceId + "\' for " + this._channelCount + " channels");
+          SprLogger.info("Open session with audio device Id: \'" + this._selectedDeviceId + "\' for " + this._channelCount + " channels");
         } else {
-          console.log("Open session with default audio device for " + this._channelCount + " channels");
+          SprLogger.info("Open session with default audio device for " + this._channelCount + " channels");
         }
         this.ac.open(this._channelCount, this._selectedDeviceId, this._autoGainControlConfigs,this._allowEchoCancellation);
       } else {
@@ -733,7 +734,7 @@ export abstract class BasicRecorder extends ResponsiveComponent{
       this.uploadSet.add(ul);
       this.uploader.queueUpload(ul);
     }else{
-      console.error("Recording file UUID not set!")
+      SprLogger.error("Recording file UUID not set!")
     }
   }
 
@@ -767,7 +768,7 @@ protected sessionsBaseUrl():string {
       this.uploader.queueUpload(ul);
       //console.debug("Queued for upload: "+this._recordingFile);
     }else{
-      console.error("Recording file UUID not set!")
+      SprLogger.error("Recording file UUID not set!")
     }
   }
 

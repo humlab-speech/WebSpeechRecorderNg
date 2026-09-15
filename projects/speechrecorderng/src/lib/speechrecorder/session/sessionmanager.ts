@@ -35,6 +35,7 @@ import {IndexedDbAudioBuffer, PersistentAudioStorageTarget} from "../../audio/in
 import {AudioStorageFormatEncoding, AudioStorageType} from "../project/project";
 import {NetAudioBuffer} from "../../audio/net_audio_buffer";
 import {BreakpointObserver} from "@angular/cdk/layout";
+import {SprLogger} from "../../utils/logger";
 
 const DEFAULT_PRE_REC_DELAY=1000;
 const DEFAULT_POST_REC_DELAY=500;
@@ -714,7 +715,7 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
                 }
               }
             }
-            console.debug("Audio download type: " + audioDownloadType);
+            SprLogger.debug("Audio download type: " + audioDownloadType);
             if (AudioStorageType.DB_CHUNKED === this._clientAudioStorageType) {
               // Fetch chunked indexed db audio buffer
               let nextIab: IndexedDbAudioBuffer | null = null;
@@ -751,7 +752,7 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
                     this.showRecording();
                   },
                   error: err => {
-                    console.error("Could not load recording file from server: " + err);
+                    SprLogger.error("Could not load recording file from server: " + err);
                     this.liveLevelDisplayState = LiveLevelState.READY;
                     this.statusMsg = 'Recording file could not be loaded: ' + err;
                     this.statusAlertType = 'error';
@@ -793,7 +794,7 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
                   this.showRecording();
                 },
                 error: err => {
-                  console.error("Could not load recording file from server: " + err);
+                  SprLogger.error("Could not load recording file from server: " + err);
                   this.liveLevelDisplayState = LiveLevelState.READY;
                   this.statusMsg = 'Recording file could not be loaded: ' + err;
                   this.statusAlertType = 'error';
@@ -832,7 +833,7 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
                   this.showRecording();
                 },
                 error: err => {
-                  console.error("Could not load recording file from server: " + err);
+                  SprLogger.error("Could not load recording file from server: " + err);
                   this.liveLevelDisplayState = LiveLevelState.READY;
                   this.statusMsg = 'Recording file could not be loaded: ' + err;
                   this.statusAlertType = 'error';
@@ -870,7 +871,7 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
                   }
                   this.showRecording();
                 }, error: err => {
-                  console.error("Could not load recording file from server: " + err);
+                  SprLogger.error("Could not load recording file from server: " + err);
                   this.liveLevelDisplayState = LiveLevelState.READY;
                   this.statusMsg = 'Recording file could not be loaded: ' + err;
                   this.statusAlertType = 'error';
@@ -1263,7 +1264,7 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
             } else if (this.session?.project && this._recordingFile && this._recordingFile instanceof SprRecordingFile) {
               burl = this.recFileService.sprAudioFileUrlByItemcode(this.session?.project, this.session?.sessionId, this._recordingFile.itemCode, this._recordingFile.version);
             }else{
-              console.error("Could not create net audio buffer.");
+              SprLogger.error("Could not create net audio buffer.");
             }
             if (burl) {
               const rUUID = this.ac.recUUID;
@@ -1276,7 +1277,7 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
                 //let rp=new ReadyProvider();
                 //netAb.readyProvider=rp;
                 this.uploadSet.onDone=(uploadSet)=>{
-                  console.debug("upload set on done: Call ready provider.ready");
+                  SprLogger.debug("upload set on done: Call ready provider.ready");
                   //rp.ready();
                   netAb.ready();
                 }
@@ -1310,7 +1311,7 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
               } else if (this.session?.project && this._recordingFile && this._recordingFile instanceof SprRecordingFile) {
                 burl = this.recFileService.sprAudioFileUrlByItemcode(this.session?.project, this.session?.sessionId, this._recordingFile.itemCode, this._recordingFile.version);
               }else{
-                console.error("Could not create net audio buffer.");
+                SprLogger.error("Could not create net audio buffer.");
               }
               if (burl) {
                 const rUUID = this.ac.recUUID;
@@ -1321,7 +1322,7 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
                 as = netAb;
                 if (this.uploadSet) {
                   this.uploadSet.onDone = (uploadSet) => {
-                    console.debug("upload set on done: Call ready provider.ready");
+                    SprLogger.debug("upload set on done: Call ready provider.ready");
 
                     netAb.ready();
                   }
