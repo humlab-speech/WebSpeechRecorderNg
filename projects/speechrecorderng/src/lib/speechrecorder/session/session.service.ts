@@ -35,7 +35,7 @@ export class SessionService {
 
   sessionObserver(id: string): Observable<Session> {
 
-    let sessUrl = this.sessionsUrl + '/' + id;
+    let sessUrl = this.sessionsUrl + '/' + encodeURIComponent(id);
     if (this.config && this.config.apiType === ApiType.FILES) {
       // for development and demo
       // append UUID to make request URL unique to avoid localhost server caching
@@ -47,7 +47,7 @@ export class SessionService {
 
   patchSessionObserver(session:Session,body:any): Observable<Session> {
 
-    let sesssUrl = this.apiEndPoint + ProjectService.PROJECT_API_CTX + '/' + session.project + '/' + SessionService.SESSION_API_CTX + '/' + session.sessionId
+    let sesssUrl = this.apiEndPoint + ProjectService.PROJECT_API_CTX + '/' + encodeURIComponent(session.project) + '/' + SessionService.SESSION_API_CTX + '/' + encodeURIComponent(session.sessionId)
 
     let wrapObs = new Observable<Session>(subscriber => {
       this._uploadCount++;

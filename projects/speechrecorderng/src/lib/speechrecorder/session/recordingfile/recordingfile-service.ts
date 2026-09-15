@@ -290,7 +290,7 @@ export class RecordingFileService extends BasicRecordingService{
   }
 
   saveEditSelection(recordingFileId: string | number,editSampleRate:number|null,editStartFrame:number|null,editEndFrame:number|null): Observable<SprRecordingFile | null> {
-    let recUrl = this.apiEndPoint + RecordingFileService.RECOFILE_API_CTX + '/' + recordingFileId;
+    let recUrl = this.apiEndPoint + RecordingFileService.RECOFILE_API_CTX + '/' + encodeURIComponent(recordingFileId);
     if (this.config && this.config.apiType === ApiType.FILES) {
       // for development and demo
       // append UUID to make request URL unique to avoid localhost server caching

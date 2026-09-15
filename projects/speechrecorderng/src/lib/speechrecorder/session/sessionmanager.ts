@@ -1366,7 +1366,7 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
             apiEndPoint = apiEndPoint + '/'
           }
           let sessionsUrl = apiEndPoint + SessionService.SESSION_API_CTX;
-          let recUrl: string = sessionsUrl + '/' + rf.session + '/' + RECFILE_API_CTX + '/' + rf.itemCode;
+          let recUrl: string = sessionsUrl + '/' + encodeURIComponent(rf.session ?? '') + '/' + RECFILE_API_CTX + '/' + encodeURIComponent(rf.itemCode);
           ww.writeAsync(ab, (wavFile) => {
             this.postRecording(wavFile, recUrl,rf);
             this.processingRecording = false
@@ -1450,7 +1450,7 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
     this.processingRecording = true;
     const ww = new WavWriter(this._clientMediaStorageFormat?.audioEncoding===AudioStorageFormatEncoding.PCM_FLOAT,this._clientMediaStorageFormat?.audioPCMsampleSizeInBits);
     let sessionsUrl = this.sessionsBaseUrl();
-    let recUrl: string = sessionsUrl + '/' + this.session?.sessionId + '/' + RECFILE_API_CTX + '/' + this.promptItem.itemcode+'/'+this.rfUuid+'/'+chunkIdx;
+    let recUrl: string = sessionsUrl + '/' + encodeURIComponent(this.session?.sessionId ?? '') + '/' + RECFILE_API_CTX + '/' + encodeURIComponent(this.promptItem.itemcode ?? '')+'/'+encodeURIComponent(this.rfUuid ?? '')+'/'+chunkIdx;
     // The upload holder is required to add the upload now to the upload set. The real upload is created async in postrecording and the upload set is already complete at that time.
     let ulh=new UploadHolder();
     if(this.uploadSet){

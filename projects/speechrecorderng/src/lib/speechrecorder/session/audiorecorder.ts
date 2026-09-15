@@ -1045,7 +1045,7 @@ export class AudioRecorder extends BasicRecorder implements OnInit,AfterViewInit
           }
 
           let sessionsUrl = apiEndPoint + SessionService.SESSION_API_CTX;
-          let recUrl: string = sessionsUrl + '/' + rf.session + '/' + RECFILE_API_CTX + '/' + rf.uuid;
+          let recUrl: string = sessionsUrl + '/' + encodeURIComponent(rf.session ?? '') + '/' + RECFILE_API_CTX + '/' + encodeURIComponent(rf.uuid ?? '');
 
           // convert asynchronously to 16-bit integer PCM
           // TODO could we avoid conversion to save CPU resources and transfer float PCM directly?
@@ -1099,7 +1099,7 @@ export class AudioRecorder extends BasicRecorder implements OnInit,AfterViewInit
     this.processingRecording = true;
     const ww = new WavWriter(this.project?.mediaStorageFormat?.audioEncoding===AudioStorageFormatEncoding.PCM_FLOAT,this.project?.mediaStorageFormat?.audioPCMsampleSizeInBits);
     let sessionsUrl = this.sessionsBaseUrl();
-    let recUrl: string = sessionsUrl + '/' + this.session?.sessionId + '/' + RECFILE_API_CTX + '/' + this.rfUuid+'/'+chunkIdx;
+    let recUrl: string = sessionsUrl + '/' + encodeURIComponent(this.session?.sessionId ?? '') + '/' + RECFILE_API_CTX + '/' + encodeURIComponent(this.rfUuid ?? '')+'/'+chunkIdx;
     let rf=this._recordingFile;
 
     // The upload holder is required to add the upload now to the upload set. The real upload is created async in postrecording and the upload set is already complete at that time.

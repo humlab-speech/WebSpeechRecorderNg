@@ -257,9 +257,11 @@ export class Float32ArrayChunkerOutStream implements Float32ArrayOutStream {
         }
         let sliceEnd = copied + toFill;
 
-        // Firefox on Android sends only the first channel
-        for (let ch = 0; ch < buffersLen; ch++) {
-          if(buffers[ch]) {
+        // Firefox on Android sends only the first channel.
+        // Iterate channels (buffers.length), not frames (buffersLen): with more
+        // channels than frames per quantum, channels >= buffersLen were dropped.
+        for (let ch = 0; ch < buffers.length; ch++) {
+          if(buffers[ch] && this.bufs[ch]) {
             let cpPrt = buffers[ch].slice(copied, sliceEnd);
             let buf = this.bufs[ch];
             buf.set(cpPrt, this.filled);

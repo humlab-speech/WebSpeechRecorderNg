@@ -720,7 +720,7 @@ export abstract class BasicRecorder extends ResponsiveComponent{
         apiEndPoint = apiEndPoint + '/'
       }
       let sessionsUrl = apiEndPoint + SessionService.SESSION_API_CTX;
-      let recUrl: string = sessionsUrl + '/' + this.session?.sessionId + '/' + RECFILE_API_CTX + '/' + this.rfUuid + '/prepareChunksRequest';
+      let recUrl: string = sessionsUrl + '/' + encodeURIComponent(this.session?.sessionId ?? '') + '/' + RECFILE_API_CTX + '/' + encodeURIComponent(this.rfUuid) + '/prepareChunksRequest';
       let fd = new FormData();
       // Note: At least one parameter must be set
       fd.set('uuid',this.rfUuid);
@@ -755,7 +755,7 @@ protected sessionsBaseUrl():string {
     if(this.rfUuid) {
 
       let sessionsUrl = this.sessionsBaseUrl();
-      let recUrl: string = sessionsUrl + '/' + this.session?.sessionId + '/' + RECFILE_API_CTX + '/' + this.rfUuid+'/concatChunksRequest';
+      let recUrl: string = sessionsUrl + '/' + encodeURIComponent(this.session?.sessionId ?? '') + '/' + RECFILE_API_CTX + '/' + encodeURIComponent(this.rfUuid)+'/concatChunksRequest';
       let fd=new FormData();
       fd.set('uuid',this.rfUuid);
       fd.set('chunkCount',chunkCount.toString());

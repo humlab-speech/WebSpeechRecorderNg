@@ -55,7 +55,10 @@ export enum SampleSize {INT16=16,INT32=32}
                valView.setFloat32(bufPos,valFlt,true);
                bufPos+=4;
              }else {
-               const valInt = Math.round(valFlt * hDynIntRange);
+               // Clamp to the target range: out-of-range floats (e.g. clipped input >1.0)
+               // would wrap around in setInt16/setInt32 and corrupt the sample.
+               const valClamped = Math.min(1, Math.max(-1, valFlt));
+               const valInt = Math.min(hDynIntRange - 1, Math.max(-hDynIntRange, Math.round(valClamped * hDynIntRange)));
                if (msg.data.sampleSizeInBits === 32) {
                  valView.setInt32(bufPos, valInt, true);
                } else {
@@ -121,7 +124,10 @@ export enum SampleSize {INT16=16,INT32=32}
            for (let ch = 0; ch < audioBuffer.numberOfChannels; ch++) {
              const chData = audioBuffer.getChannelData(ch);
              const valFlt = chData[s];
-             const valInt = Math.round(valFlt * hDynIntRange);
+             // Clamp to the target range: out-of-range floats (e.g. clipped input >1.0)
+             // would wrap around in writeInt16/writeInt32 and corrupt the sample.
+             const valClamped = Math.min(1, Math.max(-1, valFlt));
+             const valInt = Math.min(hDynIntRange - 1, Math.max(-hDynIntRange, Math.round(valClamped * hDynIntRange)));
              if (this.sampleSize === SampleSize.INT16) {
                this.bw.writeInt16(valInt, true);
              } else if (this.sampleSize === SampleSize.INT32) {

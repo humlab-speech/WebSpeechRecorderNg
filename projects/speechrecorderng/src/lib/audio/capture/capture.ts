@@ -141,6 +141,8 @@ export class AudioCapture {
 
   static BUFFER_SIZE: number = 8192;
   private static readonly DEFAULT_MAX_NET_AUTO_MEM_STORE_SAMPLES:number=2880000*5; // Default 5 minute at 48kHz
+  // Device names and IDs are personal information; log them only for debugging.
+  private static readonly DEBUG_DEVICES=false;
   private _maxAutoNetMemStoreSamples:number=AudioCapture.DEFAULT_MAX_NET_AUTO_MEM_STORE_SAMPLES;
   private static captureInterceptorModuleRegistered=false;
   context: AudioContext|null=null;
@@ -308,7 +310,9 @@ export class AudioCapture {
     //let selDeviceId = '___dummy___';
     for (let i = 0; i < l.length; i++) {
       let di = l[i];
-      console.log("Audio device: Id: " + di.deviceId + " groupId: " + di.groupId + " label: " + di.label + " kind: " + di.kind);
+      if (AudioCapture.DEBUG_DEVICES) {
+        console.log("Audio device: Id: " + di.deviceId + " groupId: " + di.groupId + " label: " + di.label + " kind: " + di.kind);
+      }
     }
   }
 
@@ -594,7 +598,9 @@ export class AudioCapture {
       for (let i = 0; i < aTracks.length; i++) {
         let aTrack = aTracks[i];
 
-        console.info("Track audio info: id: " + aTrack.id + " kind: " + aTrack.kind + " label: \"" + aTrack.label + "\"");
+        if (AudioCapture.DEBUG_DEVICES) {
+          console.info("Track audio info: id: " + aTrack.id + " kind: " + aTrack.kind + " label: \"" + aTrack.label + "\"");
+        }
         let mtrSts = aTrack.getSettings();
 
         // Typescript lib.dom.ts MediaTrackSettings.channelCount is missing
@@ -612,7 +618,9 @@ export class AudioCapture {
       let vTracks = s.getVideoTracks();
       for (let i = 0; i < vTracks.length; i++) {
         let vTrack = vTracks[i];
-        console.info("Track video info: id: " + vTrack.id + " kind: " + vTrack.kind + " label: " + vTrack.label);
+        if (AudioCapture.DEBUG_DEVICES) {
+          console.info("Track video info: id: " + vTrack.id + " kind: " + vTrack.kind + " label: " + vTrack.label);
+        }
       }
       this.mediaStream = this.context.createMediaStreamSource(s);
       // stream channel count ( is always 2 !)
