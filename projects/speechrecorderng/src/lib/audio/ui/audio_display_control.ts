@@ -96,7 +96,17 @@ import {AudioClip} from "../persistor";
           color: var(--spr-canvas-ink-muted, rgba(255, 255, 255, 0.78));
         }
 
+        /* Material renders the checkbox label itself, so the ink and the box state come
+           from its tokens. The control sits on the dark canvas surface. */
         mat-checkbox {
+          --mat-checkbox-label-text-color: var(--spr-canvas-ink, #FFFFFF);
+          --mat-checkbox-unselected-icon-color: var(--spr-canvas-ink-muted, rgba(255, 255, 255, 0.78));
+          --mat-checkbox-selected-icon-color: var(--spr-ok, #73A790);
+          --mat-checkbox-selected-checkmark-color: var(--spr-ok-ink, #000000);
+          --mat-checkbox-selected-hover-state-layer-color: var(--spr-canvas-ink, #FFFFFF);
+          --mat-checkbox-selected-focus-state-layer-color: var(--spr-canvas-ink, #FFFFFF);
+          --mat-checkbox-unselected-hover-state-layer-color: var(--spr-canvas-ink, #FFFFFF);
+          --mat-checkbox-disabled-label-color: var(--spr-canvas-ink-muted, rgba(255, 255, 255, 0.78));
           color: var(--spr-canvas-ink, #FFFFFF);
         }`
     ],

@@ -108,15 +108,18 @@ html {
     typography: 'Inter, "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif',
     density: 0,
   ));
-  @include spr.theme();       // --spr-* tokens + brand values for the Material roles
-  @include spr.theme-dark();  // optional: needs <html data-spr-scheme="dark">
 }
+
+@include spr.theme();       // --spr-* tokens + brand values for the Material roles
+@include spr.theme-dark();  // optional: needs <html data-spr-scheme="dark">
 ```
 
-Include `spr.theme()` *after* your Material theme: it pins `--mat-sys-primary`,
-`--mat-sys-error`, the surface roles and the toolbar colors to the brand values, so the
-source order decides. Without any theme include the recorder still renders, because every
-`var(--spr-*, …)` carries the brand value as a fallback.
+Include `spr.theme()` *after* your Material theme, and at the top level of the stylesheet:
+it pins `--mat-sys-primary`, `--mat-sys-error`, the surface roles and the toolbar colors to
+the brand values, so the source order decides. The mixin emits its own `:root` block, so
+nesting it inside another selector would produce a selector that never matches. Without any
+theme include the recorder still renders, because every `var(--spr-*, …)` carries the brand
+value as a fallback.
 
 ### Palette and roles
 
@@ -155,12 +158,21 @@ ramp; `buildSpectrumLut()` turns it into the table the sonagram worker paints wi
 ### Audit
 
 `bin/theme_audit.mjs` renders the application in a headless Chrome (DevTools Protocol) and
-fails on legacy colour literals, contrast below WCAG AA, text below 13.6 px, or a document
-that scrolls:
+fails on legacy colour literals, contrast below WCAG AA, text below 13.6 px, a Material role
+that stopped following its brand token, or a document that scrolls:
 
 ```
 node bin/theme_audit.mjs --url http://127.0.0.1:4200/spr \
   --viewports 1024x768,1366x768,1568x1334,1920x1080 --verbose
+```
+
+States behind an interaction are reached with `--prepare <fixture>.js`, which is evaluated in
+the page after load and before measuring — `bin/audit/open-detail-view.js` opens the detailed
+audio view, `bin/audit/open-error-dialog.js` opens the error dialog:
+
+```
+node bin/theme_audit.mjs --url http://127.0.0.1:4200/spr/session/2 \
+  --prepare bin/audit/open-error-dialog.js
 ```
 
 ### Deployment on the server

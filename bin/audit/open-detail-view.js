@@ -1,0 +1,38 @@
+/**
+ * Audit fixture: opens the detailed audio view (waveform + sonagram over the recording
+ * list) so `bin/theme_audit.mjs --prepare bin/audit/open-detail-view.js` measures the
+ * overlay instead of the collapsed session screen.
+ *
+ * Runs against a development build: it uses the Angular dev-mode component API. Routes that
+ * render the recording-file list (`AudioRecorder` / `AudioRecorderComponent`) have this
+ * overlay; `SpeechrecorderngComponent` renders the session screen without it, so this
+ * fixture reports "no component with a detail view in this route" there.
+ */
+(() => {
+  const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+  return (async () => {
+    if (!window.ng || !window.ng.getComponent) {
+      return 'no Angular dev API (needs a development build)';
+    }
+    const candidates = [
+      'app-audiorecorder-comp',
+      'app-audiorecorder',
+      'app-sprrecordingsession',
+      'app-recordercombipane',
+    ];
+    for (const selector of candidates) {
+      const host = document.querySelector(selector);
+      const component = host ? window.ng.getComponent(host) : null;
+      if (!component || !('audioSignalCollapsed' in component)) {
+        continue;
+      }
+      component.audioSignalCollapsed = false;
+      window.ng.applyChanges(component);
+      await sleep(1500);
+      return document.querySelector('.collapsable.active')
+        ? 'detail view open (' + selector + ')'
+        : 'detail view did not open (' + selector + ')';
+    }
+    return 'no component with a detail view in this route';
+  })();
+})()

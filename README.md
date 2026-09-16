@@ -95,17 +95,26 @@ Short version:
 
 * `src/main.scss` builds the Material theme from the brand tone ramps
   (`projects/speechrecorderng/src/lib/theme/_palette.scss`) and then emits the semantic
-  tokens and the Material role pins (`_tokens.scss`).
+  tokens and the Material role pins (`_tokens.scss`) — at the top level, because a token
+  block nested inside another selector would compile to a selector that never matches.
 * Components never contain a colour literal; they use `var(--spr-*, <fallback>)`.
 * Canvas painters (waveform, spectrogram, level meter, traffic light) resolve the same
   tokens through `sprToken()` in `projects/speechrecorderng/src/lib/theme/theme.ts`.
 * `bin/theme_audit.mjs` verifies the result (legacy literals, WCAG AA contrast, minimum
-  text size, no document scrollbars) against a running dev server:
+  text size, token pin integrity, no document scrollbars) against a running dev server:
 
 ```
 npm start
 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --remote-debugging-port=9333 about:blank &
 node bin/theme_audit.mjs --url http://127.0.0.1:4200/spr --viewports 1024x768,1366x768,1568x1334,1920x1080
+```
+
+States behind an interaction (the detailed audio view, the error dialog) are reached with
+`--prepare bin/audit/<fixture>.js`, e.g.
+
+```
+node bin/theme_audit.mjs --url http://127.0.0.1:4200/spr/session/2 \
+  --prepare bin/audit/open-error-dialog.js
 ```
 
 The font is Inter (loaded from Google Fonts in `src/index.html`) with a

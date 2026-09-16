@@ -132,8 +132,10 @@ $spr-tokens-dark: map.merge(
 }
 
 /// Emits the custom properties. Call once per scheme from the application stylesheet.
+/// `@at-root` keeps the output at `:root` even when the mixin is (mis)used inside another
+/// selector — nested, it would compile to a descendant selector that never matches.
 @mixin spr-token-styles($scheme: light, $selector: ':root') {
-  #{$selector} {
+  @at-root #{$selector} {
     @each $name, $value in spr-tokens($scheme) {
       --#{$name}: #{$value};
     }
@@ -143,8 +145,9 @@ $spr-tokens-dark: map.merge(
 /// Pins the Material system roles onto the brand tokens.
 /// Must be emitted *after* `mat.theme()`, which sets the same properties from the
 /// generated tone ramps — the brand values win where the ramp deviates from the brand.
+/// `@at-root` keeps the pins at `:root` when the mixin is used inside another selector.
 @mixin spr-material-role-tokens() {
-  :root {
+  @at-root :root {
     --mat-sys-primary: var(--spr-chrome);
     --mat-sys-on-primary: var(--spr-chrome-ink);
     --mat-sys-primary-container: var(--spr-surface-3);

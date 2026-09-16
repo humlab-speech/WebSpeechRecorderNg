@@ -22,6 +22,8 @@
  * Exits non-zero when a check fails. `--verbose` prints the full colour inventory.
  */
 
+import {readFileSync} from 'node:fs';
+
 const args = process.argv.slice(2);
 const opt = (name, fallback) => {
   const i = args.indexOf('--' + name);
@@ -32,6 +34,12 @@ const URL_TO_TEST = opt('url', 'http://127.0.0.1:4200/spr');
 const VIEWPORTS = opt('viewports', '1568x1334').split(',').map(v => v.split('x').map(Number));
 const VERBOSE = args.includes('--verbose');
 const MIN_TEXT_PX = Number(opt('min-text-px', '13.6')) - 0.1;
+/**
+ * Optional script evaluated in the page after load and before measuring, to reach states
+ * that need interaction (overlays, dialogs). See `bin/audit/`.
+ */
+const PREPARE_FILE = opt('prepare', '');
+const PREPARE_SOURCE = PREPARE_FILE ? readFileSync(PREPARE_FILE, 'utf8') : '';
 
 /** Colours that must not appear anywhere after the redesign. */
 const FORBIDDEN = {
@@ -117,9 +125,25 @@ const PAGE_PROBE = `(() => {
   for (const name of Array.from(rootStyle).filter(n => n.startsWith('--spr-'))) {
     tokens[name] = rootStyle.getPropertyValue(name).trim();
   }
+  // The Material roles must resolve to the brand tokens; an inert token layer (e.g. emitted
+  // under a selector that never matches) leaves them on the generated ramp values instead.
+  const pinto = [
+    ['--mat-sys-primary', '--spr-chrome'],
+    ['--mat-sys-on-primary', '--spr-chrome-ink'],
+    ['--mat-sys-surface', '--spr-surface'],
+    ['--mat-sys-error-container', '--spr-alert'],
+    ['--mat-toolbar-container-background-color', '--spr-chrome'],
+    ['--mat-toolbar-container-text-color', '--spr-chrome-ink'],
+  ];
+  const pins = pinto.map(([matName, sprName]) => [
+    matName, sprName,
+    rootStyle.getPropertyValue(matName).trim(),
+    rootStyle.getPropertyValue(sprName).trim(),
+  ]);
   return JSON.stringify({
     rows,
     tokens,
+    pins,
     fit: { scrollHeight: document.documentElement.scrollHeight, innerHeight: window.innerHeight },
   });
 })()`;
@@ -182,14 +206,43 @@ for (const [width, height] of VIEWPORTS) {
   await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
   await send('Page.navigate', { url: URL_TO_TEST });
   await new Promise(r => setTimeout(r, 9000));
+  if (PREPARE_SOURCE) {
+    const prepared = await send('Runtime.evaluate', {
+      expression: PREPARE_SOURCE,
+      awaitPromise: true,
+      returnByValue: true,
+    });
+    if (prepared.result?.exceptionDetails) {
+      failures.push(`${width}x${height}: --prepare script failed: ${prepared.result.exceptionDetails.exception?.description || ''}`);
+    } else {
+      console.log(`  prepared(${PREPARE_FILE}): ${String(prepared.result?.result?.value ?? '').slice(0, 120)}`);
+      await new Promise(r => setTimeout(r, 1500));
+    }
+  }
   const out = await send('Runtime.evaluate', { expression: PAGE_PROBE, returnByValue: true });
   const raw = out.result?.result?.value;
   if (!raw) {
     failures.push(`${width}x${height}: probe returned nothing (${JSON.stringify(out.result?.exceptionDetails?.exception?.description || out.result)})`);
     continue;
   }
-  const { rows, tokens, fit } = JSON.parse(raw);
+  const { rows, tokens, pins, fit } = JSON.parse(raw);
   const tokenColors = new Set(Object.values(tokens).map(toRgbString).filter(Boolean));
+
+  if (!Object.keys(tokens).length) {
+    failures.push(`${width}x${height}: no --spr-* tokens are defined (token layer inert)`);
+  }
+  for (const [matName, sprName, matValue, sprValue] of pins || []) {
+    const referenced = String(matValue).match(/^var\(\s*(--[a-z0-9-]+)/i);
+    const matches = referenced
+      ? referenced[1] === sprName
+      : String(matValue).replace(/\s+/g, '').toLowerCase() === String(sprValue).replace(/\s+/g, '').toLowerCase();
+    if (!matValue || !sprValue || !matches) {
+      failures.push(
+        `${width}x${height}: ${matName} does not follow ${sprName} ` +
+        `(${matName}=${matValue || 'unset'}, ${sprName}=${sprValue || 'unset'})`
+      );
+    }
+  }
 
   for (const row of rows) {
     if (!row.visible || row.decorative) continue;

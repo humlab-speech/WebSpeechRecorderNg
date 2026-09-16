@@ -27,7 +27,11 @@ html {
     ),
     density: 0,
   ));
-
-  @include tokens.spr-token-styles();
-  @include tokens.spr-material-role-tokens();
 }
+
+// Emitted at the top level: both mixins write `:root { … }` themselves, and nesting them
+// inside `html { }` would compile to the descendant selector `html :root`, which matches
+// nothing — the tokens would silently fall back to the literals in every `var()`.
+// (`bin/theme_audit.mjs` fails the build check if the pins stop resolving.)
+@include tokens.spr-token-styles();
+@include tokens.spr-material-role-tokens();

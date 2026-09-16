@@ -1,15 +1,15 @@
 ////
 /// SpeechRecorderNG theming entry point.
 ///
-/// Include this **after** your own Material theme, so the brand role pins win:
+/// Include this **after** your own Material theme, at the top level of your stylesheet:
 ///
 ///   @use '@angular/material' as mat;
 ///   @use 'speechrecorderng/theme' as spr;
 ///
 ///   html {
 ///     @include mat.theme((color: (primary: my-palette, theme-type: light)));
-///     @include spr.theme();
 ///   }
+///   @include spr.theme();
 ///
 /// Everything is a CSS custom property, so an application may override any single value
 /// afterwards, e.g. `:root { --spr-chrome: #123456; }`. Canvases are repainted from the
