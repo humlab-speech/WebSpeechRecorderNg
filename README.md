@@ -85,6 +85,33 @@ export class AppModule { }
  <router-outlet></router-outlet>
  ```
    
+## Theme (Umeå University)
+
+The demo application and the library are themed with the Umeå University palette — see
+[Theme in the module README](projects/speechrecorderng/README.md#theme-umeå-university) for
+the full token list and the consumer setup.
+
+Short version:
+
+* `src/main.scss` builds the Material theme from the brand tone ramps
+  (`projects/speechrecorderng/src/lib/theme/_palette.scss`) and then emits the semantic
+  tokens and the Material role pins (`_tokens.scss`).
+* Components never contain a colour literal; they use `var(--spr-*, <fallback>)`.
+* Canvas painters (waveform, spectrogram, level meter, traffic light) resolve the same
+  tokens through `sprToken()` in `projects/speechrecorderng/src/lib/theme/theme.ts`.
+* `bin/theme_audit.mjs` verifies the result (legacy literals, WCAG AA contrast, minimum
+  text size, no document scrollbars) against a running dev server:
+
+```
+npm start
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --remote-debugging-port=9333 about:blank &
+node bin/theme_audit.mjs --url http://127.0.0.1:4200/spr --viewports 1024x768,1366x768,1568x1334,1920x1080
+```
+
+The font is Inter (loaded from Google Fonts in `src/index.html`) with a
+`Helvetica Neue`/system fallback: an offline deployment keeps working, and
+`--spr-font-family` switches the whole application to a local font stack.
+
 ### Deployment on the server
 See [Angular Deployment/Server Configuration](https://angular.io/guide/deployment#server-configuration) for details.
 

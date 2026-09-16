@@ -22,7 +22,7 @@ import {AudioDataHolder} from "../audio_data_holder";
         `:host {
            flex: 2;
            width: 100%;
-           background: darkgray;
+           background: var(--spr-canvas, #0E1A26);
            box-sizing: border-box;
            height: 100%;
            position: relative;

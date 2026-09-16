@@ -6,13 +6,34 @@
   <base href="/">
 
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#2A4765">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
-  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap">
+  <style>
+    /* Shown until the application boots. Offline deployments fall back to the system
+       font stack — see the Theme section of the README. */
+    app-root > .spr-boot h1 {
+      font-family: var(--spr-font-family, Inter, "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif);
+      font-size: var(--spr-type-section, 17.28px);
+      font-weight: 700;
+      color: var(--spr-ink-strong, #1C3660);
+      margin: 0;
+    }
+
+    app-root > .spr-boot {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      background: var(--spr-page, #EEF1F5);
+    }
+  </style>
 </head>
 <body style="height:100%; margin: 0;padding: 0">
 
-<app-root class="mat-typography"><h1>Loading SpeechRecorder... Please wait.</h1></app-root>
-
+<app-root class="mat-typography"><div class="spr-boot"><h1>Loading SpeechRecorder... Please wait.</h1></div></app-root>
 
 </body>
 </html>

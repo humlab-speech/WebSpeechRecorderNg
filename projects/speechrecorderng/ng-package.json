@@ -3,5 +3,17 @@
   "dest": "../../dist/speechrecorderng",
   "lib": {
     "entryFile": "src/public-api.ts"
-  }
+  },
+  "assets": [
+    {
+      "glob": "theme.scss",
+      "input": "src",
+      "output": "."
+    },
+    {
+      "glob": "**/*.scss",
+      "input": "src/lib/theme",
+      "output": "lib/theme"
+    }
+  ]
 }

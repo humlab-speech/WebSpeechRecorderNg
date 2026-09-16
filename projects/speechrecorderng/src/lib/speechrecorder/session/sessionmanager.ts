@@ -50,7 +50,7 @@ export const enum Status {
     providers: [SessionService],
     template: `
     <app-warningbar [show]="isTestSession()" warningText="Test recording only!"></app-warningbar>
-    <app-warningbar [show]="isDefaultAudioTestSession()" warningText="This test uses default audio device! Regular sessions may require a particular audio device (microphone)!"></app-warningbar>
+    <app-warningbar [show]="isDefaultAudioTestSession()" severity="caution" warningText="This test uses default audio device! Regular sessions may require a particular audio device (microphone)!"></app-warningbar>
     <app-sprprompting [projectName]="projectName"
       [startStopSignalState]="startStopSignalState" [promptItem]="promptItem" [showPrompt]="showPrompt"
       [items]="items?.items"
@@ -116,7 +116,8 @@ export const enum Status {
     `,
     styles: [`:host {
     flex: 2;
-    background: lightgrey;
+    background: var(--spr-page, #EEF1F5);
+    color: var(--spr-ink, #1F3044);
     display: flex; /* Vertical flex container: Bottom transport panel, above prompting panel */
     flex-direction: column;
     margin: 0;
@@ -133,7 +134,8 @@ export const enum Status {
         flex-direction: row;
         justify-content: flex-end;align-items: center; align-content: center;
     }`, `.dark {
-    background: darkgray;
+    background: transparent;
+    color: var(--spr-canvas-ink, #FFFFFF);
   }`, `.controlpanel {
     display:flex;
     flex-direction: row;
@@ -141,17 +143,24 @@ export const enum Status {
     align-items: center;
     margin: 0;
     padding: 20px;
+    background: var(--spr-surface, #FFFFFF);
+    border-top: 1px solid var(--spr-border, #D8DFE8);
+    color: var(--spr-ink, #1F3044);
     min-height: min-content; /* important */
   }`, `.audioStatusDisplay{
     display:flex;
     flex-direction: row;
     height:100px;
     min-height: 100px;
+    background: var(--spr-canvas, #0E1A26);
+    color: var(--spr-canvas-ink, #FFFFFF);
   }`, `.audioStatusDisplayXs{
     display:flex;
     flex-direction: column;
     height:125px;
     min-height: 125px;
+    background: var(--spr-canvas, #0E1A26);
+    color: var(--spr-canvas-ink, #FFFFFF);
   }`
     ],
     standalone: false

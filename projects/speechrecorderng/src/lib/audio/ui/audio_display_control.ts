@@ -13,15 +13,15 @@ import {AudioClip} from "../persistor";
             <legend>Play</legend>
 
             <button (click)="playStartAction?.perform()" [disabled]="playStartAction?.disabled"
-              [style.color]="playStartAction?.disabled ? 'grey' : 'green'" matTooltip="Play all">
+              [style.color]="playStartAction?.disabled ? 'var(--spr-ink-subtle, #6D7C98)' : 'var(--spr-ok, #73A790)'" matTooltip="Play all">
               <mat-icon>play_arrow</mat-icon>
             </button>
             <button (click)="playSelectionAction?.perform()" [disabled]="playSelectionAction?.disabled"
-              [style.color]="playSelectionAction?.disabled ? 'grey' : 'green'" matTooltip="Play selection">
+              [style.color]="playSelectionAction?.disabled ? 'var(--spr-ink-subtle, #6D7C98)' : 'var(--spr-ok, #73A790)'" matTooltip="Play selection">
               <mat-icon>play_circle_outline</mat-icon>
             </button>
             <button (click)="playStopAction?.perform()" [disabled]="playStopAction?.disabled"
-              [style.color]="playStopAction?.disabled ? 'grey' : 'yellow'">
+              [style.color]="playStopAction?.disabled ? 'var(--spr-ink-subtle, #6D7C98)' : 'var(--spr-caution, #D7B17C)'">
               <mat-icon>stop</mat-icon>
             </button>&nbsp;
             <mat-checkbox #autoplaySelectionCheckbox (change)="autoPlaySelectionChange($event)">Autoplay on select
@@ -45,7 +45,7 @@ import {AudioClip} from "../persistor";
             <span>to</span>
             } {{audioClip?.selection?.rightFrame}}
             <button (click)="clearSelection()" [disabled]="audioClip?.selection==null"
-              [style.color]="hasSelection() ? 'red' : 'grey'" matTooltip="Clear selection">
+              [style.color]="hasSelection() ? 'var(--spr-chrome, #2A4765)' : 'var(--spr-ink-subtle, #6D7C98)'" matTooltip="Clear selection">
               <mat-icon>clear</mat-icon>
             </button>
 
@@ -54,8 +54,51 @@ import {AudioClip} from "../persistor";
     styles: [
         `:host {
                  flex: 0;
+                 display: block;
+                 padding: 6px 8px;
+                 background: var(--spr-canvas, #0E1A26);
+                 color: var(--spr-canvas-ink, #FFFFFF);
+                 font-size: var(--spr-type-caption, 13.6px);
+               }
 
-               }`
+        /* Plain HTML buttons, so the browser default chrome has to go. */
+        button {
+          display: inline-grid;
+          place-items: center;
+          min-width: 40px;
+          height: 40px;
+          padding: 0 8px;
+          border: none;
+          border-radius: var(--spr-r-md, 12px);
+          background: transparent;
+          color: var(--spr-canvas-ink, #FFFFFF);
+          font-family: inherit;
+          font-size: var(--spr-type-caption, 13.6px);
+          cursor: pointer;
+        }
+
+        button:hover:not([disabled]) {
+          background: var(--spr-chrome-tint, rgba(255, 255, 255, 0.14));
+        }
+
+        button[disabled] {
+          cursor: default;
+        }
+
+        fieldset {
+          border: 1px solid var(--spr-canvas-grid, #24497E);
+          border-radius: var(--spr-r-sm, 6px);
+          color: var(--spr-canvas-ink-muted, rgba(255, 255, 255, 0.78));
+        }
+
+        legend {
+          padding: 0 6px;
+          color: var(--spr-canvas-ink-muted, rgba(255, 255, 255, 0.78));
+        }
+
+        mat-checkbox {
+          color: var(--spr-canvas-ink, #FFFFFF);
+        }`
     ],
     standalone: false
 })

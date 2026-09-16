@@ -16,6 +16,7 @@
     "new_patchrelease_build_and_pack_module": "npm run new_patchrelease && npm run build_and_pack_module",
     "build_module": "npm run apply_module_version && ng build speechrecorderng --configuration production",
     "test_module": "ng test speechrecorderng",
+    "theme_audit": "node bin/theme_audit.mjs",
     "pack_module": "cd dist && cd speechrecorderng && npm pack && mv speechrecorderng-*.tgz ../",
     "pack_pi_module": "cd dist && cd speechrecorderng && npm pack && cd ../../ && node bin/mv_tgz_pkgs.js",
     "build_and_pack_module": "npm run build_module && npm run pack_pi_module",

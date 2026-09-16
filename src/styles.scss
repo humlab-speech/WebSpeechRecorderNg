@@ -1,4 +1,16 @@
-/* You can add global styles to this file, and also import other style files */
+/* Global styles: the only rules here are those that cannot be component-scoped
+   (cdk overlays, the document background, scrollbars). All values come from the
+   semantic tokens in `_tokens.scss` (projects/speechrecorderng/src/lib/theme). */
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: var(--spr-page, #EEF1F5);
+  color: var(--spr-ink, #1F3044);
+  font-family: var(--spr-font-family, Inter, "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif);
+}
 
 /* Manual shown in the toolbar Help menu (rendered in a cdk overlay, so it
    needs global styles rather than component-scoped ones). */
@@ -9,25 +21,32 @@
 }
 
 .spr-help {
-  padding: 12px 16px 16px;
-  font-size: 13px;
-  line-height: 1.35;
+  padding: 20px 20px 16px;
+  font-size: var(--spr-type-caption, 13.6px);
+  line-height: 1.5;
+  color: var(--spr-ink, #1F3044);
+  background: var(--spr-surface, #FFFFFF);
 
   .spr-help-title {
     margin: 0 0 4px;
-    font-size: 15px;
+    font-size: var(--spr-type-section, 17.28px);
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--spr-ink-strong, #1C3660);
   }
 
   .spr-help-lead {
     margin: 0 0 4px;
-    color: rgba(0, 0, 0, 0.6);
+    color: var(--spr-ink-muted, #4A6288);
   }
 
   h4 {
-    margin: 12px 0 4px;
-    font-size: 12px;
+    margin: 16px 0 6px;
+    font-size: var(--spr-type-caption, 13.6px);
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.06em;
+    color: var(--spr-ink-muted, #4A6288);
   }
 
   ul {
@@ -38,27 +57,70 @@
       margin: 2px 0;
     }
   }
+
+  strong {
+    color: var(--spr-ink-strong, #1C3660);
+  }
 }
 
 .spr-help-table {
   border-collapse: collapse;
   width: 100%;
 
-  th, td {
+  th,
+  td {
     text-align: left;
-    padding: 3px 8px 3px 0;
+    padding: 4px 8px 4px 0;
     vertical-align: top;
+    border-bottom: 1px solid var(--spr-divider, #E9EDF3);
   }
 
   th {
-    font-weight: 600;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+    font-weight: 700;
+    color: var(--spr-ink-muted, #4A6288);
+    border-bottom-color: var(--spr-border, #D8DFE8);
   }
 
   .spr-help-key {
-    font-family: monospace;
+    font-family: var(--spr-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
     white-space: nowrap;
     padding-right: 12px;
+    color: var(--spr-ink-strong, #1C3660);
   }
 }
 
+/* Scroll rails inside the recorder get the brand scrollbar; the document itself never
+   scrolls (the recorder fills the viewport by design). */
+.spr-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--spr-border-strong, #C7D1DF) transparent;
+}
+
+/* --- Accessibility ------------------------------------------------------------------
+   Focus is always visible: navy on light surfaces, gold on the dark canvas and chrome
+   (navy on navy would be invisible). Material components keep their own indicator, so
+   this applies to the plain controls the recorder styles itself. */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid var(--spr-focus, #2A4765);
+  outline-offset: 2px;
+}
+
+:is(app-audiodisplay, audio-display-control, audio-levelbar, spr-recordingitemcontrols, audio-player) :focus-visible,
+.spr-toolbar :focus-visible {
+  outline-color: var(--spr-focus-on-chrome, #D7B17C);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

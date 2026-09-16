@@ -39,13 +39,14 @@ import {SprLogger} from "../utils/logger";
              padding: 20px;
              z-index: 5;
              box-sizing: border-box;
-             background-color: rgba(230, 230, 230, 1.0)
+             background-color: var(--spr-canvas, #0E1A26);
+             color: var(--spr-canvas-ink, #FFFFFF);
            }`, `
           legend{
-              margin-left: 1em; padding: 0.2em 0.8em;font-size: 0.8em;
+              margin-left: 1em; padding: 0.2em 0.8em;font-size: var(--spr-type-caption, 13.6px);
       }`, `
         fieldset{
-            border: 1px darkgray solid
+            border: 1px solid var(--spr-canvas-grid, #24497E);
       }
       `
     ],

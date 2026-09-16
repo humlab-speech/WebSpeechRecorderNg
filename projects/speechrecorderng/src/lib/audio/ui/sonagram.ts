@@ -6,6 +6,7 @@ import {WorkerHelper} from "../../utils/utils";
 import {AudioBufferSource, AudioDataHolder} from "../audio_data_holder";
 import {Subscription} from "rxjs";
 import {SprLogger} from "../../utils/logger";
+import {buildSpectrumLut, sprToken} from "../../theme/theme";
 
 declare function postMessage(message: any, transfer: Array<any>): void;
 
@@ -60,7 +61,7 @@ export class Sonagram extends AudioCanvasLayerComponent {
 
         this.workerURL = WorkerHelper.buildWorkerBlobURL(this.workerFunction)
        this._bgColor=null;
-       this._selectColor='rgba(255,255,0,0.1)'
+       this._selectColor=sprToken('spr-select-fill')
     }
 
     ngAfterViewInit() {
@@ -106,8 +107,8 @@ export class Sonagram extends AudioCanvasLayerComponent {
             const w = this.sonagramCanvas.width;
             const h = this.sonagramCanvas.height;
             if (g && w && h) {
-                g.strokeStyle = 'black';
-                g.fillStyle = 'black';
+                g.strokeStyle = sprToken('spr-canvas-ink');
+                g.fillStyle = sprToken('spr-canvas-ink');
                 g.font = '20px sans-serif';
                 g.fillText(stateText, 10, 25);
             }
@@ -126,8 +127,8 @@ export class Sonagram extends AudioCanvasLayerComponent {
           //const pp = this.canvasMousePos(this.cursorCanvas, e);
           let xViewPortPixelpos = e.offsetX;
 
-          g.fillStyle = 'yellow';
-          g.strokeStyle = 'yellow';
+          g.fillStyle = sprToken('spr-canvas-cursor');
+          g.strokeStyle = sprToken('spr-canvas-cursor');
           g.beginPath();
           g.moveTo(xViewPortPixelpos, 0);
           g.lineTo(xViewPortPixelpos, h);
@@ -140,7 +141,7 @@ export class Sonagram extends AudioCanvasLayerComponent {
             let framePosRound = this.viewPortXPixelToFramePosition(xViewPortPixelpos);
             if(framePosRound!=null) {
               g.font = '14px sans-serif';
-              g.fillStyle = 'yellow';
+              g.fillStyle = sprToken('spr-canvas-cursor');
               g.fillText(framePosRound.toString(), xViewPortPixelpos + 2, 50);
             }
           }
@@ -159,8 +160,8 @@ export class Sonagram extends AudioCanvasLayerComponent {
                 if(this._playFramePosition!=null) {
                     const pixelPos = this.frameToViewPortXPixelPosition(this._playFramePosition);
                     if (pixelPos!=null) {
-                        g.fillStyle = 'red';
-                        g.strokeStyle = 'red';
+                        g.fillStyle = sprToken('spr-canvas-cursor');
+                        g.strokeStyle = sprToken('spr-canvas-cursor');
                         g.beginPath();
                         g.moveTo(pixelPos, 0);
                         g.lineTo(pixelPos, h);
@@ -176,6 +177,9 @@ export class Sonagram extends AudioCanvasLayerComponent {
      *  Method used as worker code.
      */
     workerFunction() {
+
+        /** Spectrogram colour ramp, sent in by the main thread (see theme.ts). */
+        let rampLut: Uint8Array | null = null;
 
         // Redefine some DSP classes for worker function
         // See e.g. audio.math.Complex
@@ -412,6 +416,12 @@ export class Sonagram extends AudioCanvasLayerComponent {
         }
 
         self.onmessage = function (msg:MessageEvent) {
+            // The spectrogram ramp reaches the worker as a lookup table, because the
+            // worker has no access to the CSS tokens (see theme.ts SPR_SPECTRUM_RAMP).
+            if (msg.data.rampLut) {
+                rampLut = msg.data.rampLut;
+                return;
+            }
             //console.debug("Sonagram render thread");
             let l = msg.data.l;
             let w = msg.data.w;
@@ -543,9 +553,12 @@ export class Sonagram extends AudioCanvasLayerComponent {
                       }
                       let py = chH - y;
                       let dataPos = ((((ch * chH) + py) * w) + pii) * 4;
-                      imgData[dataPos + 0] = rgbVal; //R
-                      imgData[dataPos + 1] = rgbVal; //G
-                      imgData[dataPos + 2] = rgbVal; //B
+                      // Index the ramp quiet (0) -> loud (255): the ramp is luminance
+                      // monotonic, so intensity stays readable without hue.
+                      let rampPos = (255 - rgbVal) * 3;
+                      imgData[dataPos + 0] = rampLut ? rampLut[rampPos] : rgbVal; //R
+                      imgData[dataPos + 1] = rampLut ? rampLut[rampPos + 1] : rgbVal; //G
+                      imgData[dataPos + 2] = rampLut ? rampLut[rampPos + 2] : rgbVal; //B
                       imgData[dataPos + 3] = 255; //A (alpha: fully opaque)
                       //console.debug("Rendered: py: "+py+", rgbval: "+rgbVal);
                       // example 1x1, 2chs
@@ -583,7 +596,7 @@ export class Sonagram extends AudioCanvasLayerComponent {
                 let g = this.sonagramCanvas.getContext("2d");
                 if (g) {
                     //g.clearRect(0, 0,w, h);
-                    g.fillStyle = "white";
+                    g.fillStyle = sprToken('spr-canvas');
                     g.fillRect(0, 0, intW, intH);
                 }
             }
@@ -613,6 +626,7 @@ export class Sonagram extends AudioCanvasLayerComponent {
 
               this.worker = new Worker(this.workerURL);
               //this.wo = new Worker('./worker/sonagram.worker', { type: `module` });
+              this.worker.postMessage({rampLut: buildSpectrumLut()});
 
               let chs = this._audioDataHolder.numberOfChannels;
               let vw = Math.round(this.virtualDimension.width);

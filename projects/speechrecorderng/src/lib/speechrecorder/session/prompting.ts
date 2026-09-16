@@ -32,12 +32,13 @@ import {BreakpointObserver} from "@angular/cdk/layout";
     {{displayText()}}
   `,
     styles: [`:host {
-
+    padding: 0 0 4px;
     justify-content: left; /* align horizontal center */
     align-items: flex-start; /* align vertical  center */
-    background: white;
+    background: transparent;
+    color: var(--spr-ink-muted, #4A6288);
     text-align: left;
-    font-size: 1em;
+    font-size: var(--spr-type-caption, 13.6px);
     flex: 0;
     width: 100%;
   }
@@ -72,7 +73,8 @@ export class Recinstructions {
 
     justify-content: center; /* align horizontal center */
     align-items: center; /* align vertical  center */
-    background: white;
+    background: transparent;
+    color: var(--spr-stage-ink, #000000);
     text-align: center;
     /* font-size: 2em; */
     line-height: 1.2em;
@@ -282,7 +284,8 @@ export const FALLBACK_DEF_USER_AGENT_FONT_SIZE = 14;
 
     justify-content: center; /* align horizontal center*/
     align-items: center; /* align vertical center */
-    background: white;
+    background: transparent;
+    color: var(--spr-stage-ink, #000000);
     text-align: center;
     display: flex;
     flex-direction: column;
@@ -459,10 +462,13 @@ export class PromptContainer implements OnInit,AfterContentChecked {
     styles: [`:host {
     position: relative;
     flex: 3; /* the container consumes all available space */
-    padding: 10pt;
+    margin: 20px;
+    padding: 20px;
+    border-radius: var(--spr-r-xl, 22px);
     justify-content: center; /* align horizontal center*/
     align-items: center; /* align vertical center */
-    background: white;
+    background: var(--spr-stage, #F1EFE4);
+    color: var(--spr-stage-ink, #000000);
     text-align: center;
     display: flex;
     flex-direction: column;
@@ -630,7 +636,7 @@ export class PromptingContainer {
     position: relative;
     margin: 0;
     padding: 0;
-    background: lightgrey;
+    background: var(--spr-page, #EEF1F5);
     width: 100%; /* use all horizontal available space */
     flex: 1; /* ... and fill rest of vertical available space (other components have flex 0) */
 
@@ -686,7 +692,7 @@ export class PromptingContainer {
       /* border: 20px; */
       z-index: 5;
       box-sizing: border-box;
-      background-color: rgba(0, 0, 0, 0)
+      background-color: transparent;
 
     }`
     ],

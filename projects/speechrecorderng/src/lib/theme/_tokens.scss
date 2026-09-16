@@ -1,0 +1,176 @@
+@use 'sass:map';
+@use 'palette' as p;
+
+////
+/// Semantic tokens for SpeechRecorderNG.
+///
+/// Components only ever reference `--spr-*` (with a literal fallback, so the library
+/// stays usable when a consumer does not include the theme). Nothing else in the
+/// codebase may contain a colour literal.
+///
+/// Raw palette:    `_palette.scss`
+/// TS mirror:      `theme.ts` (canvas painting, which cannot read CSS with a fallback)
+/// Contrast pairs: see README "Theme" — every pairing below was measured.
+////
+
+/// Light scheme (default).
+$spr-tokens-light: (
+  // chrome -----------------------------------------------------------------
+  'spr-chrome': p.$umu-blue,
+  'spr-chrome-ink': #FFFFFF,          // 9.60:1 on chrome
+  'spr-chrome-hover': p.$spr-chrome-hover,
+  'spr-chrome-grad': p.$spr-chrome-gradient,
+  'spr-chrome-glow': p.$spr-chrome-glow,
+  'spr-chrome-ink-muted': rgba(255, 255, 255, 0.62),
+
+  // surfaces ---------------------------------------------------------------
+  'spr-page': p.$spr-page,
+  'spr-surface': p.$spr-surface,
+  'spr-surface-2': p.$spr-surface-2,
+  'spr-surface-3': p.$spr-surface-3,
+  'spr-stage': p.$umu-beige,          // prompt stage
+  'spr-stage-ink': p.$umu-black,      // 18.21:1 — brand rule: ink on komplementfärger is black
+  'spr-black': p.$umu-black,          // traffic light housing
+  'spr-chrome-tint': rgba(255, 255, 255, 0.14), // chips/brand mark on dark chrome
+  'spr-lamp-off': rgba(42, 71, 101, 0.55),      // unlit traffic-light lamp
+
+  // ink --------------------------------------------------------------------
+  'spr-ink': p.$spr-ink,              // 11.85:1 on page
+  'spr-ink-strong': p.$spr-ink-strong,
+  'spr-ink-muted': p.$spr-ink-muted,  // 6.19:1 on surface
+  'spr-ink-subtle': p.$spr-ink-subtle, // 4.21:1 — large/bold or non-essential only
+  'spr-ink-disabled': p.$spr-ink-subtle,
+
+  // lines ------------------------------------------------------------------
+  'spr-border': p.$spr-border,
+  'spr-border-strong': p.$spr-border-strong,
+  'spr-divider': p.$spr-divider,
+
+  // focus ------------------------------------------------------------------
+  'spr-focus': p.$umu-blue,
+  'spr-focus-on-chrome': p.$umu-gold,
+
+  // status (komplementfärger — ink is always black) --------------------------
+  'spr-ok': p.$umu-green,
+  'spr-ok-ink': p.$umu-black,         // 7.66:1 on ok
+  'spr-caution': p.$umu-gold,
+  'spr-caution-ink': p.$umu-black,    // 10.47:1 on caution
+  'spr-alert': p.$umu-pink,
+  'spr-alert-ink': p.$umu-black,      // 12.22:1 on alert
+
+  // canvas -----------------------------------------------------------------
+  'spr-canvas': p.$spr-canvas,
+  'spr-canvas-grid': p.$spr-canvas-grid,
+  'spr-canvas-ink': #FFFFFF,          // 17.58:1 on canvas
+  'spr-canvas-ink-muted': rgba(255, 255, 255, 0.78),
+  'spr-canvas-signal': p.$umu-green,  // 6.41:1 on canvas
+  'spr-canvas-live': p.$umu-gold,     // 8.77:1 on canvas
+  'spr-canvas-cursor': p.$umu-gold,
+  'spr-select-fill': rgba(215, 177, 124, 0.22),
+  'spr-select-edge': p.$umu-gold,
+
+  // controls ---------------------------------------------------------------
+  'spr-disabled-bg': rgba(42, 71, 101, 0.06),
+  'spr-scrim': rgba(15, 25, 40, 0.35),
+
+  // type -------------------------------------------------------------------
+  'spr-font-family': p.$spr-font-family,
+  'spr-font-mono': 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+  'spr-type-title': 20px,
+  'spr-type-section': 17.28px,
+  'spr-type-body': 16px,
+  'spr-type-label': 14.4px,
+  'spr-type-caption': 13.6px,
+
+  // shape ------------------------------------------------------------------
+  'spr-r-sm': 6px,
+  'spr-r-md': 12px,
+  'spr-r-lg': 14px,
+  'spr-r-xl': 22px,
+  'spr-r-pill': 999px,
+
+  // elevation --------------------------------------------------------------
+  'spr-shadow-card': (0 8px 22px rgba(31, 56, 93, 0.09)),
+  'spr-shadow-bar': (0 4px 16px rgba(25, 46, 78, 0.08)),
+  'spr-shadow-cta': (0 12px 22px rgba(42, 71, 101, 0.22)),
+  'spr-shadow-overlay': (0 24px 48px rgba(15, 25, 40, 0.28)),
+  'spr-motion': 150ms,
+);
+
+/// Dark scheme (opt-in: `data-spr-scheme="dark"` on the root element).
+$spr-tokens-dark: map.merge(
+  $spr-tokens-light,
+  (
+    'spr-chrome': #0E1A26,
+    'spr-chrome-ink': #F1EFE4,
+    'spr-chrome-hover': #18293A,
+    'spr-page': #0B1520,
+    'spr-surface': #12202C,
+    'spr-surface-2': #18293A,
+    'spr-surface-3': #1B2C3E,
+    'spr-stage': #12202C,
+    'spr-stage-ink': #F1EFE4,
+    'spr-ink': #F1EFE4,
+    'spr-ink-strong': #FFFFFF,
+    'spr-ink-muted': #C7D1DF,
+    'spr-ink-subtle': #A9BCDA,
+    'spr-ink-disabled': #8FA3B8,
+    'spr-border': #24497E,
+    'spr-border-strong': #2F548D,
+    'spr-divider': #1B2C3E,
+    'spr-focus': #D7B17C,
+    'spr-focus-on-chrome': #D7B17C,
+    'spr-canvas': #000000,
+    'spr-disabled-bg': rgba(255, 255, 255, 0.08),
+    'spr-select-fill': rgba(42, 71, 101, 0.55),
+  )
+);
+
+/// All tokens for a scheme, as `spr-*: value`.
+@function spr-tokens($scheme: light) {
+  @return if($scheme == dark, $spr-tokens-dark, $spr-tokens-light);
+}
+
+/// Emits the custom properties. Call once per scheme from the application stylesheet.
+@mixin spr-token-styles($scheme: light, $selector: ':root') {
+  #{$selector} {
+    @each $name, $value in spr-tokens($scheme) {
+      --#{$name}: #{$value};
+    }
+  }
+}
+
+/// Pins the Material system roles onto the brand tokens.
+/// Must be emitted *after* `mat.theme()`, which sets the same properties from the
+/// generated tone ramps — the brand values win where the ramp deviates from the brand.
+@mixin spr-material-role-tokens() {
+  :root {
+    --mat-sys-primary: var(--spr-chrome);
+    --mat-sys-on-primary: var(--spr-chrome-ink);
+    --mat-sys-primary-container: var(--spr-surface-3);
+    --mat-sys-on-primary-container: var(--spr-ink-strong);
+    --mat-sys-secondary: var(--spr-chrome-hover);
+    --mat-sys-on-secondary: var(--spr-chrome-ink);
+    --mat-sys-secondary-container: var(--spr-surface-3);
+    --mat-sys-on-secondary-container: var(--spr-ink-strong);
+    --mat-sys-tertiary: var(--spr-ok);
+    --mat-sys-on-tertiary: var(--spr-ok-ink);
+    --mat-sys-tertiary-container: #{map.get(p.$spr-green-tones, 90)};
+    --mat-sys-on-tertiary-container: #{map.get(p.$spr-green-tones, 10)};
+    --mat-sys-error: #{map.get(p.$spr-rose-tones, 40)};
+    --mat-sys-on-error: #FFFFFF;
+    --mat-sys-error-container: var(--spr-alert);
+    --mat-sys-on-error-container: var(--spr-alert-ink);
+    --mat-sys-surface: var(--spr-surface);
+    --mat-sys-on-surface: var(--spr-ink);
+    --mat-sys-surface-variant: var(--spr-surface-3);
+    --mat-sys-on-surface-variant: var(--spr-ink-muted);
+    --mat-sys-outline: var(--spr-border);
+    --mat-sys-outline-variant: var(--spr-divider);
+    --mat-sys-background: var(--spr-page);
+    --mat-sys-on-background: var(--spr-ink);
+
+    --mat-toolbar-container-background-color: var(--spr-chrome);
+    --mat-toolbar-container-text-color: var(--spr-chrome-ink);
+  }
+}

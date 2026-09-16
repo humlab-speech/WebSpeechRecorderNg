@@ -56,10 +56,13 @@ import {AudioDataHolder} from "../../audio/audio_data_holder";
     position: relative;
     margin: 0;
     padding: 0;
-    background: lightgrey;
+    background: transparent;
+    color: var(--spr-ink, #1F3044);
     width: 100%; /* use all horizontal available space */
     flex: 1; /* ... and fill rest of vertical available space (other components have flex 0) */
     overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--spr-border-strong, #C7D1DF) transparent;
 
     /* Workaround for Firefox
     If the progress table gets long (script with many items) FF increases the height of the overflow progressContainer and
@@ -69,8 +72,43 @@ import {AudioDataHolder} from "../../audio/audio_data_holder";
     min-height: 0px;
 
   }`, `
+    mat-card {
+      margin: 20px;
+      border-radius: var(--spr-r-xl, 22px);
+      background: var(--spr-surface, #FFFFFF);
+      border: 1px solid var(--spr-border, #D8DFE8);
+      box-shadow: var(--spr-shadow-card, 0 8px 22px rgba(31, 56, 93, 0.09));
+      color: var(--spr-ink, #1F3044);
+    }
+
+    h2 {
+      margin: 0;
+      font-size: var(--spr-type-section, 17.28px);
+      font-weight: 700;
+      color: var(--spr-ink-strong, #1C3660);
+    }
+
+    table {
+      width: 100%;
+      font-size: var(--spr-type-caption, 13.6px);
+    }
+
+    th {
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--spr-ink-muted, #4A6288);
+      border-bottom: 1px solid var(--spr-border, #D8DFE8);
+    }
+
+    td {
+      border-bottom: 1px solid var(--spr-divider, #E9EDF3);
+      font-variant-numeric: tabular-nums;
+    }
+
     .selected{
-      font-weight: bold;
+      font-weight: 700;
+      color: var(--spr-ink-strong, #1C3660);
     }
   `],
     styleUrls: ['../../speechrecorder_mat.scss'],

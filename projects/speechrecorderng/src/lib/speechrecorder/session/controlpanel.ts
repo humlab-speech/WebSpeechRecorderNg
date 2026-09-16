@@ -17,9 +17,9 @@ import {KEY, keyLabel} from "./keybindings";
     template: `
     <p matTooltip="Status">
       @if (statusWaiting) {
-        <mat-progress-spinner color="black"  mode="indeterminate" [diameter]="30" [strokeWidth]="5"></mat-progress-spinner>
+        <mat-progress-spinner mode="indeterminate" [diameter]="20" [strokeWidth]="3"></mat-progress-spinner>
         }@if (statusAlertType==='error') {
-        <mat-icon style="color:red">report_problem</mat-icon>
+        <span class="spr-status-alert"><mat-icon>report_problem</mat-icon></span>
       }
       {{statusMsg}}
     </p>
@@ -27,21 +27,37 @@ import {KEY, keyLabel} from "./keybindings";
     styles: [`:host {
     display: inline;
     text-align: left;
-    font-size: smaller;
+    font-size: var(--spr-type-caption, 13.6px);
+    color: var(--spr-ink-muted, #4A6288);
   }`, `
     p {
+      margin: 0;
       padding: 4px;
       white-space:nowrap;
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .spr-status-alert {
+      display: inline-grid;
+      place-items: center;
+      width: 24px;
+      height: 24px;
+      border-radius: var(--spr-r-sm, 6px);
+      background: var(--spr-alert, #EABAB9);
+      color: var(--spr-alert-ink, #000000);
+    }
+
+    .spr-status-alert mat-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
     }
   `, `
     mat-progress-spinner {
-      color: black;
+      --mat-progress-spinner-active-indicator-color: var(--spr-chrome, #2A4765);
       display: inline-block;
-    }
-  `, `
-    span {
-      color: red;
     }
   `],
     standalone: false
@@ -183,20 +199,20 @@ export class TransportActions {
     template: `
     @if (navigationEnabled) {
       <button id="bwdBtn"  (click)="actions.bwdAction.perform()" [disabled]="bwdDisabled()"
-        mat-raised-button class="transport-button-icon" [matTooltip]="bwdTooltip" [attr.aria-label]="bwdTooltip">
+        mat-stroked-button class="transport-button-icon" [matTooltip]="bwdTooltip" [attr.aria-label]="bwdTooltip">
         <span><mat-icon>chevron_left</mat-icon></span>
       </button>
     }
-    <button (click)="startStopNextPerform()" [disabled]="startDisabled() && stopDisabled() && nextDisabled() && stopNonrecordingDisabled()"  mat-raised-button  class="transport-button-icon" [matTooltip]="startStopNextTooltip" [attr.aria-label]="startStopNextTooltip">
+    <button (click)="startStopNextPerform()" [disabled]="startDisabled() && stopDisabled() && nextDisabled() && stopNonrecordingDisabled()"  mat-raised-button  class="transport-button-icon spr-primary" [matTooltip]="startStopNextTooltip" [attr.aria-label]="startStopNextTooltip">
       <span><mat-icon class="transport-button-icon" [style.color]="startStopNextIconColor()">{{startStopNextIconName()}}</mat-icon>@if (!nextDisabled() || !stopNonrecordingDisabled()) {
-      <mat-icon class="transport-button-icon" [style.color]="nextDisabled() ? 'grey' : 'black'">chevron_right</mat-icon>
+      <mat-icon class="transport-button-icon" [style.color]="nextDisabled() ? 'var(--spr-chrome-ink-muted, rgba(255, 255, 255, 0.62))' : 'var(--spr-chrome-ink, #FFFFFF)'">chevron_right</mat-icon>
     }</span>
     @if (!screenXs) {
       <span class="transport-button-text">{{startStopNextName()}}</span>
     }
     </button>
     @if (pausingEnabled) {
-      <button (click)="actions.pauseAction.perform()" [disabled]="pauseDisabled()" mat-raised-button  class="transport-button-icon" [matTooltip]="pauseTooltip" [attr.aria-label]="pauseTooltip">
+      <button (click)="actions.pauseAction.perform()" [disabled]="pauseDisabled()" mat-stroked-button  class="transport-button-icon" [matTooltip]="pauseTooltip" [attr.aria-label]="pauseTooltip">
         <span><mat-icon class="transport-button-icon">pause</mat-icon></span>
         @if (!screenXs) {
           <span class="transport-button-text">Pause</span>
@@ -204,12 +220,12 @@ export class TransportActions {
       </button>
     }
     @if (navigationEnabled && !screenXs) {
-      <button id="fwdNextBtn" (click)="actions.fwdNextAction.perform()" [disabled]="fwdNextDisabled()" mat-raised-button class="transport-button-icon" matTooltip="Next recording" aria-label="Next recording">
+      <button id="fwdNextBtn" (click)="actions.fwdNextAction.perform()" [disabled]="fwdNextDisabled()" mat-stroked-button class="transport-button-icon" matTooltip="Next recording" aria-label="Next recording">
         <span><mat-icon>redo</mat-icon></span>
       </button>
     }
     @if (navigationEnabled) {
-      <button id="fwdBtn"  (click)="actions.fwdAction.perform()" [disabled]="fwdDisabled()" mat-raised-button class="transport-button-icon" [matTooltip]="fwdTooltip" [attr.aria-label]="fwdTooltip">
+      <button id="fwdBtn"  (click)="actions.fwdAction.perform()" [disabled]="fwdDisabled()" mat-stroked-button class="transport-button-icon" [matTooltip]="fwdTooltip" [attr.aria-label]="fwdTooltip">
         <span><mat-icon>chevron_right</mat-icon></span>
       </button>
     }
@@ -219,9 +235,14 @@ export class TransportActions {
     flex: 20;
     align-self: center;
     width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
     text-align: center;
     align-content: center;
     margin: 0;
+    color: var(--spr-ink, #1F3044);
 
   }`, `
     div {
@@ -237,9 +258,36 @@ export class TransportActions {
       overflow: hidden;
       text-overflow: clip;
       white-space: nowrap;
-    }`, `
+    }
+
+    button.transport-button-icon {
+      min-width: 40px;
+      height: 40px;
+      padding: 0 8px;
+      border-radius: var(--spr-r-md, 12px);
+      color: var(--spr-chrome, #2A4765);
+      border-color: var(--spr-border-strong, #C7D1DF);
+    }
+
+    button.spr-primary {
+      min-width: 96px;
+      height: 48px;
+      padding: 0 18px;
+      border-radius: 17px;
+      background: var(--spr-chrome, #2A4765);
+      color: var(--spr-chrome-ink, #FFFFFF);
+      box-shadow: var(--spr-shadow-cta, 0 12px 22px rgba(42, 71, 101, 0.22));
+    }
+
+    button.spr-primary:disabled {
+      background: var(--spr-disabled-bg, rgba(42, 71, 101, 0.06));
+      color: var(--spr-ink-disabled, #6D7C98);
+      box-shadow: none;
+    }
+
     .transport-button-text{
-      font-size: 14px;
+      font-size: var(--spr-type-caption, 13.6px);
+      font-weight: 700;
       letter-spacing: normal;
       vertical-align: baseline;
     }`
@@ -330,11 +378,11 @@ export class TransportPanel extends ResponsiveComponent{
   }
     startStopNextIconColor():string{
         if(!this.startDisabled()){
-            return "red"
+            return "var(--spr-ok, #73A790)"
         }else if(!this.stopDisabled() || !this.nextDisabled()){
-            return "yellow"
+            return "var(--spr-caution, #D7B17C)"
         }else{
-            return "grey";
+            return "var(--spr-chrome-ink-muted, rgba(255, 255, 255, 0.62))";
         }
     }
 
@@ -433,6 +481,7 @@ export class ReadyStateIndicator {
     align-items: center;
     margin: 0;
     padding: 20px;
+    color: var(--spr-ink, #1F3044);
     min-height: min-content; /* important */
   }`],
     standalone: false

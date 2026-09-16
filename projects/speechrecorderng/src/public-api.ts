@@ -45,3 +45,14 @@ export {SpeechRecorderConfig,ApiType} from './lib/spr.config'
 export {UploadConfig,UploadError,UploaderStatus,UploaderStatusChangeEvent} from './lib/net/uploader'
 export {SpeechrecorderngComponent} from './lib/speechrecorderng.component'
 export {KEY, KEY_BINDINGS, KeyBinding, keyLabel} from './lib/speechrecorder/session/keybindings'
+
+/* Theming: semantic tokens shared by the CSS and the canvas painters.
+   See `theme.scss` for the stylesheet entry point and the README for the token list. */
+export {
+  SPR_PALETTE,
+  SPR_SPECTRUM_RAMP,
+  buildSpectrumLut,
+  invalidateSprTokens,
+  sprToken,
+} from './lib/theme/theme'
+export type {SprTokenName} from './lib/theme/theme'

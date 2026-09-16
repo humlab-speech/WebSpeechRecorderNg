@@ -6,7 +6,7 @@ import {Component} from "@angular/core";
     styles: [
         `:host {
            width: 100%;
-           background: darkgray;
+           background: var(--spr-canvas, #0E1A26);
            box-sizing: border-box;
            height: 100%;
            position: relative;

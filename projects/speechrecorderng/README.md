@@ -85,6 +85,84 @@ export class AppModule { }
  <router-outlet></router-outlet>
  ```
    
+## Theme (Umeå University)
+
+The recorder is themed with the Umeå University palette. Everything visual is a CSS custom
+property, so an application can drop the recorder into its own brand without touching
+component code.
+
+    huvudfärger       #2A4765 (chrome)   #000000 (canvas, traffic light)
+                      text on these is always white
+    komplementfärger  #73A790 #D7B17C #EABAB9 #F1EFE4
+                      text on these is always black
+
+### Include the theme
+
+```scss
+@use '@angular/material' as mat;
+@use 'speechrecorderng/theme' as spr;
+
+html {
+  @include mat.theme((
+    color: (primary: my-primary-palette, theme-type: light),
+    typography: 'Inter, "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif',
+    density: 0,
+  ));
+  @include spr.theme();       // --spr-* tokens + brand values for the Material roles
+  @include spr.theme-dark();  // optional: needs <html data-spr-scheme="dark">
+}
+```
+
+Include `spr.theme()` *after* your Material theme: it pins `--mat-sys-primary`,
+`--mat-sys-error`, the surface roles and the toolbar colors to the brand values, so the
+source order decides. Without any theme include the recorder still renders, because every
+`var(--spr-*, …)` carries the brand value as a fallback.
+
+### Palette and roles
+
+| Token | Value | Role |
+|---|---|---|
+| `--spr-chrome` / `--spr-chrome-ink` | `#2A4765` / `#FFFFFF` | toolbar, primary buttons, selected row (9.60:1) |
+| `--spr-chrome-grad` / `--spr-chrome-glow` | navy ramp + warm glow | app bar background |
+| `--spr-page` | `#EEF1F5` | application background |
+| `--spr-surface` / `--spr-surface-2` / `--spr-surface-3` | `#FFFFFF` / `#F8FAFD` / `#EDF2F8` | panels, table header, inset |
+| `--spr-stage` / `--spr-stage-ink` | `#F1EFE4` / `#000000` | prompt stage (18.21:1) |
+| `--spr-ink` / `--spr-ink-muted` / `--spr-ink-subtle` | `#1F3044` / `#4A6288` / `#6D7C98` | body, secondary, non-essential |
+| `--spr-border` / `--spr-border-strong` / `--spr-divider` | `#D8DFE8` / `#C7D1DF` / `#E9EDF3` | lines |
+| `--spr-ok` / `--spr-caution` / `--spr-alert` | `#73A790` / `#D7B17C` / `#EABAB9` | recording-done, warning/level, error — ink is `--spr-*-ink` (black) |
+| `--spr-canvas` / `--spr-canvas-ink` / `--spr-canvas-signal` | `#0E1A26` / `#FFFFFF` / `#73A790` | signal + spectrogram surface |
+| `--spr-black` / `--spr-lamp-off` | `#000000` / navy 55% | traffic light housing and unlit lamp |
+| `--spr-r-sm … --spr-r-xl` | 6 / 12 / 14 / 22 px | radii |
+| `--spr-shadow-card` / `-bar` / `-cta` / `-overlay` | blue-tinted shadows | elevation |
+
+`app-simpletrafficlight` is the subject-facing state signal. The state is encoded three
+ways — lamp position, lamp colour and a caption ("Recording", "Get ready", …), which is
+also announced through `role="status"`.
+
+### Overriding
+
+```scss
+:root {
+  --spr-chrome: #123456;
+}
+```
+
+Canvas painters (waveform, spectrogram, level meter) read the same tokens through
+`sprToken('spr-canvas-signal')` and friends, so an override reaches them as well.
+`SPR_SPECTRUM_RAMP` (exported from the package) is the luminance-monotonic spectrogram
+ramp; `buildSpectrumLut()` turns it into the table the sonagram worker paints with.
+
+### Audit
+
+`bin/theme_audit.mjs` renders the application in a headless Chrome (DevTools Protocol) and
+fails on legacy colour literals, contrast below WCAG AA, text below 13.6 px, or a document
+that scrolls:
+
+```
+node bin/theme_audit.mjs --url http://127.0.0.1:4200/spr \
+  --viewports 1024x768,1366x768,1568x1334,1920x1080 --verbose
+```
+
 ### Deployment on the server
 See [Angular Deployment/Server Configuration](https://angular.io/guide/deployment#server-configuration) for details.
 

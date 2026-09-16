@@ -15,14 +15,12 @@ export const DEFAULT_WARN_DB_LEVEL = -2;
 @Component({
     selector: 'spr-recordingitemcontrols',
     template: `
-        <button matTooltip="Start playback" (click)="playStartAction?.perform()"
-          [disabled]="playStartAction?playStartAction.disabled:true"
-          [style.color]="playStartAction?.disabled ? 'grey' : 'green'">
+        <button matTooltip="Start playback" class="spr-play" (click)="playStartAction?.perform()"
+          [disabled]="playStartAction?playStartAction.disabled:true">
           <mat-icon>play_arrow</mat-icon>
         </button>
-        <button matTooltip="Stop playback" (click)="playStopAction?.perform()"
-          [disabled]="playStopAction?.disabled"
-          [style.color]="playStopAction?.disabled ? 'grey' : 'yellow'">
+        <button matTooltip="Stop playback" class="spr-stop" (click)="playStopAction?.perform()"
+          [disabled]="playStopAction?.disabled">
           <mat-icon>stop</mat-icon>
         </button>
         @if (!screenXs) {
@@ -37,8 +35,8 @@ export const DEFAULT_WARN_DB_LEVEL = -2;
             <mat-icon>file_download</mat-icon>
           </button>
         }
-        <div style="min-width: 14ch;padding:2px"><table style="border-style: none"><tr><td>Peak:</td><td><span matTooltip="Peak level"
-        [style.color]="(peakDbLvl > warnDbLevel)?'red':'black'">{{peakDbLvl | number:'1.1-1'}} dB </span></td></tr>
+        <div class="spr-peak-panel"><table style="border-style: none"><tr><td>Peak:</td><td><span class="spr-peak"
+        [class.spr-peak-over]="peakDbLvl > warnDbLevel" matTooltip="Peak level">{{peakDbLvl | number:'1.1-1'}} dB </span></td></tr>
         @if (_agc) {
           <tr><td>AGC:</td><td><span matTooltip="Auto gain control">{{agcString}}</span></td></tr>
         }</table></div>
@@ -46,7 +44,8 @@ export const DEFAULT_WARN_DB_LEVEL = -2;
     styles: [`:host {
         flex: 0; /* only required vertical space */
         width: 100%;
-        background: darkgray;
+        background: transparent;
+        color: var(--spr-canvas-ink, #FFFFFF);
         padding: 4px;
         box-sizing: border-box;
         height: 100%;
@@ -56,11 +55,68 @@ export const DEFAULT_WARN_DB_LEVEL = -2;
         flex-wrap: nowrap; /* wrap could completely destroy the layout */
     }`, `span {
         flex: 0;
-        font-weight: bold;
+        font-weight: 700;
         display: inline-block;
         white-space: nowrap;
         box-sizing: border-box;
     }`, `
+
+    /* The strip sits on the dark canvas surface: ink on it is white, and the
+       complement colours carry the state (green = playable, gold = stoppable). */
+    button {
+      display: inline-grid;
+      place-items: center;
+      min-width: 40px;
+      width: 40px;
+      height: 100%;
+      padding: 0;
+      border: none;
+      border-radius: var(--spr-r-md, 12px);
+      background: transparent;
+      color: var(--spr-canvas-ink-muted, rgba(255, 255, 255, 0.78));
+      font-family: inherit;
+      font-size: var(--spr-type-caption, 13.6px);
+      cursor: pointer;
+    }
+
+    button:hover:not([disabled]) {
+      background: var(--spr-chrome-tint, rgba(255, 255, 255, 0.14));
+    }
+
+    button[disabled] {
+      cursor: default;
+    }
+
+    button.spr-play:not([disabled]) {
+      color: var(--spr-ok, #73A790);
+    }
+
+    button.spr-stop:not([disabled]) {
+      color: var(--spr-caution, #D7B17C);
+    }
+
+    .spr-peak-panel {
+      min-width: 14ch;
+      padding: 2px;
+      color: var(--spr-canvas-ink-muted, rgba(255, 255, 255, 0.78));
+      font-size: var(--spr-type-caption, 13.6px);
+      line-height: 1.5;
+    }
+
+    .spr-peak {
+      display: inline-block;
+      padding: 0 6px;
+      border-radius: var(--spr-r-sm, 6px);
+      background: var(--spr-stage, #F1EFE4);
+      color: var(--spr-stage-ink, #000000);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .spr-peak.spr-peak-over {
+      background: var(--spr-alert, #EABAB9);
+      color: var(--spr-alert-ink, #000000);
+    }
+    `, `
      button {
        touch-action: manipulation;
      }`],
@@ -151,7 +207,8 @@ export class RecordingItemControls extends ResponsiveComponent implements OnDest
     `,
     styles: [`div {
         width: 100%;
-        background: darkgray;
+        background: var(--spr-canvas, #0E1A26);
+        color: var(--spr-canvas-ink, #FFFFFF);
         padding: 4px;
         box-sizing: border-box;
         flex-wrap: nowrap; /* wrap could completely destroy the layout */

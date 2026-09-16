@@ -1,0 +1,30 @@
+////
+/// SpeechRecorderNG theming entry point.
+///
+/// Include this **after** your own Material theme, so the brand role pins win:
+///
+///   @use '@angular/material' as mat;
+///   @use 'speechrecorderng/theme' as spr;
+///
+///   html {
+///     @include mat.theme((color: (primary: my-palette, theme-type: light)));
+///     @include spr.theme();
+///   }
+///
+/// Everything is a CSS custom property, so an application may override any single value
+/// afterwards, e.g. `:root { --spr-chrome: #123456; }`. Canvases are repainted from the
+/// same tokens (`theme.ts`), so overrides reach them too.
+////
+
+@use 'lib/theme/tokens' as tokens;
+
+/// Emits the light-scheme `--spr-*` tokens and pins the Material system roles.
+@mixin theme() {
+  @include tokens.spr-token-styles();
+  @include tokens.spr-material-role-tokens();
+}
+
+/// Emits the tokens for the opt-in dark scheme (`data-spr-scheme="dark"` on `<html>`).
+@mixin theme-dark() {
+  @include tokens.spr-token-styles(dark, ':root[data-spr-scheme="dark"]');
+}

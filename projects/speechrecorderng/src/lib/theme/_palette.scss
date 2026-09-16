@@ -1,0 +1,119 @@
+@use 'sass:map';
+
+////
+/// Umeå University brand palette + SpeechRecorderNG neutrals.
+///
+/// Raw values only. Components must never reference these directly — they use the
+/// semantic custom properties emitted by `_tokens.scss` (`var(--spr-*)`), or the TS
+/// mirror in `theme.ts` when painting to a canvas.
+///
+/// Source of truth for the brand values:
+///   Huvudfärger      blå #2A4765, svart #000000      (text on these is always white)
+///   Komplementfärger grön #73A790, guld #D7B17C, rosa #EABAB9, beige #F1EFE4
+///                                                    (text on these is always black)
+/// The neutral ramp is extracted from the VISP family of applications
+/// (visp-demo / OCTRA: page #EEF1F5, muted ink #4A6288, border #D8DFE8, canvas blue #24497E).
+////
+
+// ---------------------------------------------------------------------------
+// Brand values
+// ---------------------------------------------------------------------------
+$umu-blue: #2A4765;
+$umu-black: #000000;
+$umu-green: #73A790;
+$umu-gold: #D7B17C;
+$umu-pink: #EABAB9;
+$umu-beige: #F1EFE4;
+
+// ---------------------------------------------------------------------------
+// Extended neutrals (VISP family)
+// ---------------------------------------------------------------------------
+$spr-page: #EEF1F5;
+$spr-surface: #FFFFFF;
+$spr-surface-2: #F8FAFD;
+$spr-surface-3: #EDF2F8;
+$spr-border: #D8DFE8;
+$spr-border-strong: #C7D1DF;
+$spr-divider: #E9EDF3;
+$spr-ink: #1F3044;
+$spr-ink-strong: #1C3660;
+$spr-ink-muted: #4A6288;
+$spr-ink-subtle: #6D7C98;
+$spr-canvas: #0E1A26;
+$spr-canvas-grid: #24497E;
+$spr-chrome-hover: #24497E;
+
+// Chrome treatment carried over from the VISP hero: a navy ramp with a soft warm glow
+// in the upper right. The glow uses the brand gold rather than the VISP orange.
+$spr-chrome-gradient: linear-gradient(135deg, #243E6A, #274A80 62%, #29508A);
+$spr-chrome-glow: radial-gradient(circle at 84% 20%, rgba(215, 177, 124, 0.30), rgba(215, 177, 124, 0) 30%);
+
+// ---------------------------------------------------------------------------
+// Typography
+// ---------------------------------------------------------------------------
+$spr-font-family: 'Inter, "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif';
+
+// ---------------------------------------------------------------------------
+// Material 3 tone ramps.
+//
+// Generated from the brand seeds: CIELAB lightness ramp 0..100 with the seed hue
+// and chroma preserved, chroma clamped into sRGB. `tertiary` is the Umeå green,
+// `error` keeps the pink hue at an alert-level lightness, `secondary` and the two
+// neutral ramps are low-chroma versions of the brand blue.
+// ---------------------------------------------------------------------------
+$spr-blue-tones: (
+  0: #000000, 4: #000F1E, 6: #001526, 10: #001D33, 12: #00213A, 17: #072C48, 20: #11324F,
+  22: #173753, 24: #1C3B58, 25: #1F3D5B, 30: #2C4967, 35: #385473, 40: #456080, 50: #5E799A,
+  60: #7893B5, 70: #93ADD1, 80: #AEC9ED, 87: #C3DCFF, 90: #D1E4FF, 92: #DBE9FF, 94: #E4EFFF,
+  95: #E9F1FF, 96: #EDF4FF, 98: #F6FAFF, 99: #FBFCFF, 100: #FFFFFF,
+);
+
+$spr-blue-secondary-tones: (
+  0: #000000, 4: #020F1C, 6: #091420, 10: #121C28, 12: #16202C, 17: #212B37, 20: #27313E,
+  22: #2C3542, 24: #303A47, 25: #323C49, 30: #3E4755, 35: #495361, 40: #555F6D, 50: #6E7887,
+  60: #8791A1, 70: #A1ACBC, 80: #BCC7D8, 87: #D0DBEB, 90: #D8E3F4, 92: #DEE9FA, 94: #E4EFFF,
+  95: #E9F1FF, 96: #EDF4FF, 98: #F6FAFF, 99: #FBFCFF, 100: #FFFFFF,
+);
+
+$spr-green-tones: (
+  0: #000000, 4: #00120A, 6: #00170E, 10: #002115, 12: #002518, 17: #003121, 20: #013826,
+  22: #063D2B, 24: #0C412F, 25: #0F4431, 30: #1D4F3C, 35: #295B47, 40: #366853, 50: #4E816B,
+  60: #689B85, 70: #82B69F, 80: #9CD2BA, 87: #AFE6CD, 90: #B8EED5, 92: #BDF4DB, 94: #C3FAE1,
+  95: #C6FDE3, 96: #CBFFE7, 98: #E7FFF3, 99: #F3FFF9, 100: #FFFFFF,
+);
+
+$spr-rose-tones: (
+  0: #000000, 4: #250200, 6: #280907, 10: #301213, 12: #351617, 17: #412121, 20: #482728,
+  22: #4D2C2C, 24: #523030, 25: #543232, 30: #603D3D, 35: #6D4949, 40: #7A5554, 50: #946D6D,
+  60: #AF8786, 70: #CBA1A0, 80: #E8BCBB, 87: #FCD0CE, 90: #FFDAD9, 92: #FFE1E0, 94: #FFE9E8,
+  95: #FFEDEC, 96: #FFF0F0, 98: #FFF8F7, 99: #FFFBFB, 100: #FFFFFF,
+);
+
+$spr-neutral-tones: (
+  0: #000000, 4: #0D0E10, 6: #121315, 10: #1B1C1D, 12: #1F2021, 17: #292A2C, 20: #2F3032,
+  22: #343536, 24: #38393B, 25: #3A3B3D, 30: #464749, 35: #515254, 40: #5D5E60, 50: #767779,
+  60: #8F9193, 70: #AAABAD, 80: #C5C6C9, 87: #D9DADC, 90: #E1E2E5, 92: #E7E8EA, 94: #ECEEF0,
+  95: #EFF1F3, 96: #F2F4F6, 98: #F8F9FC, 99: #FBFCFF, 100: #FFFFFF,
+);
+
+$spr-neutral-variant-tones: (
+  0: #000000, 4: #0B0E13, 6: #111417, 10: #191C1F, 12: #1D2023, 17: #282A2E, 20: #2E3135,
+  22: #323539, 24: #37393D, 25: #393C40, 30: #44474B, 35: #505357, 40: #5C5E63, 50: #74777C,
+  60: #8E9196, 70: #A8ABB0, 80: #C3C7CC, 87: #D7DADF, 90: #DFE3E8, 92: #E5E8EE, 94: #EBEEF3,
+  95: #EEF1F6, 96: #F0F4F9, 98: #F6FAFF, 99: #FBFCFF, 100: #FFFFFF,
+);
+
+/// Primary palette handed to `mat.theme()`. Material reads the neutral, neutral-variant,
+/// secondary and error ramps from the primary palette's sub-maps.
+$spr-primary-palette: map.merge(
+  $spr-blue-tones,
+  (
+    secondary: $spr-blue-secondary-tones,
+    neutral: $spr-neutral-tones,
+    neutral-variant: $spr-neutral-variant-tones,
+    error: $spr-rose-tones,
+  )
+);
+
+/// Tertiary palette (Umeå green). Material only reads the tone ramp from this one.
+$spr-tertiary-palette: $spr-green-tones;

@@ -1,5 +1,6 @@
 import {AfterViewInit, ChangeDetectorRef, Component, ElementRef, HostListener, Input, ViewChild} from "@angular/core"
 import {LevelInfo, LevelInfos, LevelListener} from "../dsp/level_measure";
+import {sprToken} from "../../theme/theme";
 
 export const DEFAULT_WARN_DB_LEVEL = -2;
 export const MIN_DB_LEVEL = -60.0;
@@ -24,7 +25,7 @@ export enum State {LOADING,RENDERING,READY}
     styles: [`:host {
 
     width: 100%;
-    background: darkgray;
+    background: transparent;
     box-sizing: border-box;
     height: 100%;
     position: relative;
@@ -220,8 +221,8 @@ export class LevelBar implements LevelListener,AfterViewInit {
 
 
   private drawLevelBackground(g: CanvasRenderingContext2D, x: number, h: number){
-    g.strokeStyle = 'black';
-    g.fillStyle = 'black';
+    g.strokeStyle = sprToken('spr-canvas');
+    g.fillStyle = sprToken('spr-canvas');
     g.fillRect(x,0,this.pixelsPerValue,h)
   }
 
@@ -261,14 +262,14 @@ export class LevelBar implements LevelListener,AfterViewInit {
 
       let y = Math.floor(ch * chH);
       if (dbVal >= this.warnDBLevel) {
-        g.strokeStyle = 'red';
-        g.fillStyle = 'red';
+        g.strokeStyle = sprToken('spr-alert');
+        g.fillStyle = sprToken('spr-alert');
       } else if(dbVal < CONSIDERED_SILENCE_DB_LEVEL) {
-        g.strokeStyle='grey';
-        g.fillStyle='grey'
+        g.strokeStyle = sprToken('spr-canvas-grid');
+        g.fillStyle = sprToken('spr-canvas-grid')
       } else{
-          g.strokeStyle = '#00c853';
-          g.fillStyle = '#00c853'
+          g.strokeStyle = sprToken('spr-ok');
+          g.fillStyle = sprToken('spr-ok')
       }
       g.beginPath();
       g.moveTo(xc, y + chH);
@@ -307,7 +308,7 @@ export class LevelBar implements LevelListener,AfterViewInit {
       let g = this.liveLevelCanvas.getContext("2d");
       if (g) {
         // clear canvas
-        g.fillStyle = 'grey';
+        g.fillStyle = sprToken('spr-canvas');
         g.fillRect(0, 0, w, h);
 
         g.lineWidth = LINE_WIDTH;
@@ -344,8 +345,8 @@ export class LevelBar implements LevelListener,AfterViewInit {
 
           }
         }else if(this._state!==State.READY){
-          g.strokeStyle = 'white';
-          g.fillStyle = 'white';
+          g.strokeStyle = sprToken('spr-canvas-ink');
+          g.fillStyle = sprToken('spr-canvas-ink');
           g.font = '20px sans-serif';
 
           let stateTxt='';
@@ -393,8 +394,8 @@ export class LevelBar implements LevelListener,AfterViewInit {
           let xc = x - this.ce.scrollLeft;
           // Only draw if inside marker (viewport) canvas
           if(xc>=0 && xc<=w) {
-            g.fillStyle = 'red';
-            g.strokeStyle = 'red';
+            g.fillStyle = sprToken('spr-canvas-cursor');
+            g.strokeStyle = sprToken('spr-canvas-cursor');
             g.lineWidth = LINE_WIDTH;
             g.beginPath();
             // paint over all channels

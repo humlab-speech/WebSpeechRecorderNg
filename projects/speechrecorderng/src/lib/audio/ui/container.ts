@@ -10,6 +10,7 @@ import {Position,Dimension, Rectangle} from "../../math/2d/geometry";
 import {AudioClip,Selection} from "../persistor";
 import {BasicAudioCanvasLayerComponent} from "./audio_canvas_layer_comp";
 import {AudioDataHolder} from "../audio_data_holder";
+import {sprToken} from "../../theme/theme";
 
 /*
   ResizeObserver not yet available in official Typescript declaration
@@ -300,9 +301,9 @@ export class AudioClipUIContainer extends BasicAudioCanvasLayerComponent impleme
     const h = this.dc.height;
     const g = this.dc.getContext('2d');
     if (g && w>10 && h>=1) {
-      g.fillStyle = 'white';
+      g.fillStyle = sprToken('spr-canvas');
       g.fillRect(0, 0, w, h);
-      g.fillStyle = 'black';
+      g.fillStyle = sprToken('spr-canvas-grid');
       g.fillRect(5, 5, w - 10, 1);
     }
   }

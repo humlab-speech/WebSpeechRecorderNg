@@ -4,6 +4,7 @@ import {WorkerHelper} from "../../utils/utils";
 import {AudioBufferSource, AudioDataHolder} from "../audio_data_holder";
 import {Subscription} from "rxjs";
 import {SprLogger} from "../../utils/logger";
+import {sprToken} from "../../theme/theme";
 
 declare function postMessage(message: any, transfer: Array<any>): void;
 
@@ -48,8 +49,8 @@ export class AudioSignal extends AudioCanvasLayerComponent{
     super();
     this.workerURL = WorkerHelper.buildWorkerBlobURL(this.workerFunction)
     this._audioDataHolder = null;
-    this._bgColor='black';
-    this._selectColor='rgba(255,255,0,0.8)'
+    this._bgColor=sprToken('spr-canvas');
+    this._selectColor=sprToken('spr-select-fill')
 
   }
 
@@ -93,8 +94,8 @@ export class AudioSignal extends AudioCanvasLayerComponent{
         if(this._playFramePosition!=null) {
           const pixelPos = this.frameToViewPortXPixelPosition(this._playFramePosition);
           if (pixelPos!=null) {
-            g.fillStyle = 'red';
-            g.strokeStyle = 'red';
+            g.fillStyle = sprToken('spr-canvas-cursor');
+            g.strokeStyle = sprToken('spr-canvas-cursor');
             g.beginPath();
             g.moveTo(pixelPos, 0);
             g.lineTo(pixelPos, h);
@@ -187,7 +188,7 @@ export class AudioSignal extends AudioCanvasLayerComponent{
         const g = this.signalCanvas.getContext("2d");
         if (g) {
           //g.clearRect(0, 0,w, h);
-          g.fillStyle = "black";
+          g.fillStyle = sprToken('spr-canvas');
           g.fillRect(0, 0, Math.round(this.bounds.dimension.width), Math.round(this.bounds.dimension.height));
         }
       }
@@ -437,8 +438,8 @@ drawStateText(stateText:string) {
       const w=this.signalCanvas.width;
       const h=this.signalCanvas.height;
       if (g && w && h) {
-        g.strokeStyle = 'white';
-        g.fillStyle = 'white';
+        g.strokeStyle = sprToken('spr-canvas-ink');
+        g.fillStyle = sprToken('spr-canvas-ink');
         g.font = '20px sans-serif';
         g.fillText(stateText, 10, 25);
       }
@@ -465,8 +466,8 @@ drawStateText(stateText:string) {
           const psMinPos = ch * w;
           const psMaxPos = pointsLen + psMinPos;
 
-          g.fillStyle = 'green';
-          g.strokeStyle = 'green';
+          g.fillStyle = sprToken('spr-canvas-signal');
+          g.strokeStyle = sprToken('spr-canvas-signal');
 
           // draw audio signal as single polygon
           g.beginPath();

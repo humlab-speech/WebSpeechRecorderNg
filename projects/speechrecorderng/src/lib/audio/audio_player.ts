@@ -42,7 +42,7 @@ import {SprLogger} from "../utils/logger";
              padding: 20px;
              z-index: 5;
              box-sizing: border-box;
-             background-color: rgba(0, 0, 0, 0.75)
+             background-color: var(--spr-scrim, rgba(15, 25, 40, 0.35))
            }`
     ],
     standalone: false

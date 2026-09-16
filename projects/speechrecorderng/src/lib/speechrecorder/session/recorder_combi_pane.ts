@@ -24,11 +24,11 @@ import {BreakpointObserver} from "@angular/cdk/layout";
     </div>
   `,
     styles: [`:host {
-   background-color: yellow;
     position: relative;
     margin: 0;
     padding: 0;
-    background: lightgrey;
+    background: var(--spr-page, #EEF1F5);
+    color: var(--spr-ink, #1F3044);
     width: 100%; /* use all horizontal available space */
     flex: 1; /* ... and fill rest of vertical available space (other components have flex 0) */
     /* Workaround for Firefox
@@ -41,7 +41,7 @@ import {BreakpointObserver} from "@angular/cdk/layout";
   }`, `.scrollList{
     margin: 0;
     padding: 0;
-    background: lightgrey;
+    background: var(--spr-page, #EEF1F5);
     width: 100%;
     height: 100%;
     overflow-y: auto;
@@ -61,7 +61,10 @@ import {BreakpointObserver} from "@angular/cdk/layout";
       padding: 0px;
       z-index: 200;  /* Needs a higher value then the sticky Material table header (which is z-index: 100) */
       box-sizing: border-box;
-      background-color: rgba(0, 0, 0, 0)
+      background-color: var(--spr-surface, #FFFFFF);
+      border-top: 1px solid var(--spr-border, #D8DFE8);
+      border-radius: var(--spr-r-xl, 22px) var(--spr-r-xl, 22px) 0 0;
+      box-shadow: var(--spr-shadow-overlay, 0 24px 48px rgba(15, 25, 40, 0.28));
     }`],
     styleUrls: ['../../speechrecorder_mat.scss'],
     standalone: false

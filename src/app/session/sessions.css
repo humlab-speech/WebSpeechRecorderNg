@@ -1,0 +1,40 @@
+:host {
+  display: block;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.spr-session {
+  display: flex;
+  justify-content: center;
+  padding: 48px 24px;
+  box-sizing: border-box;
+}
+
+.spr-session-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 480px;
+  padding: 24px;
+  border-radius: var(--spr-r-xl, 22px);
+  background: var(--spr-surface, #FFFFFF);
+  border: 1px solid var(--spr-border, #D8DFE8);
+  box-shadow: var(--spr-shadow-card, 0 8px 22px rgba(31, 56, 93, 0.09));
+  box-sizing: border-box;
+}
+
+.spr-session-title {
+  margin: 0;
+  color: var(--spr-ink-strong, #1C3660);
+  font-size: var(--spr-type-section, 17.28px);
+  font-weight: 700;
+}
+
+.spr-session-lead {
+  margin: 0;
+  color: var(--spr-ink-muted, #4A6288);
+  font-size: var(--spr-type-caption, 13.6px);
+  line-height: 1.5;
+}

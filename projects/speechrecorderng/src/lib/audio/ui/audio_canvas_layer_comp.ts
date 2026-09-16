@@ -4,6 +4,7 @@ import { ElementRef, EventEmitter, HostListener, Input, Output, ViewChild, Direc
 import {Marker} from "./common";
 import {Dimension, Rectangle} from "../../math/2d/geometry";
 import {AudioDataHolder} from "../audio_data_holder";
+import {sprToken} from "../../theme/theme";
 
 
 export class ViewSelection{
@@ -25,8 +26,8 @@ export class ViewSelection{
 @Directive()
 export abstract class BasicAudioCanvasLayerComponent extends CanvasLayerComponent {
   protected _audioDataHolder:AudioDataHolder| null=null;
-  protected _bgColor:string|null='white';
-  protected _selectColor='rgba(0%,0%,100%,25%)';
+  protected _bgColor:string|null=sprToken('spr-canvas');
+  protected _selectColor=sprToken('spr-select-fill');
 
   /**
    * Returns pixel position depending on current zoom setting.
@@ -311,6 +312,9 @@ export abstract class AudioCanvasLayerComponent extends BasicAudioCanvasLayerCom
           if (vs) {
             g1.fillStyle = this._selectColor;
             g1.fillRect(vs.startX, 0, vs.width(), h);
+            g1.fillStyle = sprToken('spr-select-edge');
+            g1.fillRect(vs.startX, 0, 1, h);
+            g1.fillRect(vs.startX + vs.width() - 1, 0, 1, h);
           }
         }
       }
@@ -328,8 +332,8 @@ export abstract class AudioCanvasLayerComponent extends BasicAudioCanvasLayerCom
                         let xViewPortPixelpos = this.frameToViewPortXPixelPosition(framePos)
                         if (xViewPortPixelpos) {
 
-                            g.fillStyle = 'yellow';
-                            g.strokeStyle = 'yellow';
+                            g.fillStyle = sprToken('spr-canvas-cursor');
+                            g.strokeStyle = sprToken('spr-canvas-cursor');
                             g.beginPath();
                             g.moveTo(xViewPortPixelpos, 0);
                             g.lineTo(xViewPortPixelpos, h);
@@ -339,7 +343,7 @@ export abstract class AudioCanvasLayerComponent extends BasicAudioCanvasLayerCom
 
                             if (this._audioDataHolder) {
                                 g.font = '14px sans-serif';
-                                g.fillStyle = 'yellow';
+                                g.fillStyle = sprToken('spr-canvas-cursor');
                                 g.fillText(framePos.toString(), xViewPortPixelpos + 2, 50);
                             }
                         }
