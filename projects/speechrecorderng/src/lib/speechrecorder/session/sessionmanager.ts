@@ -20,7 +20,7 @@ import {State as StartStopSignalState} from "../startstopsignal/startstopsignal"
 import {KEY} from "./keybindings";
 import {MatDialog} from "@angular/material/dialog";
 import {SpeechRecorderUploader} from "../spruploader";
-import {SPEECHRECORDER_CONFIG, SpeechRecorderConfig} from "../../spr.config";
+import {SPEECHRECORDER_CONFIG, SpeechRecorderConfig, SprLogo} from "../../spr.config";
 import {Prompting} from "./prompting";
 import {SessionFinishedDialog} from "./session_finished_dialog";
 import {MessageDialog} from "../../ui/message_dialog";
@@ -101,6 +101,9 @@ export const enum Status {
       </div>
       <app-sprtransport style="display:flex;flex:10 0 30%;justify-content: center;align-items: center; align-content: center" [readonly]="readonly" [actions]="transportActions" [navigationEnabled]="!items || items.length()>1"></app-sprtransport>
       <div style="display:flex;flex:1 1 30%;flex-direction:row;justify-content: flex-end;align-items: center; align-content: center">
+        @if (controlLogos && !screenXs) {
+          <spr-logos class="spr-separator" [logos]="controlLogos" [height]="26"></spr-logos>
+        }
         @if (!screenXs && enableUploadRecordings) {
           <app-uploadstatus  class="ricontrols"  [value]="uploadProgress"
           [status]="uploadStatus" [statusMsg]="uploadStatusMsg" [awaitNewUpload]="processingRecording"></app-uploadstatus>
@@ -166,6 +169,13 @@ export const enum Status {
     standalone: false
 })
 export class SessionManager extends BasicRecorder implements AfterViewInit,OnDestroy, AudioCaptureListener,ChunkAudioBufferReceiver {
+
+  /** Marks for the transport bar, configured by the deploying application. */
+  get controlLogos(): SprLogo[] | undefined {
+    const logos = this.config?.branding?.controls;
+    return logos && logos.length ? logos : undefined;
+  }
+
 
   private offlineAudioContext:OfflineAudioContext|null=null;
 

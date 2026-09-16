@@ -9,7 +9,9 @@ import {
   OnInit,
   Renderer2,
   HostBinding,
-  AfterContentChecked
+  AfterContentChecked,
+  Optional,
+  Inject
 } from "@angular/core";
 
 import {SimpleTrafficLight} from "../startstopsignal/ui/simpletrafficlight";
@@ -18,6 +20,7 @@ import {Item} from "./item";
 import {Block, Text, Mediaitem, PromptItem} from "../script/script";
 import {TransportActions} from "./controlpanel";
 import {Action} from "../../action/action";
+import {SPEECHRECORDER_CONFIG, SpeechRecorderConfig, SprLogo} from "../../spr.config";
 import {AudioDisplay} from "../../audio/audio_display";
 import {ProjectService} from "../project/project.service";
 import {AudioClip} from "../../audio/persistor";
@@ -39,8 +42,11 @@ import {BreakpointObserver} from "@angular/cdk/layout";
     color: var(--spr-ink-muted, #4A6288);
     text-align: left;
     font-size: var(--spr-type-caption, 13.6px);
-    flex: 0;
-    width: 100%;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
   `],
     standalone: false
@@ -453,8 +459,13 @@ export class PromptContainer implements OnInit,AfterContentChecked {
 @Component({
     selector: 'app-sprpromptingcontainer',
     template: `
-    <spr-recinstructions [selectedItemIdx]="selectedItemIdx" [itemCount]="itemCount"
-                         [recinstructions]="promptItem?.recinstructions?.recinstructions"></spr-recinstructions>
+    <div class="spr-stage-header">
+      <spr-recinstructions [selectedItemIdx]="selectedItemIdx" [itemCount]="itemCount"
+                           [recinstructions]="promptItem?.recinstructions?.recinstructions"></spr-recinstructions>
+      @if (stageLogos) {
+        <spr-logos [logos]="stageLogos" [height]="28"></spr-logos>
+      }
+    </div>
     <app-sprpromptcontainer [projectName]="projectName"
                             [mediaitems]="showPrompt?(promptItem?promptItem.mediaitems:null):null"></app-sprpromptcontainer>
 
@@ -473,7 +484,19 @@ export class PromptContainer implements OnInit,AfterContentChecked {
     display: flex;
     flex-direction: column;
     min-height: 0px;
-  }
+  }`, `
+    /* Instruction line and the deployment's mark share the top band of the stage, so the
+       logo lives in the space above the prompt without growing the card. */
+    .spr-stage-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      width: 100%;
+      flex: 0 0 auto;
+      min-height: 36px; /* mark plus its plate padding, so the stage does not shift */
+      text-align: left;
+    }
   `],
     standalone: false
 })
@@ -490,8 +513,15 @@ export class PromptingContainer {
   private startX: number | null = null
   private touchStartTimeStamp: number | null=null;
 
-  constructor(private ref: ElementRef) {
+  constructor(private ref: ElementRef,
+              @Optional() @Inject(SPEECHRECORDER_CONFIG) private config?: SpeechRecorderConfig) {
     type TouchStart = {}
+  }
+
+  /** The stage slot holds a single mark, the component takes a list. */
+  get stageLogos(): SprLogo[] | undefined {
+    const logo = this.config?.branding?.promptStage;
+    return logo ? [logo] : undefined;
   }
 
   ngOnInit() {

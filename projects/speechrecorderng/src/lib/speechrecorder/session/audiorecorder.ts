@@ -18,7 +18,7 @@ import {SessionService} from "./session.service";
 import {MatDialog} from "@angular/material/dialog";
 import {KEY} from "./keybindings";
 import {SpeechRecorderUploader} from "../spruploader";
-import {SPEECHRECORDER_CONFIG, SpeechRecorderConfig} from "../../spr.config";
+import {SPEECHRECORDER_CONFIG, SpeechRecorderConfig, SprLogo} from "../../spr.config";
 import {Session} from "./session";
 import {AudioStorageFormatEncoding, AudioStorageType, Project, ProjectUtil} from "../project/project";
 import {MessageDialog} from "../../ui/message_dialog";
@@ -106,6 +106,9 @@ export const enum Status {
         </div>
       </div>
       <div style="flex:0 1 30%;display:flex;justify-items: flex-end;justify-content:flex-end" >
+        @if (controlLogos && !screenXs) {
+          <spr-logos class="spr-separator" [logos]="controlLogos" [height]="26"></spr-logos>
+        }
         @if (!screenXs && enableUploadRecordings) {
           <app-uploadstatus class="ricontrols"
             [value]="uploadProgress"
@@ -210,6 +213,13 @@ export const enum Status {
     standalone: false
 })
 export class AudioRecorder extends BasicRecorder implements OnInit,AfterViewInit,OnDestroy, AudioCaptureListener,ReadyStateProvider,ChunkAudioBufferReceiver {
+
+  /** Marks for the transport bar, configured by the deploying application. */
+  get controlLogos(): SprLogo[] | undefined {
+    const logos = this.config?.branding?.controls;
+    return logos && logos.length ? logos : undefined;
+  }
+
 
   _project:Project|undefined| null=null;
   @Input() projectName:string|undefined|null=null;

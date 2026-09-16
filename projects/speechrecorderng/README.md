@@ -169,6 +169,44 @@ The Material role pins follow automatically (they reference the tokens, not the 
 canvas painters repaint with the new values: `theme.ts` watches the attribute, drops the
 resolved-token cache and dispatches a `resize`, which is what makes the audio layers redraw.
 
+### Logos (branding)
+
+The recorder renders the deploying institution's marks in three slots. It ships no image
+files: an application points at its own assets.
+
+```ts
+const SPR_CFG: SpeechRecorderConfig = {
+  apiEndPoint: 'api/v1',
+  branding: {
+    promptStage: {src: 'assets/img/visp_slogan_sv.svg', alt: 'VISP — Visible Speech', height: 28},
+    progressFooter: [{src: 'assets/img/sweclarin_logo.png', alt: 'SweCLARIN logo',
+                      href: 'https://www.sweclarin.se/', height: 24}],
+    controls: [{src: 'assets/img/bas.png', alt: 'Bavarian Archive for Speech Signals logo',
+                href: 'https://www.bas.uni-muenchen.de/Bas/BasHomeeng.html', height: 26},
+               {src: 'assets/img/clarin-d.png', alt: 'CLARIN-D logo',
+                href: 'https://www.clarin-d.net/en/', height: 22}],
+  },
+};
+```
+
+| Slot | Where | Notes |
+|---|---|---|
+| `promptStage` | top right of the prompt stage, beside the instruction line | single mark; costs ~3 px of the auto-fit prompt size at 1568×1334 |
+| `progressFooter` | below the prompt list, sticky at the bottom of the rail | list of marks, centred |
+| `controls` | right of the transport bar, before the state indicators | desktop only, hidden in the `screenXs` layout |
+
+* `height` is per mark (the slot default applies when omitted); width follows the aspect
+  ratio, which the theme audit verifies against the file.
+* Marks with `href` open the owner's site in a new tab; without it the marker is plain. `alt`
+  is required — the audit fails on a mark without it.
+* Marks keep their own brand colours. In the dark scheme they sit on a white plate
+  (`--spr-logo-plate`, transparent in the light scheme); `srcDark` picks an official light
+  variant instead, if one exists. Recolouring a third-party mark with a CSS filter is not
+  supported.
+* The assets themselves are the property of their owners and are not covered by this package's
+  licence. The demo application in this repository serves them from `src/assets/img`; keep the
+  clear space the owner's guidelines specify.
+
 ### Migrating from the previous theme
 
 The recorder no longer ships the Material green/amber/red palette, and no component keeps

@@ -1,6 +1,7 @@
-import {Component, ElementRef, EventEmitter, Input, Output} from '@angular/core'
+import {Component, ElementRef, EventEmitter, Inject, Input, Optional, Output} from '@angular/core'
 import {Item} from './item';
 import {IntersectionObserverDirective} from "../../ui/intersection-observer.directive";
+import {SPEECHRECORDER_CONFIG, SpeechRecorderConfig, SprLogo} from "../../spr.config";
 
 
 @Component({
@@ -35,6 +36,12 @@ import {IntersectionObserverDirective} from "../../ui/intersection-observer.dire
 
   </tbody>
 </table>
+
+@if (footerLogos) {
+  <div class="spr-rail-footer">
+    <spr-logos [logos]="footerLogos" [height]="24"></spr-logos>
+  </div>
+}
 `,
     styles: [`:host {
     overflow-x: hidden;
@@ -42,7 +49,7 @@ import {IntersectionObserverDirective} from "../../ui/intersection-observer.dire
     padding: 12px 8px 12px 12px;
     /*flex: 0.1 0 300px;
       min-width: 300px; */
-    flex: 0 0 268px; /* fixed operator rail: keeps the prompt stage width predictable */
+    flex: 0 0 296px; /* fixed operator rail: fits the three columns without clipping */
     background: var(--spr-surface, #FFFFFF);
     border-left: 1px solid var(--spr-border, #D8DFE8);
     color: var(--spr-ink, #1F3044);
@@ -131,16 +138,29 @@ import {IntersectionObserverDirective} from "../../ui/intersection-observer.dire
       }
     `, `.promptDescriptor{
 
-      max-width: 22ch;
+      max-width: 18ch;
       text-overflow: ellipsis;
       overflow: hidden;
       white-space: nowrap;
+    }`, `
+    /* Sits below the list and stays visible while the list scrolls. */
+    .spr-rail-footer {
+      position: sticky;
+      bottom: 0;
+      z-index: 2; /* above the sticky table header (z-index: 1) */
+      display: flex;
+      justify-content: center;
+      padding: 12px 8px 4px;
+      margin: 0 -8px -12px -12px; /* bleed to the host's padding box */
+      background: var(--spr-surface, #FFFFFF);
+      border-top: 1px solid var(--spr-border, #D8DFE8);
     }`],
     standalone: false
 })
 export class Progress {
   isObs:IntersectionObserver;
-  constructor(private elRef:ElementRef) {
+  constructor(private elRef:ElementRef,
+              @Optional() @Inject(SPEECHRECORDER_CONFIG) private config?: SpeechRecorderConfig) {
     this.isObs=new IntersectionObserver(ise=>{
       //console.debug("Intersection changed: ");
       ise.forEach((isee)=>{
@@ -151,6 +171,11 @@ export class Progress {
         }
       });
     },{root:this.elRef.nativeElement})
+  }
+
+  get footerLogos(): SprLogo[] | undefined {
+    const logos = this.config?.branding?.progressFooter;
+    return logos && logos.length ? logos : undefined;
   }
   @Input() items: Array<Item>|undefined=undefined;
   @Input() selectedItemIdx = 0;

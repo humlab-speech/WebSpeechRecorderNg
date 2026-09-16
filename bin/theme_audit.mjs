@@ -96,6 +96,22 @@ const PAGE_PROBE = `(() => {
     const cls = typeof el.className === 'string' ? el.className.trim().split(/\\s+/).filter(c => !c.startsWith('ng-') && !c.startsWith('_ng') && !c.startsWith('cdk-') && c !== 'mat-mdc-button-persistent-ripple' && c !== 'mdc-button__ripple').slice(0, 2).join('.') : '';
     return el.tagName.toLowerCase() + (cls ? '.' + cls : '');
   };
+  // Branding marks: a 404 asset is invisible to the colour checks, so they are reported
+  // separately with their natural size and rendered position.
+  const logos = Array.from(document.querySelectorAll('spr-logos img')).map(img => {
+    const r = img.getBoundingClientRect();
+    const cs = getComputedStyle(img);
+    return {
+      src: img.getAttribute('src'),
+      alt: img.getAttribute('alt') || '',
+      naturalWidth: img.naturalWidth,
+      naturalHeight: img.naturalHeight,
+      rect: [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height)],
+      plate: cs.backgroundColor,
+      parent: label(img.closest('spr-logos') || img),
+      inControlBar: !!img.closest('.controlpanel'),
+    };
+  });
   const ownText = (el) => Array.from(el.childNodes).filter(n => n.nodeType === 3).map(n => n.textContent.trim()).join('').trim();
   const rows = [];
   document.querySelectorAll('*').forEach(el => {
@@ -142,6 +158,7 @@ const PAGE_PROBE = `(() => {
   ]);
   return JSON.stringify({
     rows,
+    logos,
     tokens,
     pins,
     fit: { scrollHeight: document.documentElement.scrollHeight, innerHeight: window.innerHeight },
@@ -225,8 +242,48 @@ for (const [width, height] of VIEWPORTS) {
     failures.push(`${width}x${height}: probe returned nothing (${JSON.stringify(out.result?.exceptionDetails?.exception?.description || out.result)})`);
     continue;
   }
-  const { rows, tokens, pins, fit } = JSON.parse(raw);
+  const { rows, logos, tokens, pins, fit } = JSON.parse(raw);
   const tokenColors = new Set(Object.values(tokens).map(toRgbString).filter(Boolean));
+
+  for (const logo of logos || []) {
+    const [lx, ly, lw, lh] = logo.rect;
+    if (!logo.naturalWidth || !logo.naturalHeight) {
+      failures.push(`${width}x${height}: logo ${logo.src} did not load (natural size 0)`);
+      continue;
+    }
+    if (!logo.alt) {
+      failures.push(`${width}x${height}: logo ${logo.src} has no alt text`);
+    }
+    if (lh < 16 || lh > 64) {
+      failures.push(`${width}x${height}: logo ${logo.src} renders ${lh}px tall (expected 16-64)`);
+    }
+    const naturalRatio = logo.naturalWidth / logo.naturalHeight;
+    const renderedRatio = lw / lh;
+    const drift = Math.abs(renderedRatio - naturalRatio) / naturalRatio;
+    if (drift > 0.02) {
+      failures.push(
+        `${width}x${height}: logo ${logo.src} aspect ratio changed ` +
+        `(${renderedRatio.toFixed(2)} vs natural ${naturalRatio.toFixed(2)})`
+      );
+    }
+    if (lx < 0 || ly < 0 || lx + lw > width || ly + lh > height) {
+      failures.push(`${width}x${height}: logo ${logo.src} is outside the viewport (${logo.rect.join(',')})`);
+    }
+  }
+  // Marks sharing the transport bar with the state indicators must not collide with them.
+  const controlLogos = (logos || []).filter(l => l.inControlBar);
+  if (controlLogos.length > 1) {
+    const sorted = controlLogos.slice().sort((a, b) => a.rect[0] - b.rect[0]);
+    for (let i = 1; i < sorted.length; i++) {
+      const prev = sorted[i - 1].rect;
+      if (sorted[i].rect[0] < prev[0] + prev[2]) {
+        failures.push(
+          `${width}x${height}: control-bar logos overlap ` +
+          `(${sorted[i - 1].src} ends ${prev[0] + prev[2]}, ${sorted[i].src} starts ${sorted[i].rect[0]})`
+        );
+      }
+    }
+  }
 
   if (!Object.keys(tokens).length) {
     failures.push(`${width}x${height}: no --spr-* tokens are defined (token layer inert)`);

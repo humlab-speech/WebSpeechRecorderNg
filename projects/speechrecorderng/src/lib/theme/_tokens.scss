@@ -73,6 +73,11 @@ $spr-tokens-light: (
   'spr-disabled-bg': rgba(42, 71, 101, 0.06),
   'spr-scrim': rgba(15, 25, 40, 0.35),
 
+  // logos --------------------------------------------------------------------
+  // Third party marks are dark; in the dark scheme they sit on a white plate. Transparent
+  // in the light scheme so the slot metrics stay identical between schemes.
+  'spr-logo-plate': transparent,
+
   // type -------------------------------------------------------------------
   'spr-font-family': p.$spr-font-family,
   'spr-font-mono': 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
@@ -121,6 +126,7 @@ $spr-tokens-dark: map.merge(
     'spr-focus': #D7B17C,
     'spr-focus-on-chrome': #D7B17C,
     'spr-canvas': #000000,
+    'spr-logo-plate': #FFFFFF,
     'spr-disabled-bg': rgba(255, 255, 255, 0.08),
     'spr-select-fill': rgba(42, 71, 101, 0.55),
   )

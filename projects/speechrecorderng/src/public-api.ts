@@ -42,6 +42,8 @@ export {RecordingFileService} from './lib/speechrecorder/session/recordingfile/r
 export {RecordingFileViewComponent} from './lib/speechrecorder/session/recordingfile/recording-file-view.component'
 export {RecordingFileUI} from './lib/speechrecorder/session/recordingfile/recording-file-u-i.component'
 export {SpeechRecorderConfig,ApiType} from './lib/spr.config'
+export type {SprLogo, SpeechRecorderBranding} from './lib/spr.config'
+export {Logos} from './lib/ui/logos'
 export {UploadConfig,UploadError,UploaderStatus,UploaderStatusChangeEvent} from './lib/net/uploader'
 export {SpeechrecorderngComponent} from './lib/speechrecorderng.component'
 export {KEY, KEY_BINDINGS, KeyBinding, keyLabel} from './lib/speechrecorder/session/keybindings'
