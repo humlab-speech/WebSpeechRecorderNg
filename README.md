@@ -110,13 +110,18 @@ npm start
 node bin/theme_audit.mjs --url http://127.0.0.1:4200/spr --viewports 1024x768,1366x768,1568x1334,1920x1080
 ```
 
-States behind an interaction (the detailed audio view, the error dialog) are reached with
-`--prepare bin/audit/<fixture>.js`, e.g.
+States behind an interaction (the detailed audio view, the error dialog, the dark scheme) are
+reached with `--prepare bin/audit/<fixture>.js`, e.g.
 
 ```
 node bin/theme_audit.mjs --url http://127.0.0.1:4200/spr/session/2 \
   --prepare bin/audit/open-error-dialog.js
+node bin/theme_audit.mjs --url http://127.0.0.1:4200/spr \
+  --prepare bin/audit/use-dark-scheme.js
 ```
+
+The dark scheme is opt-in with `<html data-spr-scheme="dark">`; the demo application ships its
+tokens, and the audio canvases repaint on the switch (`theme.ts` watches the attribute).
 
 The font is Inter (loaded from Google Fonts in `src/index.html`) with a
 `Helvetica Neue`/system fallback: an offline deployment keeps working, and

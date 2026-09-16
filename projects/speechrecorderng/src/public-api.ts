@@ -49,6 +49,7 @@ export {KEY, KEY_BINDINGS, KeyBinding, keyLabel} from './lib/speechrecorder/sess
 /* Theming: semantic tokens shared by the CSS and the canvas painters.
    See `theme.scss` for the stylesheet entry point and the README for the token list. */
 export {
+  SCHEME_ATTRIBUTE,
   SPR_PALETTE,
   SPR_SPECTRUM_RAMP,
   buildSpectrumLut,

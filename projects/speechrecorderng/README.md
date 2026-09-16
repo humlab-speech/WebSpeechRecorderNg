@@ -155,6 +155,20 @@ Canvas painters (waveform, spectrogram, level meter) read the same tokens throug
 `SPR_SPECTRUM_RAMP` (exported from the package) is the luminance-monotonic spectrogram
 ramp; `buildSpectrumLut()` turns it into the table the sonagram worker paints with.
 
+### Dark scheme
+
+The dark values ship with the theme and are opt-in through a root attribute — no
+`prefers-color-scheme` rule, because a recording session runs in controlled lighting and the
+operator decides:
+
+```js
+document.documentElement.setAttribute('data-spr-scheme', 'dark');   // back to light: removeAttribute
+```
+
+The Material role pins follow automatically (they reference the tokens, not the values), and
+canvas painters repaint with the new values: `theme.ts` watches the attribute, drops the
+resolved-token cache and dispatches a `resize`, which is what makes the audio layers redraw.
+
 ### Migrating from the previous theme
 
 The recorder no longer ships the Material green/amber/red palette, and no component keeps

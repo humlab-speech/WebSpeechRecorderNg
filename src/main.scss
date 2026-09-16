@@ -30,8 +30,14 @@ html {
 }
 
 // Emitted at the top level: both mixins write `:root { … }` themselves, and nesting them
-// inside `html { }` would compile to the descendant selector `html :root`, which matches
+// inside `html {}` would compile to the descendant selector `html :root`, which matches
 // nothing — the tokens would silently fall back to the literals in every `var()`.
 // (`bin/theme_audit.mjs` fails the build check if the pins stop resolving.)
 @include tokens.spr-token-styles();
 @include tokens.spr-material-role-tokens();
+
+// Opt-in dark scheme: `<html data-spr-scheme="dark">` switches every --spr-* value, and the
+// Material pins above follow automatically because they reference the tokens, not literals.
+// No `prefers-color-scheme` rule: a recording session runs in controlled lighting and the
+// operator decides the scheme.
+@include tokens.spr-token-styles(dark, ':root[data-spr-scheme="dark"]');

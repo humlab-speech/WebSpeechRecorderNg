@@ -26,6 +26,9 @@ export const SPR_PALETTE = {
   'spr-select-edge': '#D7B17C',
 } as const;
 
+/** Root attribute that switches to the dark scheme (`_tokens.scss` emits the values for it). */
+export const SCHEME_ATTRIBUTE = 'data-spr-scheme';
+
 export type SprTokenName = keyof typeof SPR_PALETTE;
 
 const resolved = new Map<SprTokenName, string>();
@@ -36,13 +39,25 @@ function canReadDocument(): boolean {
 }
 
 function installSchemeListener(): void {
-  if (schemeListenerInstalled || typeof window === 'undefined' || !window.matchMedia) {
+  if (schemeListenerInstalled || typeof window === 'undefined') {
     return;
   }
   schemeListenerInstalled = true;
-  // A scheme switch changes every resolved value at once; drop the cache so the next
-  // paint picks up the new scheme.
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => invalidateSprTokens());
+  // A scheme switch changes every resolved value at once. The scheme is driven by a root
+  // attribute (`data-spr-scheme`), so watch it and drop the cache; the canvas layers repaint
+  // on the resize that follows, which is how they pick the new values up.
+  if (typeof MutationObserver !== 'undefined' && typeof document !== 'undefined') {
+    const observer = new MutationObserver(() => {
+      invalidateSprTokens();
+      if (typeof Event !== 'undefined') {
+        window.dispatchEvent(new Event('resize'));
+      }
+    });
+    observer.observe(document.documentElement, {attributes: true, attributeFilter: [SCHEME_ATTRIBUTE]});
+  }
+  if (window.matchMedia) {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => invalidateSprTokens());
+  }
 }
 
 /**
