@@ -89,7 +89,8 @@ export class AppModule { }
 
 The demo application and the library are themed with the Umeå University palette — see
 [Theme in the module README](projects/speechrecorderng/README.md#theme-umeå-university) for
-the full token list and the consumer setup.
+the full token list, the consumer setup and the
+[migration notes](projects/speechrecorderng/README.md#migrating-from-the-previous-theme).
 
 Short version:
 

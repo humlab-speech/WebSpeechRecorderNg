@@ -155,6 +155,25 @@ Canvas painters (waveform, spectrogram, level meter) read the same tokens throug
 `SPR_SPECTRUM_RAMP` (exported from the package) is the luminance-monotonic spectrogram
 ramp; `buildSpectrumLut()` turns it into the table the sonagram worker paints with.
 
+### Migrating from the previous theme
+
+The recorder no longer ships the Material green/amber/red palette, and no component keeps
+its old hard-coded colours. If you styled the recorder yourself, pick one of:
+
+* **Include the shipped theme.** Add `@include spr.theme();` after your own `mat.theme()`
+  call (see above). This is the supported path and needs no other change.
+* **Only override what you must.** Without the theme include the recorder still renders
+  (every token has a literal fallback), and you can set individual values, e.g.
+  `:root { --spr-chrome: #123456; --spr-chrome-ink: #FFFFFF; }`. Keep the ink pairs
+  together: the palette rules are "white ink on the main colours, black ink on the
+  complement colours", and the audit checks the resulting contrast.
+
+Component-internal selectors changed as well: the transport and audio controls are plain
+buttons styled by the library (previously browser-default `buttonface`), the traffic light
+takes its state from `app-simpletrafficlight` (lamp + caption, `role="status"`), and the
+detail overlay lost its debug background. If your application overrode those elements by
+class, re-check them against the token list.
+
 ### Audit
 
 `bin/theme_audit.mjs` renders the application in a headless Chrome (DevTools Protocol) and
