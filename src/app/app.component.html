@@ -1,31 +1,43 @@
 <mat-toolbar class="spr-toolbar">
 
-  <button mat-button class="spr-toolbar-menu" [matMenuTriggerFor]="menu" aria-label="Menu">
+  <button mat-button class="spr-toolbar-menu" [matMenuTriggerFor]="menu" [attr.aria-label]="'app.menu' | transloco">
     <mat-icon>menu</mat-icon>
   </button>
   <mat-menu #menu="matMenu" yPosition="below" [overlapTrigger]="false">
-    <button mat-menu-item [matMenuTriggerFor]="helpMenu">Help</button>
+    <button mat-menu-item [matMenuTriggerFor]="helpMenu">{{ 'app.menuHelp' | transloco }}</button>
+    <button mat-menu-item [matMenuTriggerFor]="languageMenu">
+      <mat-icon>translate</mat-icon>
+      <span>{{ 'app.language' | transloco }}</span>
+    </button>
+    <mat-menu #languageMenu="matMenu" xPosition="after" [overlapTrigger]="false">
+      @for (code of languages; track code) {
+        <button mat-menu-item (click)="setLanguage(code)" [class.spr-language-active]="code === language">
+          <mat-icon>{{ code === language ? 'check' : 'blank' }}</mat-icon>
+          <span>{{ 'app.languageName.' + code | transloco }}</span>
+        </button>
+      }
+    </mat-menu>
     <mat-menu #helpMenu="matMenu" xPosition="after" [overlapTrigger]="false" class="spr-help-menu">
       <div class="spr-help">
         <h3 class="spr-help-title">WebSpeechRecorderNg {{sprVersion}}</h3>
-        <p class="spr-help-lead">Records speech against scripted prompts.</p>
+        <p class="spr-help-lead">{{ 'app.help.lead' | transloco }}</p>
 
-        <h4>Controls</h4>
+        <h4>{{ 'app.help.controls' | transloco }}</h4>
         <ul>
-          <li><strong>Start / Stop / Next</strong> — begin, end, or advance the recording.</li>
-          <li><strong>Pause</strong> — pause the current recording.</li>
-          <li><strong>Back / Forward</strong> — step through prompts.</li>
-          <li><strong>Next recording</strong> — jump to the next unrecorded prompt.</li>
+          <li><strong>{{ 'app.help.startStopNextTitle' | transloco }}</strong> — {{ 'app.help.startStopNext' | transloco }}</li>
+          <li><strong>{{ 'app.help.pauseTitle' | transloco }}</strong> — {{ 'app.help.pause' | transloco }}</li>
+          <li><strong>{{ 'app.help.stepTitle' | transloco }}</strong> — {{ 'app.help.step' | transloco }}</li>
+          <li><strong>{{ 'app.help.nextRecordingTitle' | transloco }}</strong> — {{ 'app.help.nextRecording' | transloco }}</li>
         </ul>
 
-        <h4>Keyboard</h4>
+        <h4>{{ 'app.help.keyboard' | transloco }}</h4>
         <table class="spr-help-table">
           <thead>
-            <tr><th>Key</th><th>Action</th></tr>
+            <tr><th>{{ 'app.help.key' | transloco }}</th><th>{{ 'app.help.action' | transloco }}</th></tr>
           </thead>
           <tbody>
             @for (b of keyBindings; track b.key) {
-              <tr><td class="spr-help-key">{{b.label}}</td><td>{{b.description}}</td></tr>
+              <tr><td class="spr-help-key">{{b.label}}</td><td>{{ b.descriptionKey | transloco }}</td></tr>
             }
           </tbody>
         </table>
@@ -35,7 +47,7 @@
 
   <span class="spr-brand">
     <span class="spr-brand-mark" aria-hidden="true">SR</span>
-    <span class="spr-brand-text">{{screenXs ? shortTitle : title}}</span>
+    <span class="spr-brand-text">{{ (screenXs ? 'app.shortTitle' : 'app.title') | transloco }}</span>
   </span>
 
 </mat-toolbar>

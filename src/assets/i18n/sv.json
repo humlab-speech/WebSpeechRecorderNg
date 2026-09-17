@@ -1,0 +1,261 @@
+{
+  "app": {
+    "title": "SpeechRecorder – demoprogram",
+    "shortTitle": "SpeechRecorder",
+    "menu": "Meny",
+    "menuHelp": "Hjälp",
+    "language": "Språk",
+    "languageName": {
+      "en": "English",
+      "sv": "Svenska"
+    },
+    "help": {
+      "lead": "Spelar in tal mot manusbundna prompter.",
+      "controls": "Reglage",
+      "startStopNextTitle": "Start / Stopp / Nästa",
+      "startStopNext": "börja, avsluta eller gå vidare i inspelningen.",
+      "pauseTitle": "Paus",
+      "pause": "pausa den pågående inspelningen.",
+      "stepTitle": "Bakåt / Framåt",
+      "step": "stega genom prompterna.",
+      "nextRecordingTitle": "Nästa inspelning",
+      "nextRecording": "hoppa till nästa oinspelade prompt.",
+      "keyboard": "Tangentbord",
+      "key": "Tangent",
+      "action": "Åtgärd"
+    },
+    "start": {
+      "badge": "Umeå universitet · SpeechRecorder",
+      "titleLine1": "Spela in tal,",
+      "titleLine2": "mot manusbundna prompter.",
+      "lead": "SpeechRecorderNg genomför en inspelningssession i webbläsaren: det visar prompterna i det inlästa manuset, tar upp ljud från vald enhet och bevarar varje inspelning med dess metadata.",
+      "openRecorder": "Öppna inspelaren"
+    },
+    "session": {
+      "title": "Session",
+      "lead": "Ange sessions-id för att läsa in dess manus och inspelningar.",
+      "id": "Sessions-id",
+      "idPlaceholder": "t.ex. 1234"
+    }
+  },
+  "spr": {
+    "transport": {
+      "start": "Starta",
+      "stop": "Stopp",
+      "next": "Nästa",
+      "pause": "Paus",
+      "forward": "Framåt",
+      "backward": "Bakåt",
+      "nextRecording": "Nästa inspelning",
+      "startStopNext": "Start / Stopp / Nästa",
+      "tooltip": {
+        "backward": "Bakåt ({{key}})",
+        "startStopNext": "Start / Stopp / Nästa ({{key}})",
+        "pause": "Paus ({{key}})",
+        "forward": "Framåt ({{key}})"
+      }
+    },
+    "signal": {
+      "stop": "Stopp",
+      "getReady": "Gör dig beredd",
+      "recording": "Spelar in",
+      "wait": "Vänta"
+    },
+    "audio": {
+      "playAll": "Spela upp allt",
+      "playSelection": "Spela upp markering",
+      "stopPlayback": "Stoppa uppspelning",
+      "startPlayback": "Starta uppspelning",
+      "autoplayOnSelect": "Spela upp automatiskt vid val",
+      "clearSelection": "Rensa markering",
+      "play": "Spela upp",
+      "zoom": "Zoom",
+      "selection": "Markering",
+      "fitToPanel": "Anpassa till panelen",
+      "zoomOut": "-",
+      "zoomIn": "+",
+      "selected": "Markerad",
+      "toggleDetails": "Visa/dölj detaljerad ljudvy",
+      "downloadRecording": "Ladda ner aktuell inspelning",
+      "peak": "Topp:",
+      "peakLevel": "Toppnivå",
+      "agc": "AGC:",
+      "agcTooltip": "Automatisk nivåkontroll",
+      "level": "Toppnivå",
+      "state": {
+        "loading": "Laddar…",
+        "rendering": "Renderar…",
+        "loadingRendering": "Laddar/renderar…"
+      },
+      "error": {
+        "noContext": "Kunde inte hämta ljudkontexten!"
+      }
+    },
+    "error": {
+      "unknown": "Okänt fel"
+    },
+    "capture": {
+      "error": {
+        "contextClosed": "Fel vid start av inspelning: ljudkontexten är redan stängd.",
+        "noScriptProcessor": "Webbläsaren stöder inte ljudbearbetning (metoden ScriptProcessor.onaudioprocess hittades inte)!",
+        "noAudioProcessing": "Webbläsaren stöder inte ljudbearbetning (varken AudioWorkletProcessor eller ScriptProcessor)!",
+        "microphoneNotAllowed": "Mikrofonen får inte användas.",
+        "deviceRead": "Kunde inte läsa från ljudenheten.",
+        "handleRecordedData": "Kunde inte hantera inspelad ljuddata{{detail}}",
+        "overconstrained": "Ljudenheten uppfyller inte de efterfrågade kraven."
+      },
+      "advice": {
+        "allowMicrophone": "Kontrollera att åtkomst till mikrofonen är tillåten för webbsidan och ladda om sidan.",
+        "checkDevice": "Kontrollera att ljudenheten fungerar.",
+        "recordAgain": "Försök spela in igen."
+      }
+    },
+    "playback": {
+      "error": {
+        "contextClosed": "Fel: uppspelningen kan inte startas. Ljudkontexten är redan stängd!",
+        "selectionContextClosed": "Fel: uppspelningen av markeringen kan inte startas. Ljudkontexten är redan stängd!"
+      }
+    },
+    "progress": {
+      "index": "#",
+      "prompt": "Prompt",
+      "status": "Status",
+      "code": "Kod"
+    },
+    "recordings": {
+      "title": "Inspelningar",
+      "started": "Startad",
+      "length": "Längd",
+      "action": "Åtgärd",
+      "select": "Välj",
+      "versions": "Versioner",
+      "navigate": "Navigera",
+      "itemcode": "Itemkod:",
+      "uuid": "UUID:",
+      "samplerate": "Samplingsfrekvens:",
+      "duration": "Längd:",
+      "channels": "Kanaler:",
+      "frames": "Samples:",
+      "status": "Status:",
+      "peak": "Topp:",
+      "tooltip": {
+        "first": "Första inspelningsfilen",
+        "previous": "Föregående inspelningsfil",
+        "next": "Nästa inspelningsfil",
+        "last": "Sista inspelningsfilen"
+      },
+      "itemPosition": "Post {{pos}} av {{count}}",
+      "orderedByDate": "(Listan är sorterad efter datum)",
+      "date": "Datum:",
+      "session": "Session:",
+      "fileId": "Inspelningsfilens ID: {{id}}",
+      "latest": "(senaste)",
+      "editTitle": "Redigering av inspelningsfil",
+      "editHint": "Vid export eller leverans klipps den redigerade markeringen av inspelningsfilen bort. Om ingen redigering är tillämpad exporteras originalfilen.",
+      "applySelection": "Tillämpa markering",
+      "applyCurrentSelection": "Tillämpa aktuell markering som redigering",
+      "cancelEditingSelection": "Ta bort redigering",
+      "selectionSaved": "Redigeringen av markeringen sparades.",
+      "error": {
+        "saveSelection": "Kunde inte spara redigeringen av markeringen",
+        "loadAudioFile": "Kunde inte läsa in ljudfilen"
+      }
+    },
+    "session": {
+      "finishedTitle": "Sessionen är klar",
+      "finishedBody": "Tack! Inspelningssessionen är slutförd."
+    },
+    "dialog": {
+      "ok": "OK",
+      "error": "Fel",
+      "recordingError": "Inspelningsfel",
+      "saveSelectionError": "Kunde inte spara ändringen av markeringen",
+      "unsupportedBrowserTitle": "Fel",
+      "unsupportedBrowserAdvice": "Använd en webbläsare som stöds.",
+      "unknownError": "Ett okänt fel uppstod vid inspelningen.",
+      "retryAdvice": "Försök igen.",
+      "sessionSealedMsg": "Sessionen är låst. Fler inspelningar kan inte läggas till.",
+      "sessionSealedAdvice": "Fråga din försöksledare vad du ska göra (till exempel starta en ny session).",
+      "requiredAudioDeviceTitle": "Obligatorisk ljudenhet",
+      "requiredAudioDeviceMsg": "Den obligatoriska ljudenheten hittades inte",
+      "requiredAudioDeviceAdvice": "Anslut en lämplig ljudenhet för projektet och försök igen (ladda om sidan i webbläsaren).",
+      "noAudioDeviceTitle": "Ingen ljudenhet",
+      "noAudioDeviceMsg": "Ingen ljudenhet hittades",
+      "noAudioDeviceAdvice": "Anslut en ljudenhet och försök igen (ladda om sidan i webbläsaren) eller försök att fortsätta ändå.",
+      "noAudioCaptureDeviceTitle": "Ingen ljudingång",
+      "noAudioCaptureDeviceMsg": "Ingen ljudingång hittades",
+      "noAudioCaptureDeviceAdvice": "Anslut en ljudingång och försök igen (ladda om sidan i webbläsaren) eller försök att fortsätta ändå.",
+      "noAudioPlaybackDeviceTitle": "Ingen ljudutgång",
+      "noAudioPlaybackDeviceMsg": "Ingen ljudutgång hittades",
+      "noAudioPlaybackDeviceAdvice": "Anslut en ljudutgång och försök igen (ladda om sidan i webbläsaren) eller försök att fortsätta ändå.",
+      "networkAdvice": "Kontrollera nätverksanslutningen och serverns status.",
+      "networkAdviceAdmin": "Kontrollera nätverksanslutningen och serverns status eller kontakta systemadministratören.",
+      "unsupportedBrowserMsg": "Webbläsaren stöder inte Media-/Audio-API:t!",
+      "uploadFailedMsg": "Uppladdningen misslyckades. Inspelningarna sparades inte på servern.",
+      "uploadFailedAdvice": "Kontrollera anslutningen och försök igen."
+    },
+    "warning": {
+      "testRecording": "Endast testinspelning!",
+      "defaultDevice": "Testet använder standardljudenheten! Ordinarie sessioner kan kräva en särskild ljudenhet (mikrofon)!"
+    },
+    "status": {
+      "initialize": "Initierar…",
+      "status": "Status",
+      "playerInitialized": "Uppspelaren är initierad.",
+      "recorded": "Inspelat.",
+      "upload": "Uppladdning: {{value}}",
+      "uploadComplete": "Uppladdningen är klar",
+      "uploadPreparing": "Förbereder uppladdning.",
+      "uploadError": "Uppladdningen misslyckades. Kontrollera nätverksanslutningen.",
+      "datasetDone": "Ljudbearbetning och uppladdning är klara. Du kan lämna sidan utan att data går förlorad.",
+      "datasetPending": "Vänta tills ljudbearbetningen och uppladdningen är klara. Lämna inte sidan.",
+      "ready": "Redo.",
+      "startingSession": "Startar sessionen…",
+      "sessionInfo": "Sessionsinformationen har tagits emot.",
+      "sessionSealed": "Sessionen är låst!",
+      "requestingAudioPermissions": "Begär åtkomst till ljudenheten…",
+      "requiredAudioDeviceMissing": "FEL: Den obligatoriska ljudenheten är inte tillgänglig!",
+      "noAudioDeviceAvailable": "FEL: Ingen ljudenhet är tillgänglig!",
+      "noAudioCaptureDeviceAvailable": "VARNING: Ingen ljudingång är tillgänglig!",
+      "noAudioPlaybackDeviceAvailable": "VARNING: Ingen ljudutgång är tillgänglig!",
+      "sessionClosed": "Sessionen är stängd.",
+      "fetchingScript": "Hämtar inspelningsmanuset…",
+      "scriptReceived": "Inspelningsmanuset har tagits emot.",
+      "fetchingRecordings": "Hämtar information om inspelningarna…",
+      "recordingsReceived": "Information om inspelningarna har tagits emot.",
+      "recording": "Spelar in…",
+      "playerCreated": "Uppspelaren är skapad.",
+      "audioFileLoaded": "Ljudfilen är inläst.",
+      "playing": "Spelar upp…",
+      "playback": "Uppspelning…",
+      "playbackError": "Uppspelningsfel.",
+      "recordingError": "FEL: Inspelning.",
+      "sessionComplete": "Sessionen är klar!",
+      "error": "Fel.",
+      "errorUpper": "FEL",
+      "errorPrefix": "FEL: {{msg}}",
+      "audioFileError": "Fel vid inläsning av ljudfil",
+      "recordingFileLoadFailed": "Inspelningsfilen kunde inte läsas in.",
+      "recordingFileLoadError": "Inspelningsfilen kunde inte läsas in: {{error}}",
+      "recordingFileDecodeFailed": "Inspelningsfilen kunde inte avkodas. Ljudkontexten är inte tillgänglig.",
+      "noScript": "Inget inspelningsmanus är definierat för sessionen med ID {{value}}",
+      "scriptFetchError": "Kunde inte hämta inspelningsmanuset: {{value}}",
+      "uploadErrorDetail": "Uppladdningsfel: {{value}}",
+      "uploadFailed": "Uppladdningen misslyckades: {{value}}",
+      "uploadPartial": "Vissa uppladdningar misslyckades. Inspelningarna sparades inte på servern."
+    },
+    "keybinding": {
+      "startStop": "Starta eller stoppa inspelningen",
+      "pause": "Pausa inspelningen",
+      "stop": "Stoppa inspelningen och fäll in ljudvyn",
+      "play": "Spela upp inspelningen",
+      "forward": "Gå till nästa prompt",
+      "backward": "Gå till föregående prompt"
+    },
+    "aria": {
+      "menu": "Meny",
+      "nextRecording": "Nästa inspelning",
+      "status": "Status"
+    }
+  }
+}

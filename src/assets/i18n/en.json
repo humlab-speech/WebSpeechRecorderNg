@@ -1,0 +1,261 @@
+{
+  "app": {
+    "title": "SpeechRecorder Angular Demo",
+    "shortTitle": "SpeechRecorder",
+    "menu": "Menu",
+    "menuHelp": "Help",
+    "language": "Language",
+    "languageName": {
+      "en": "English",
+      "sv": "Svenska"
+    },
+    "help": {
+      "lead": "Records speech against scripted prompts.",
+      "controls": "Controls",
+      "startStopNextTitle": "Start / Stop / Next",
+      "startStopNext": "begin, end, or advance the recording.",
+      "pauseTitle": "Pause",
+      "pause": "pause the current recording.",
+      "stepTitle": "Back / Forward",
+      "step": "step through prompts.",
+      "nextRecordingTitle": "Next recording",
+      "nextRecording": "jump to the next unrecorded prompt.",
+      "keyboard": "Keyboard",
+      "key": "Key",
+      "action": "Action"
+    },
+    "start": {
+      "badge": "Umeå University · SpeechRecorder",
+      "titleLine1": "Record speech,",
+      "titleLine2": "against scripted prompts.",
+      "lead": "SpeechRecorderNg runs a recording session in the browser: it presents the prompts of the loaded script, captures audio from the selected device, and keeps every recording with its metadata.",
+      "openRecorder": "Open the recorder"
+    },
+    "session": {
+      "title": "Session",
+      "lead": "Enter the session id to load its script and recordings.",
+      "id": "Session ID",
+      "idPlaceholder": "e.g. 1234"
+    }
+  },
+  "spr": {
+    "transport": {
+      "start": "Start",
+      "stop": "Stop",
+      "next": "Next",
+      "pause": "Pause",
+      "forward": "Forward",
+      "backward": "Backward",
+      "nextRecording": "Next recording",
+      "startStopNext": "Start / Stop / Next",
+      "tooltip": {
+        "backward": "Backward ({{key}})",
+        "startStopNext": "Start / Stop / Next ({{key}})",
+        "pause": "Pause ({{key}})",
+        "forward": "Forward ({{key}})"
+      }
+    },
+    "signal": {
+      "stop": "Stop",
+      "getReady": "Get ready",
+      "recording": "Recording",
+      "wait": "Wait"
+    },
+    "audio": {
+      "playAll": "Play all",
+      "playSelection": "Play selection",
+      "stopPlayback": "Stop playback",
+      "startPlayback": "Start playback",
+      "autoplayOnSelect": "Autoplay on select",
+      "clearSelection": "Clear selection",
+      "play": "Play",
+      "zoom": "Zoom",
+      "selection": "Selection",
+      "fitToPanel": "Fit to panel",
+      "zoomOut": "-",
+      "zoomIn": "+",
+      "selected": "Selected",
+      "toggleDetails": "Toggle detailed audio display",
+      "downloadRecording": "Download current recording",
+      "peak": "Peak:",
+      "peakLevel": "Peak level",
+      "agc": "AGC:",
+      "agcTooltip": "Auto gain control",
+      "level": "Peak level",
+      "state": {
+        "loading": "Loading...",
+        "rendering": "Rendering...",
+        "loadingRendering": "Loading/Rendering..."
+      },
+      "error": {
+        "noContext": "Could not get audio context!"
+      }
+    },
+    "error": {
+      "unknown": "Unknown error"
+    },
+    "capture": {
+      "error": {
+        "contextClosed": "Error on start capture: The audio context is already closed.",
+        "noScriptProcessor": "Browser does not support audio processing (ScriptProcessor.onaudioprocess method not found)!",
+        "noAudioProcessing": "Browser does not support audio processing (neither AudioWorkletProcessor nor ScriptProcessor)!",
+        "microphoneNotAllowed": "Not allowed to use your microphone.",
+        "deviceRead": "Could not read from your audio device.",
+        "handleRecordedData": "Could not handle recorded audio data{{detail}}",
+        "overconstrained": "Overconstrained media device request error."
+      },
+      "advice": {
+        "allowMicrophone": "Please make sure that microphone access is allowed for this web page and reload the page.",
+        "checkDevice": "Please make sure your audio device is working.",
+        "recordAgain": "Please try to record again."
+      }
+    },
+    "playback": {
+      "error": {
+        "contextClosed": "Error: Cannot start playback. Audio context is already closed!",
+        "selectionContextClosed": "Error: Cannot start playback of selection. Audio context is already closed!"
+      }
+    },
+    "progress": {
+      "index": "#",
+      "prompt": "Prompt",
+      "status": "Status",
+      "code": "Code"
+    },
+    "recordings": {
+      "title": "Recording list",
+      "started": "Started",
+      "length": "Length",
+      "action": "Action",
+      "select": "Select",
+      "versions": "Versions",
+      "navigate": "Navigate",
+      "itemcode": "Itemcode:",
+      "uuid": "UUID:",
+      "samplerate": "Samplerate:",
+      "duration": "Duration:",
+      "channels": "Channels:",
+      "frames": "Frames:",
+      "status": "Status:",
+      "peak": "Peak:",
+      "tooltip": {
+        "first": "First recording file",
+        "previous": "Previous recording file",
+        "next": "Next recording file",
+        "last": "Last recording file"
+      },
+      "itemPosition": "Item {{pos}} of {{count}}",
+      "orderedByDate": "(List ordered by date)",
+      "date": "Date:",
+      "session": "Session:",
+      "fileId": "Recording file ID: {{id}}",
+      "latest": "(latest)",
+      "editTitle": "Recording file editing",
+      "editHint": "On export or delivery the editing selection of the recording file is cut out. If no editing selection is applied the original file is exported.",
+      "applySelection": "Apply selection",
+      "applyCurrentSelection": "Apply current selection as editing selection",
+      "cancelEditingSelection": "Cancel out editing selection",
+      "selectionSaved": "Selection edit saved successfully.",
+      "error": {
+        "saveSelection": "Save selection edit error",
+        "loadAudioFile": "Could not load audio file"
+      }
+    },
+    "session": {
+      "finishedTitle": "Session finished",
+      "finishedBody": "Thank you! The recording session is complete."
+    },
+    "dialog": {
+      "ok": "OK",
+      "error": "Error",
+      "recordingError": "Recording error",
+      "saveSelectionError": "Save selection edit error",
+      "unsupportedBrowserTitle": "Error",
+      "unsupportedBrowserAdvice": "Please use a supported browser.",
+      "unknownError": "An unknown error occurred during recording.",
+      "retryAdvice": "Please retry.",
+      "sessionSealedMsg": "This session is sealed. Recordings cannot be added anymore.",
+      "sessionSealedAdvice": "Please ask your experimenter what to do (e.g start a new session).",
+      "requiredAudioDeviceTitle": "Required audio device",
+      "requiredAudioDeviceMsg": "Required audio device not found",
+      "requiredAudioDeviceAdvice": "Please connect a suitable audio device for this project and retry (press the browser reload button).",
+      "noAudioDeviceTitle": "No audio device",
+      "noAudioDeviceMsg": "No audio device found",
+      "noAudioDeviceAdvice": "Please connect an audio device and retry (press the browser reload button) or try to continue anyway.",
+      "noAudioCaptureDeviceTitle": "No audio capture device",
+      "noAudioCaptureDeviceMsg": "No audio capture device found",
+      "noAudioCaptureDeviceAdvice": "Please connect an audio capture device and retry (press the browser reload button) or try to continue anyway.",
+      "noAudioPlaybackDeviceTitle": "No audio playback device",
+      "noAudioPlaybackDeviceMsg": "No audio playback device found",
+      "noAudioPlaybackDeviceAdvice": "Please connect an audio playback device and retry (press the browser reload button) or try to continue anyway.",
+      "networkAdvice": "Please check network connection and server state.",
+      "networkAdviceAdmin": "Please check network connection and server state or contact application administrator.",
+      "unsupportedBrowserMsg": "Browser does not support Media/Audio API!",
+      "uploadFailedMsg": "Upload failed. Recordings were not stored on the server.",
+      "uploadFailedAdvice": "Please check your connection and retry."
+    },
+    "warning": {
+      "testRecording": "Test recording only!",
+      "defaultDevice": "This test uses default audio device! Regular sessions may require a particular audio device (microphone)!"
+    },
+    "status": {
+      "initialize": "Initialize...",
+      "status": "Status",
+      "playerInitialized": "Player initialized.",
+      "recorded": "Recorded.",
+      "upload": "Upload progress: {{value}}",
+      "uploadComplete": "Upload complete",
+      "uploadPreparing": "Preparing upload.",
+      "uploadError": "Upload error occurred. Please check your network connection.",
+      "datasetDone": "Audio processing and upload done. You can leave the page without data loss.",
+      "datasetPending": "Please wait until audio processing and upload have finished. Please do not leave the page.",
+      "ready": "Ready.",
+      "startingSession": "Starting session...",
+      "sessionInfo": "Received session info.",
+      "sessionSealed": "Session sealed!",
+      "requestingAudioPermissions": "Requesting audio permissions...",
+      "requiredAudioDeviceMissing": "ERROR: Required audio device not available!",
+      "noAudioDeviceAvailable": "ERROR: No audio device available!",
+      "noAudioCaptureDeviceAvailable": "WARNING: No audio capture device available!",
+      "noAudioPlaybackDeviceAvailable": "WARNING: No audio playback device available!",
+      "sessionClosed": "Session closed.",
+      "fetchingScript": "Fetching recording script...",
+      "scriptReceived": "Received recording script.",
+      "fetchingRecordings": "Fetching infos of recordings...",
+      "recordingsReceived": "Received infos of recordings.",
+      "recording": "Recording...",
+      "playerCreated": "Player created.",
+      "audioFileLoaded": "Audio file loaded.",
+      "playing": "Playing...",
+      "playback": "Playback...",
+      "playbackError": "Playback error.",
+      "recordingError": "ERROR: Recording.",
+      "sessionComplete": "Session complete!",
+      "error": "Error.",
+      "errorUpper": "ERROR",
+      "errorPrefix": "ERROR: {{msg}}",
+      "audioFileError": "Error loading audio file",
+      "recordingFileLoadFailed": "Recording file could not be loaded.",
+      "recordingFileLoadError": "Recording file could not be loaded: {{error}}",
+      "recordingFileDecodeFailed": "Recording file could not be decoded. Audio context unavailable.",
+      "noScript": "No recording script is defined for this session with ID {{value}}",
+      "scriptFetchError": "Error fetching recording script: {{value}}",
+      "uploadErrorDetail": "Upload error: {{value}}",
+      "uploadFailed": "Upload failed: {{value}}",
+      "uploadPartial": "Some uploads failed. Recordings were not stored on the server."
+    },
+    "keybinding": {
+      "startStop": "Start or stop recording",
+      "pause": "Pause recording",
+      "stop": "Stop recording and collapse the audio view",
+      "play": "Play back the recording",
+      "forward": "Go to the next prompt",
+      "backward": "Go to the previous prompt"
+    },
+    "aria": {
+      "menu": "Menu",
+      "nextRecording": "Next recording",
+      "status": "Status"
+    }
+  }
+}

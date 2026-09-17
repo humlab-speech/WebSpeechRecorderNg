@@ -130,6 +130,27 @@ any asset — see
 belong to their owners and are **not** covered by this repository's MIT licence; keep them
 unmodified and in proportion.
 
+## Languages
+
+The demo application ships English and Swedish: Transloco loads `src/assets/i18n/<lang>.json`,
+the toolbar menu switches language, the choice is remembered in `localStorage` under `spr.lang`,
+and `<html lang>` follows. The recorder's own strings come from the library's catalogue through
+the `SPEECHRECORDER_STRINGS` token (see
+[Translations in the module README](projects/speechrecorderng/README.md#translations)) — one
+switch covers the whole application.
+
+* `npm run build:i18n` — regenerate the catalogues from the library's `SPR_STRINGS` plus the
+  shell's strings. It fails when a Swedish value is missing, rather than shipping English.
+* `npm run validate:i18n` — fail on a locale that misses a key, an empty value, or a key used in
+  the source that no catalogue defines.
+
+Audit a locale with the existing harness:
+
+```
+node bin/theme_audit.mjs --url http://127.0.0.1:4200/spr --prepare bin/audit/use-locale-sv.js \
+  --viewports 1024x768,1568x1334
+```
+
 The font is Inter (loaded from Google Fonts in `src/index.html`) with a
 `Helvetica Neue`/system fallback: an offline deployment keeps working, and
 `--spr-font-family` switches the whole application to a local font stack.

@@ -35,5 +35,22 @@
 
 <app-root class="mat-typography"><div class="spr-boot"><h1>Loading SpeechRecorder... Please wait.</h1></div></app-root>
 
+<script>
+  /* Before the application boots there is no translator: localize the placeholder and the document
+     language from the stored choice, resolving it exactly as `initialLanguage()` does (see
+     `src/app/i18n/i18n.providers.ts`), so a Swedish user never sees an English flash. The
+     application repeats both at bootstrap; this only covers the window before it runs. */
+  (function () {
+    try {
+      var stored = localStorage.getItem('spr.lang');
+      var preferred = (stored || (navigator.language || 'en')).slice(0, 2).toLowerCase();
+      if (preferred !== 'sv') return;
+      document.documentElement.setAttribute('lang', 'sv');
+      var splash = document.querySelector('app-root > .spr-boot h1');
+      if (splash) splash.textContent = 'Laddar SpeechRecorder… vänta.';
+    } catch (e) { /* storage unavailable (private mode) — keep the default */ }
+  })();
+</script>
+
 </body>
 </html>

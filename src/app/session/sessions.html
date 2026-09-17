@@ -1,10 +1,10 @@
 <section class="spr-session">
   <form class="spr-session-card">
-    <h1 class="spr-session-title">Session</h1>
-    <p class="spr-session-lead">Enter the session id to load its script and recordings.</p>
+    <h1 class="spr-session-title">{{ 'app.session.title' | transloco }}</h1>
+    <p class="spr-session-lead">{{ 'app.session.lead' | transloco }}</p>
     <mat-form-field appearance="outline">
-      <mat-label>Session ID</mat-label>
-      <input matInput placeholder="e.g. 1234">
+      <mat-label>{{ 'app.session.id' | transloco }}</mat-label>
+      <input matInput [placeholder]="'app.session.idPlaceholder' | transloco">
     </mat-form-field>
   </form>
 </section>

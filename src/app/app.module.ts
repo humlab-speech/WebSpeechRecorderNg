@@ -21,6 +21,9 @@ import {AudioDisplayPlayer} from "../../projects/speechrecorderng/src/lib/audio/
 import { ServiceWorkerModule } from '@angular/service-worker';
 import { environment } from '../environments/environment';
 import {RouterModule, Routes} from "@angular/router";
+import {TranslocoModule} from "@jsverse/transloco";
+import {provideAppTransloco} from "./i18n/app.transloco";
+import {provideI18n} from "./i18n/i18n.providers";
 
 
 
@@ -47,9 +50,10 @@ const appRoutes: Routes = [
     BrowserAnimationsModule,
     MatMenuModule,MatFormFieldModule,MatInputModule, MatToolbarModule,MatMenuModule,MatIconModule,MatButtonModule,MatDialogModule,
     BrowserModule,
+    TranslocoModule,
     SpeechrecorderngModule.forRoot(SPR_CFG)
   ],
-  providers: [],
+  providers: [provideAppTransloco(), provideI18n()],
   bootstrap: [AppComponent]
 })
 export class AppModule { }
