@@ -31,7 +31,7 @@ export interface SprLogo {
 
 /** Placement of the logos inside the recorder. Every slot is optional. */
 export interface SpeechRecorderBranding {
-  /** Top right of the prompt stage, beside the instruction line. */
+  /** Bottom left of the prompt stage, below the prompt. */
   promptStage?: SprLogo;
   /** Footer of the progress rail, below the prompt list. */
   progressFooter?: SprLogo[];

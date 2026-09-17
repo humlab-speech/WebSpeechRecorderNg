@@ -462,12 +462,14 @@ export class PromptContainer implements OnInit,AfterContentChecked {
     <div class="spr-stage-header">
       <spr-recinstructions [selectedItemIdx]="selectedItemIdx" [itemCount]="itemCount"
                            [recinstructions]="promptItem?.recinstructions?.recinstructions"></spr-recinstructions>
-      @if (stageLogos) {
-        <spr-logos [logos]="stageLogos" [height]="28"></spr-logos>
-      }
     </div>
     <app-sprpromptcontainer [projectName]="projectName"
                             [mediaitems]="showPrompt?(promptItem?promptItem.mediaitems:null):null"></app-sprpromptcontainer>
+    @if (stageLogos) {
+      <div class="spr-stage-footer">
+        <spr-logos [logos]="stageLogos" [height]="28"></spr-logos>
+      </div>
+    }
 
   `,
     styles: [`:host {
@@ -485,17 +487,27 @@ export class PromptContainer implements OnInit,AfterContentChecked {
     flex-direction: column;
     min-height: 0px;
   }`, `
-    /* Instruction line and the deployment's mark share the top band of the stage, so the
-       logo lives in the space above the prompt without growing the card. */
     .spr-stage-header {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-start;
       gap: 16px;
       width: 100%;
       flex: 0 0 auto;
-      min-height: 36px; /* mark plus its plate padding, so the stage does not shift */
+      min-height: 24px;
       text-align: left;
+    }
+
+    /* The deployment's mark sits at the bottom left of the prompt area: on screen for the
+       respondent, and out of the way of the prompt itself. */
+    .spr-stage-footer {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      width: 100%;
+      flex: 0 0 auto;
+      min-height: 36px; /* mark plus its plate padding, so the stage does not shift */
+      padding-top: 8px;
     }
   `],
     standalone: false

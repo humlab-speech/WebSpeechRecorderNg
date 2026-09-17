@@ -61,11 +61,16 @@ const HELLO_INTERVAL_MS = 10000;
     :host {
       position: fixed;
       inset: 0;
+      /* Above an application's own chrome (the demo toolbar sits at 10): the stage is the window. */
+      z-index: 20;
       display: flex;
       flex-direction: column;
       overflow: hidden;
       background: var(--spr-stage, #F1EFE4);
       color: var(--spr-stage-ink, #000000);
+      /* The stage components size their caption text from this token; on a screen the respondent
+         reads from a distance, the instruction line is not a caption. */
+      --spr-type-caption: clamp(16px, 1.4vw, 28px);
     }
 
     /* The signal sits above the stage, where the operator sees it too. */

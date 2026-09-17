@@ -5,6 +5,8 @@ import {BreakpointObserver} from "@angular/cdk/layout";
 import {KEY_BINDINGS, KeyBinding} from '../../projects/speechrecorderng/src/lib/speechrecorder/session/keybindings';
 import {TranslocoService} from "@jsverse/transloco";
 import {Language, LANGUAGE_STORAGE_KEY, LANGUAGES} from "./i18n/i18n.providers";
+import {ActivatedRoute, Data, NavigationEnd, Router} from "@angular/router";
+import {filter} from "rxjs";
 
 
 @Component({
@@ -16,11 +18,16 @@ import {Language, LANGUAGE_STORAGE_KEY, LANGUAGES} from "./i18n/i18n.providers";
 export class AppComponent extends ResponsiveComponent{
 
   sprVersion=VERSION;
+  /** Hidden for a route that asks for it — the respondent display wants the stage, not a toolbar. */
+  showChrome = true;
   readonly languages = LANGUAGES;
   keyBindings: KeyBinding[] = KEY_BINDINGS;
 
-  constructor(protected bpo:BreakpointObserver, private transloco: TranslocoService) {
+  constructor(protected bpo:BreakpointObserver, private transloco: TranslocoService,
+              private router: Router, private route: ActivatedRoute) {
     super(bpo);
+    this.router.events.pipe(filter((event) => event instanceof NavigationEnd)).subscribe(() => this.updateChrome());
+    this.updateChrome();
     // The respondent display runs in its own window: it picks up a language switch from here.
     window.addEventListener('storage', (event) => {
       if (event.key === LANGUAGE_STORAGE_KEY && event.newValue && event.newValue !== this.transloco.getActiveLang()
@@ -28,6 +35,17 @@ export class AppComponent extends ResponsiveComponent{
         this.setLanguage(event.newValue as Language);
       }
     });
+  }
+
+  /** Reads the deepest active route: its data says whether the window keeps its chrome. */
+  private updateChrome(): void {
+    let active = this.route.firstChild;
+    let data: Data = {};
+    while (active) {
+      data = active.snapshot.data ?? data;
+      active = active.firstChild;
+    }
+    this.showChrome = data['sprRespondentDisplay'] !== true;
   }
 
   get language(): string {

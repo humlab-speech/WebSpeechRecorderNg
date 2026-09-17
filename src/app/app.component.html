@@ -1,3 +1,4 @@
+@if (showChrome) {
 <mat-toolbar class="spr-toolbar">
 
   <button mat-button class="spr-toolbar-menu" [matMenuTriggerFor]="menu" [attr.aria-label]="'app.menu' | transloco">
@@ -51,4 +52,5 @@
   </span>
 
 </mat-toolbar>
+}
 <router-outlet></router-outlet>

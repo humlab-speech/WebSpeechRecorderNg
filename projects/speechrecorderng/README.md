@@ -225,7 +225,7 @@ const SPR_CFG: SpeechRecorderConfig = {
 
 | Slot | Where | Notes |
 |---|---|---|
-| `promptStage` | top right of the prompt stage, beside the instruction line | single mark; costs ~3 px of the auto-fit prompt size at 1568×1334 |
+| `promptStage` | bottom left of the prompt stage, below the prompt | single mark; costs ~3 px of the auto-fit prompt size at 1568×1334 |
 | `progressFooter` | below the prompt list, sticky at the bottom of the rail | list of marks, centred; hidden below 768 px, like the rail itself |
 | `controls` | right of the transport bar, before the state indicators | both marks from 1100 px up, the first one below that, nothing below 768 px |
 
@@ -250,7 +250,10 @@ indicators below 1100 px. Marks never shrink or squash; the slot drops them inst
 A session can be mirrored to a second window, so a respondent reads the prompts on their own
 screen. The mirror shows the stage and nothing else — the instruction line
 (`spr-recinstructions`), the prompt itself (plain text, decorated prompt blocks or an image) and
-the start/stop light; no progress rail, no audio view, no transport, no status.
+the start/stop light; no progress rail, no audio view, no transport, no status. The mark of
+`branding.promptStage` sits at the bottom left of the prompt area in both windows, and the
+instruction line scales with the window (it is a caption on the operator's screen, not on the
+respondent's).
 
 * **`D` opens the window, `D` again brings it to the front.** The key is configurable:
   `respondentDisplayKey` in `SpeechRecorderConfig` takes any `KeyboardEvent.key` value; a key that
@@ -259,7 +262,11 @@ the start/stop light; no progress rail, no audio view, no transport, no status.
 * The mirror is a route of its own, `spr/respondent/:id`, registered with `SPR_ROUTES` — a
   consumer gets it with the module, no wiring. A window opened by hand (drag the tab to the
   second screen) works too: it announces itself and is answered with the current stage, and until
-  that answer arrives it says that it is waiting.
+  that answer arrives it says that it is waiting. The route carries
+  `data: {sprRespondentDisplay: true}`: an application that owns window chrome (a toolbar, a
+  footer) can hide it for that route, and the mirror covers whatever is left with a fixed,
+  full-viewport host. Run one recorder window per session — the mirror follows the session's
+  channel, so a second recorder on the same session would drive it as well.
 * Transport: a session scoped `BroadcastChannel`, with `postMessage` to the window handle as the
   second path for contexts where the channel is partitioned (a recorder embedded cross-site) or
   missing. Snapshots carry a sequence number, so a duplicate on the slower path is ignored.

@@ -23,6 +23,12 @@ export const RESPONDENT_ROUTE = 'spr/respondent';
 /** Route with the session parameter, as it is registered. */
 export const RESPONDENT_ROUTE_PATH = RESPONDENT_ROUTE + '/:id';
 
+/**
+ * Route data of the mirror: an application that owns the window chrome (a toolbar, a footer) can
+ * hide it while this is set — a respondent screen wants the stage, not the operator's navigation.
+ */
+export const RESPONDENT_ROUTE_DATA = {sprRespondentDisplay: true};
+
 export function respondentChannelName(sessionId: string): string {
   return 'spr.respondent.' + sessionId;
 }

@@ -67,7 +67,7 @@ import {RecorderCombiPane} from "./speechrecorder/session/recorder_combi_pane";
 import {Logos} from "./ui/logos";
 import {SprRespondentView} from "./speechrecorder/respondent/respondent-view";
 import {RespondentDisplayService} from "./speechrecorder/respondent/respondent-display.service";
-import {RESPONDENT_ROUTE_PATH} from "./speechrecorder/respondent/respondent-channel";
+import {RESPONDENT_ROUTE_DATA, RESPONDENT_ROUTE_PATH} from "./speechrecorder/respondent/respondent-channel";
 import {SprTranslator} from "./i18n/translate";
 import {MatMenuModule} from "@angular/material/menu";
 import {IntersectionObserverDirective} from "./ui/intersection-observer.directive";
@@ -77,7 +77,7 @@ import {IntersectionObserverDirective} from "./ui/intersection-observer.directiv
 
 export const SPR_ROUTES: Routes = [
   { path: 'spr/session/:id',      component: SpeechrecorderngComponent },
-  { path: RESPONDENT_ROUTE_PATH,  component: SprRespondentView },
+  { path: RESPONDENT_ROUTE_PATH,  component: SprRespondentView, data: RESPONDENT_ROUTE_DATA },
   { path: 'recorder/session/:id',      component: AudioRecorderComponent},
   { path: 'recorder',      component: AudioRecorderComponent},
   { path: 'spr/db/project/:project/session/:sessionId/recordingfile/_view/:recordingFileId',      component: RecordingFileViewComponent },

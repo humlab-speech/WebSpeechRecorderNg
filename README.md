@@ -160,8 +160,10 @@ The font is Inter (loaded from Google Fonts in `src/index.html`) with a
 The prompt stage can be mirrored to a second window for a respondent reading on their own screen:
 press `D` (configurable through `respondentDisplayKey` in the environment's
 `SpeechRecorderConfig`) or use the button in the transport bar. The mirror shows the instruction
-line, the prompt and the start/stop light — no progress rail, no audio view, no transport. It is
-the library route `spr/respondent/:id`; see the
+line, the prompt and the start/stop light — no progress rail, no audio view, no transport. The
+deployment's prompt-stage mark sits at the bottom left of the prompt area in both windows, and the
+respondent window carries none of the application chrome. It is the library route
+`spr/respondent/:id`; see the
 [module README](projects/speechrecorderng/README.md#respondent-display) for the transport, the
 browser requirement and how a window opened by hand connects.
 
