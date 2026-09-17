@@ -175,8 +175,8 @@ export const enum Status {
     min-width: 70px;
     min-height: 50px;
     padding: 0 20px;
-    background: var(--spr-chrome, #2A4765);
-    color: var(--spr-chrome-ink, #FFFFFF);
+    background: var(--spr-primary, #2A4765);
+    color: var(--spr-primary-ink, #FFFFFF);
     border-radius: 17px;
     box-shadow: var(--spr-shadow-cta, 0 12px 22px rgba(42, 71, 101, 0.22));
   }`, `.bigbutton:disabled {

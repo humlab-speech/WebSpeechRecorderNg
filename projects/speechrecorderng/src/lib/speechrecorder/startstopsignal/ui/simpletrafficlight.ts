@@ -39,6 +39,9 @@ import {StartStopSignal, State} from '../startstopsignal'
       padding: 8px;
       border-radius: var(--spr-r-md, 12px);
       background: var(--spr-black, #000000);
+      /* In the dark scheme the black box would merge with the page: the outline keeps the
+         signal reading as hardware, independent of the luminance difference. */
+      box-shadow: inset 0 0 0 1px var(--spr-housing-edge, transparent);
     }
 
     /* Umeå svart is the main colour for the housing; text on it is white. */

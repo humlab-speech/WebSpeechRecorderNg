@@ -115,7 +115,7 @@ import {SPEECHRECORDER_CONFIG, SpeechRecorderConfig, SprLogo} from "../../spr.co
 
            `, `
       .selRow {
-        background: var(--spr-chrome, #2A4765);
+        background: var(--spr-primary, #2A4765);
         color: var(--spr-chrome-ink, #FFFFFF);
       }
 

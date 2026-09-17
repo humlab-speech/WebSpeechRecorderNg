@@ -49,9 +49,13 @@ export class AudioSignal extends AudioCanvasLayerComponent{
     super();
     this.workerURL = WorkerHelper.buildWorkerBlobURL(this.workerFunction)
     this._audioDataHolder = null;
-    this._bgColor=sprToken('spr-canvas');
-    this._selectColor=sprToken('spr-select-fill')
+    // colours follow the tokens at paint time; see BasicAudioCanvasLayerComponent
 
+  }
+
+  protected override onSchemeChanged(): void {
+    this.drawBg();
+    this.startDraw();
   }
 
   ngAfterViewInit() {

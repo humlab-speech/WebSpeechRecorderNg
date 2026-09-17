@@ -196,8 +196,8 @@ const PAGE_PROBE = `(() => {
   // The Material roles must resolve to the brand tokens; an inert token layer (e.g. emitted
   // under a selector that never matches) leaves them on the generated ramp values instead.
   const pinto = [
-    ['--mat-sys-primary', '--spr-chrome'],
-    ['--mat-sys-on-primary', '--spr-chrome-ink'],
+    ['--mat-sys-primary', '--spr-primary'],
+    ['--mat-sys-on-primary', '--spr-primary-ink'],
     ['--mat-sys-surface', '--spr-surface'],
     ['--mat-sys-error-container', '--spr-alert'],
     ['--mat-toolbar-container-background-color', '--spr-chrome'],

@@ -23,6 +23,11 @@ $spr-tokens-light: (
   'spr-chrome-glow': p.$spr-chrome-glow,
   'spr-chrome-ink-muted': rgba(255, 255, 255, 0.62),
 
+  // Filled buttons want a surface that reads as raised; the app bar wants to be recessed.
+  // One token cannot do both in the dark scheme, where the bar is near black.
+  'spr-primary': p.$umu-blue,
+  'spr-primary-ink': #FFFFFF,         // 9.60:1 on primary, in both schemes
+
   // surfaces ---------------------------------------------------------------
   'spr-page': p.$spr-page,
   'spr-surface': p.$spr-surface,
@@ -33,6 +38,7 @@ $spr-tokens-light: (
   'spr-black': p.$umu-black,          // traffic light housing
   'spr-chrome-tint': rgba(255, 255, 255, 0.14), // chips/brand mark on dark chrome
   'spr-lamp-off': rgba(42, 71, 101, 0.55),      // unlit traffic-light lamp
+  'spr-housing-edge': transparent,              // housing outline (dark: the black box on a dark page)
 
   // ink --------------------------------------------------------------------
   'spr-ink': p.$spr-ink,              // 11.85:1 on page
@@ -109,6 +115,9 @@ $spr-tokens-dark: map.merge(
     'spr-chrome': #0E1A26,
     'spr-chrome-ink': #F1EFE4,
     'spr-chrome-hover': #18293A,
+    // Stays the brand navy: on the #12202C surface it is the light step (L 0.059 vs 0.013),
+    // whereas the bar colour would render a filled button darker than its own panel.
+    'spr-primary': p.$umu-blue,
     'spr-page': #0B1520,
     'spr-surface': #12202C,
     'spr-surface-2': #18293A,
@@ -127,6 +136,7 @@ $spr-tokens-dark: map.merge(
     'spr-focus-on-chrome': #D7B17C,
     'spr-canvas': #000000,
     'spr-logo-plate': #FFFFFF,
+    'spr-housing-edge': #24497E,
     'spr-disabled-bg': rgba(255, 255, 255, 0.08),
     'spr-select-fill': rgba(42, 71, 101, 0.55),
   )
@@ -154,8 +164,8 @@ $spr-tokens-dark: map.merge(
 /// `@at-root` keeps the pins at `:root` when the mixin is used inside another selector.
 @mixin spr-material-role-tokens() {
   @at-root :root {
-    --mat-sys-primary: var(--spr-chrome);
-    --mat-sys-on-primary: var(--spr-chrome-ink);
+    --mat-sys-primary: var(--spr-primary);
+    --mat-sys-on-primary: var(--spr-primary-ink);
     --mat-sys-primary-container: var(--spr-surface-3);
     --mat-sys-on-primary-container: var(--spr-ink-strong);
     --mat-sys-secondary: var(--spr-chrome-hover);

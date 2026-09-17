@@ -129,7 +129,14 @@ export const enum Status {
 
       /* Prevents horizontal scroll bar on swipe right */
       overflow: hidden;
-  }`, `.ricontrols {
+  }`, `
+    /* The XS progress bar sits on the page, not on a surface: its indicator follows the
+       ink, or it would be a navy bar on a near-black page in the dark scheme. */
+    mat-progress-bar {
+      --mat-progress-bar-active-indicator-color: var(--spr-ink, #1F3044);
+      --mat-progress-bar-track-color: var(--spr-surface-3, #EDF2F8);
+    }
+  `, `.ricontrols {
         display:flex;
         padding: 4px;
         box-sizing: border-box;

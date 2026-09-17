@@ -29,6 +29,26 @@ export const SPR_PALETTE = {
 /** Root attribute that switches to the dark scheme (`_tokens.scss` emits the values for it). */
 export const SCHEME_ATTRIBUTE = 'data-spr-scheme';
 
+type SchemeListener = () => void;
+const schemeListeners = new Set<SchemeListener>();
+
+/**
+ * Registers a repaint hook for scheme switches. Canvas layers keep their pixels, so they must
+ * be repainted when the scheme changes — a repaint is not automatic, the tokens only change.
+ * Returns an unsubscribe function.
+ */
+export function onSchemeChange(listener: SchemeListener): () => void {
+  installSchemeListener();
+  schemeListeners.add(listener);
+  return () => schemeListeners.delete(listener);
+}
+
+function notifySchemeChange(): void {
+  for (const listener of Array.from(schemeListeners)) {
+    listener();
+  }
+}
+
 export type SprTokenName = keyof typeof SPR_PALETTE;
 
 const resolved = new Map<SprTokenName, string>();
@@ -44,19 +64,20 @@ function installSchemeListener(): void {
   }
   schemeListenerInstalled = true;
   // A scheme switch changes every resolved value at once. The scheme is driven by a root
-  // attribute (`data-spr-scheme`), so watch it and drop the cache; the canvas layers repaint
-  // on the resize that follows, which is how they pick the new values up.
+  // attribute (`data-spr-scheme`), so watch it, drop the token cache and let the canvas layers
+  // repaint: they hold pixels, and nothing else would redraw them.
   if (typeof MutationObserver !== 'undefined' && typeof document !== 'undefined') {
     const observer = new MutationObserver(() => {
       invalidateSprTokens();
-      if (typeof Event !== 'undefined') {
-        window.dispatchEvent(new Event('resize'));
-      }
+      notifySchemeChange();
     });
     observer.observe(document.documentElement, {attributes: true, attributeFilter: [SCHEME_ATTRIBUTE]});
   }
   if (window.matchMedia) {
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => invalidateSprTokens());
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+      invalidateSprTokens();
+      notifySchemeChange();
+    });
   }
 }
 

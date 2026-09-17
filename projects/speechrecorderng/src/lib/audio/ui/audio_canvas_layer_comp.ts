@@ -4,7 +4,7 @@ import { ElementRef, EventEmitter, HostListener, Input, Output, ViewChild, Direc
 import {Marker} from "./common";
 import {Dimension, Rectangle} from "../../math/2d/geometry";
 import {AudioDataHolder} from "../audio_data_holder";
-import {sprToken} from "../../theme/theme";
+import {onSchemeChange, sprToken} from "../../theme/theme";
 
 
 export class ViewSelection{
@@ -26,8 +26,35 @@ export class ViewSelection{
 @Directive()
 export abstract class BasicAudioCanvasLayerComponent extends CanvasLayerComponent {
   protected _audioDataHolder:AudioDataHolder| null=null;
-  protected _bgColor:string|null=sprToken('spr-canvas');
-  protected _selectColor=sprToken('spr-select-fill');
+  /**
+   * Background fill override. `undefined` (default) follows `--spr-canvas` **at paint time**,
+   * `null` fills nothing (the raster underneath shows through) and a string is a literal.
+   * Resolving the token here rather than in a field initialiser is what makes a scheme switch
+   * repaint correctly: a constructor-time read would keep the light canvas colour forever.
+   */
+  protected _bgColorOverride:string|null|undefined=undefined;
+  /** Selection fill override, same rules; `undefined` follows `--spr-select-fill` per paint. */
+  protected _selectColorOverride:string|null|undefined=undefined;
+
+  private unsubscribeScheme: (() => void) | null = null;
+
+  constructor() {
+    super();
+    // The canvas keeps its pixels across a scheme switch; nothing else redraws it.
+    this.unsubscribeScheme = onSchemeChange(() => this.onSchemeChanged());
+  }
+
+  /**
+   * Repaint for a scheme switch. A no-op here — `BasicAudioCanvasLayerComponent` has no
+   * background layer of its own; each painter overrides this with its redraw entry point.
+   */
+  protected onSchemeChanged(): void {
+  }
+
+  ngOnDestroy(): void {
+    this.unsubscribeScheme?.();
+    this.unsubscribeScheme = null;
+  }
 
   /**
    * Returns pixel position depending on current zoom setting.
@@ -149,6 +176,10 @@ export abstract class BasicAudioCanvasLayerComponent extends CanvasLayerComponen
 
 @Directive()
 export abstract class AudioCanvasLayerComponent extends BasicAudioCanvasLayerComponent {
+
+  protected override onSchemeChanged(): void {
+    this.drawBg();
+  }
 
     protected static readonly ENABLE_STREAMING_NUMBER_OF_SAMPLES_THRESHOLD=10*60*48000;  // Use streaming/chunking if audio clip has more than this number of samples
 
@@ -304,13 +335,15 @@ export abstract class AudioCanvasLayerComponent extends BasicAudioCanvasLayerCom
           const w = this.bgCanvas.width;
           const h = this.bgCanvas.height;
           g1.clearRect(0, 0, w, h);
-          if(this._bgColor) {
-            g1.fillStyle = this._bgColor;
+          const bgColor = this._bgColorOverride === undefined ? sprToken('spr-canvas') : this._bgColorOverride;
+          if(bgColor) {
+            g1.fillStyle = bgColor;
             g1.fillRect(0, 0, w, h);
           }
           let vs = this.viewSelection()
-          if (vs) {
-            g1.fillStyle = this._selectColor;
+          const selectColor = this._selectColorOverride === undefined ? sprToken('spr-select-fill') : this._selectColorOverride;
+          if (vs && selectColor) {
+            g1.fillStyle = selectColor;
             g1.fillRect(vs.startX, 0, vs.width(), h);
             g1.fillStyle = sprToken('spr-select-edge');
             g1.fillRect(vs.startX, 0, 1, h);

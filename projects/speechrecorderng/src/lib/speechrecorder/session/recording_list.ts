@@ -81,6 +81,10 @@ import {AudioDataHolder} from "../../audio/audio_data_holder";
       color: var(--spr-ink, #1F3044);
     }
 
+    mat-stroked-button {
+      --mat-button-outlined-label-text-color: var(--spr-ink, #1F3044);
+    }
+
     h2 {
       margin: 0;
       font-size: var(--spr-type-section, 17.28px);

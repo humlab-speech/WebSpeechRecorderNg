@@ -6,7 +6,7 @@ import {WorkerHelper} from "../../utils/utils";
 import {AudioBufferSource, AudioDataHolder} from "../audio_data_holder";
 import {Subscription} from "rxjs";
 import {SprLogger} from "../../utils/logger";
-import {buildSpectrumLut, sprToken} from "../../theme/theme";
+import {buildSpectrumLut, SPR_SPECTRUM_RAMP, sprToken} from "../../theme/theme";
 
 declare function postMessage(message: any, transfer: Array<any>): void;
 
@@ -60,8 +60,14 @@ export class Sonagram extends AudioCanvasLayerComponent {
         this.dft = new DFTFloat32(this.dftSize);
 
         this.workerURL = WorkerHelper.buildWorkerBlobURL(this.workerFunction)
-       this._bgColor=null;
-       this._selectColor=sprToken('spr-select-fill')
+       // No background fill: the raster below provides the surface, and the selection
+       // washes over it. Both follow the tokens at paint time.
+       this._bgColorOverride=null;
+    }
+
+    protected override onSchemeChanged(): void {
+        this.drawBg();
+        this.startDraw();
     }
 
     ngAfterViewInit() {
@@ -626,7 +632,12 @@ export class Sonagram extends AudioCanvasLayerComponent {
 
               this.worker = new Worker(this.workerURL);
               //this.wo = new Worker('./worker/sonagram.worker', { type: `module` });
-              this.worker.postMessage({rampLut: buildSpectrumLut()});
+              // The quiet end of the ramp is the canvas colour itself, so the spectrogram
+              // never sits on a lighter rectangle than the surface it is drawn on (the dark
+              // scheme paints the canvas #000000 while the static ramp starts at #0E1A26).
+              this.worker.postMessage({
+                rampLut: buildSpectrumLut(256, [sprToken('spr-canvas'), ...SPR_SPECTRUM_RAMP.slice(1)])
+              });
 
               let chs = this._audioDataHolder.numberOfChannels;
               let vw = Math.round(this.virtualDimension.width);

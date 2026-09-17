@@ -308,6 +308,11 @@ export class AudioClipUIContainer extends BasicAudioCanvasLayerComponent impleme
     }
   }
 
+  protected override onSchemeChanged(): void {
+    super.onSchemeChanged();
+    this.drawDivider();
+  }
+
   clipBounds(clipBounds: Rectangle) {
     this.bounds = clipBounds;
     this.layout();

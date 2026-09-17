@@ -1,6 +1,15 @@
-import {AfterViewInit, ChangeDetectorRef, Component, ElementRef, HostListener, Input, ViewChild} from "@angular/core"
+import {
+  AfterViewInit,
+  ChangeDetectorRef,
+  Component,
+  ElementRef,
+  HostListener,
+  Input,
+  OnDestroy,
+  ViewChild
+} from "@angular/core"
 import {LevelInfo, LevelInfos, LevelListener} from "../dsp/level_measure";
-import {sprToken} from "../../theme/theme";
+import {onSchemeChange, sprToken} from "../../theme/theme";
 
 export const DEFAULT_WARN_DB_LEVEL = -2;
 export const MIN_DB_LEVEL = -60.0;
@@ -48,7 +57,7 @@ export enum State {LOADING,RENDERING,READY}
   }`],
     standalone: false
 })
-export class LevelBar implements LevelListener,AfterViewInit {
+export class LevelBar implements LevelListener,AfterViewInit,OnDestroy {
 
   @ViewChild('virtualCanvas', { static: true }) virtualCanvasRef!: ElementRef;
   virtualCanvas!: HTMLDivElement;
@@ -72,12 +81,24 @@ export class LevelBar implements LevelListener,AfterViewInit {
     this.dbValues = new Array<Array<number>>();
   }
 
+  private unsubscribeScheme: (() => void) | null = null;
+
+  ngOnDestroy(): void {
+    this.unsubscribeScheme?.();
+    this.unsubscribeScheme = null;
+  }
+
   ngAfterViewInit() {
     this.ce = this.ref.nativeElement;
     this.liveLevelCanvas = this.liveLevelCanvasRef.nativeElement;
     this.markerCanvas = this.markerCanvasRef.nativeElement;
     this.markerCanvas.style.zIndex = '4';
     this.virtualCanvas = this.virtualCanvasRef.nativeElement;
+    // The meter keeps its pixels across a scheme switch, so repaint it explicitly.
+    this.unsubscribeScheme = onSchemeChange(() => {
+      this.drawAll();
+      this.drawPlayPosition();
+    });
     this.layout();
     this.drawAll();
   }

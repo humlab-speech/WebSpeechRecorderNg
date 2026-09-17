@@ -56,7 +56,7 @@ import {KEY, keyLabel} from "./keybindings";
     }
   `, `
     mat-progress-spinner {
-      --mat-progress-spinner-active-indicator-color: var(--spr-chrome, #2A4765);
+      --mat-progress-spinner-active-indicator-color: var(--spr-ink, #1F3044);
       display: inline-block;
     }
   `],
@@ -265,7 +265,7 @@ export class TransportActions {
       height: 40px;
       padding: 0 8px;
       border-radius: var(--spr-r-md, 12px);
-      color: var(--spr-chrome, #2A4765);
+      color: var(--spr-ink, #1F3044);
       border-color: var(--spr-border-strong, #C7D1DF);
     }
 
@@ -274,8 +274,8 @@ export class TransportActions {
       height: 48px;
       padding: 0 18px;
       border-radius: 17px;
-      background: var(--spr-chrome, #2A4765);
-      color: var(--spr-chrome-ink, #FFFFFF);
+      background: var(--spr-primary, #2A4765);
+      color: var(--spr-primary-ink, #FFFFFF);
       box-shadow: var(--spr-shadow-cta, 0 12px 22px rgba(42, 71, 101, 0.22));
     }
 
