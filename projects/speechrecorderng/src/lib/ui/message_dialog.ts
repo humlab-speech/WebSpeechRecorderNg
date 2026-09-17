@@ -1,5 +1,6 @@
 import {Component, Inject} from "@angular/core";
 import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
+import {SprTranslator} from "../i18n/translate";
 
 @Component({
     selector: 'msg-dialog',
@@ -16,7 +17,7 @@ import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
 
 </div>
 <div mat-dialog-actions>
-  <button mat-flat-button color="primary" (click)="closeDialog()">OK</button>
+  <button mat-flat-button color="primary" (click)="closeDialog()">{{i18n.t('spr.dialog.ok')}}</button>
 </div>
 `,
     styles: [`:host {
@@ -68,7 +69,8 @@ export class MessageDialog{
 
   constructor(
     public dialogRef: MatDialogRef<MessageDialog>,
-    @Inject(MAT_DIALOG_DATA) public data: any) {}
+    @Inject(MAT_DIALOG_DATA) public data: any,
+    public readonly i18n: SprTranslator) {}
 
   closeDialog(): void {
     this.dialogRef.close();

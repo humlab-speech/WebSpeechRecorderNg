@@ -7,6 +7,7 @@ import {AudioBufferSource, AudioDataHolder} from "../audio_data_holder";
 import {Subscription} from "rxjs";
 import {SprLogger} from "../../utils/logger";
 import {buildSpectrumLut, SPR_SPECTRUM_RAMP, sprToken} from "../../theme/theme";
+import {SprTranslator} from "../../i18n/translate";
 
 declare function postMessage(message: any, transfer: Array<any>): void;
 
@@ -52,7 +53,7 @@ export class Sonagram extends AudioCanvasLayerComponent {
 
     private dftSize = DEFAULT_DFT_SIZE;
 
-    constructor(private ref: ElementRef) {
+    constructor(private ref: ElementRef, private i18n: SprTranslator) {
         super();
         this.worker = null;
         this._audioDataHolder = null;
@@ -826,7 +827,7 @@ export class Sonagram extends AudioCanvasLayerComponent {
                 if (this.markerCanvas) {
                   let g = this.markerCanvas.getContext("2d");
                   if (g) {
-                    g.fillText("Rendering...", 10, 20);
+                    g.fillText(this.i18n.t('spr.audio.state.rendering'), 10, 20);
                   }
 
                 }
@@ -862,7 +863,7 @@ export class Sonagram extends AudioCanvasLayerComponent {
                     if (leftFramePos < 0) {
                       leftFramePos = 0;
                     }
-                    this.drawStateText('Loading/Rendering...');
+                    this.drawStateText(this.i18n.t('spr.audio.state.loadingRendering'));
                     this.raAsSubsc = raAs.framesObs(leftFramePos, framesToRead, arrAbBuf).subscribe(
                       {
                         next: (read) => {

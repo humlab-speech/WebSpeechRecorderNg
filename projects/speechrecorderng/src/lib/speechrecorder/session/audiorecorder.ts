@@ -39,6 +39,7 @@ import {NetAudioBuffer} from "../../audio/net_audio_buffer";
 import {IndexedDbAudioBuffer} from "../../audio/inddb_audio_buffer";
 import {BreakpointObserver} from "@angular/cdk/layout";
 import {SprLogger} from "../../utils/logger";
+import {SprTranslator} from "../../i18n/translate";
 
 export const enum Status {
   BLOCKED, IDLE,STARTING, RECORDING,  STOPPING_STOP, ERROR
@@ -49,9 +50,9 @@ export const enum Status {
     selector: 'app-audiorecorder',
     providers: [SessionService],
     template: `
-    <app-warningbar [show]="isTestSession()" warningText="Test recording only!"></app-warningbar>
+    <app-warningbar [show]="isTestSession()" [warningText]="i18n.t('spr.warning.testRecording')"></app-warningbar>
     <app-warningbar [show]="isDefaultAudioTestSession()" severity="caution"
-    warningText="This test uses default audio device! Regular sessions may require a particular audio device (microphone)!"></app-warningbar>
+    [warningText]="i18n.t('spr.warning.defaultDevice')"></app-warningbar>
     <app-recordercombipane (selectedRecordingFileChanged)="selectRecordingFile($event)"
       [audioSignalCollapsed]="audioSignalCollapsed"
       [selectedRecordingFile]="displayRecFile"
@@ -250,8 +251,9 @@ export class AudioRecorder extends BasicRecorder implements OnInit,AfterViewInit
               sessionService:SessionService,
               private recFileService:RecordingService,
               protected uploader: SpeechRecorderUploader,
+              i18n: SprTranslator,
               @Inject(SPEECHRECORDER_CONFIG) config?: SpeechRecorderConfig) {
-    super(bpo,changeDetectorRef,dialog,sessionService,uploader,config);
+    super(bpo,changeDetectorRef,dialog,sessionService,uploader,i18n,config);
 
     //super(injector);
     this.status = Status.IDLE;
@@ -295,7 +297,7 @@ export class AudioRecorder extends BasicRecorder implements OnInit,AfterViewInit
     this.transportActions.pauseAction.disabled = true;
     this.playStartAction.disabled = true;
 
-      this.ac = new AudioCapture();
+      this.ac = new AudioCapture(this.i18n);
       if (this.ac) {
         this.transportActions.startAction.onAction = () => this.startItem();
         this.ac.listener = this;
@@ -311,9 +313,9 @@ export class AudioRecorder extends BasicRecorder implements OnInit,AfterViewInit
         this.dialog.open(MessageDialog, {
           data: {
             type: 'error',
-            title: 'Error',
+            title: this.i18n.t('spr.dialog.unsupportedBrowserTitle'),
             msg: errMsg,
-            advice: 'Please use a supported browser.',
+            advice: this.i18n.t('spr.dialog.unsupportedBrowserAdvice'),
           }
         });
         return;
@@ -517,9 +519,9 @@ export class AudioRecorder extends BasicRecorder implements OnInit,AfterViewInit
 
   startStopNextName():string{
     if(!this.startDisabled()){
-      this.startStopNextButtonName="Start"
+      this.startStopNextButtonName=this.i18n.t('spr.transport.start')
     }else if(!this.stopDisabled()) {
-      this.startStopNextButtonName = "Stop"
+      this.startStopNextButtonName = this.i18n.t('spr.transport.stop')
     }
     return this.startStopNextButtonName;
   }
@@ -932,7 +934,7 @@ export class AudioRecorder extends BasicRecorder implements OnInit,AfterViewInit
     this.transportActions.nextAction.disabled = true;
     this.transportActions.pauseAction.disabled = true;
     this.statusAlertType = 'info';
-    this.statusMsg = 'Recorded.';
+    this.statusMsg = this.i18n.t('spr.status.recorded');
 
     let ab:AudioBuffer|null=null;
 
@@ -1093,7 +1095,7 @@ export class AudioRecorder extends BasicRecorder implements OnInit,AfterViewInit
     this.changeDetectorRef.detectChanges();
   }
 
-  error(msg='An unknown error occured during recording.',advice:string='Please retry.') {
+  error(msg=this.i18n.t('spr.dialog.unknownError'),advice:string=this.i18n.t('spr.dialog.retryAdvice')) {
     this.status=Status.ERROR;
     super.error(msg,advice);
     this.updateNavigationActions();
@@ -1232,14 +1234,15 @@ export class AudioRecorderComponent extends RecorderComponent  implements OnInit
               private changeDetectorRef: ChangeDetectorRef,
               private sessionService:SessionService,
               private projectService:ProjectService,
-              protected uploader:SpeechRecorderUploader
+              protected uploader:SpeechRecorderUploader,
+              private i18n: SprTranslator
   ) {
     super(uploader);
   }
 
   ngOnInit() {
 
-    this.controlAudioPlayer = new AudioPlayer(this.ar);
+    this.controlAudioPlayer = new AudioPlayer(this.ar, this.i18n);
 
     this.ar.controlAudioPlayer=this.controlAudioPlayer;
 

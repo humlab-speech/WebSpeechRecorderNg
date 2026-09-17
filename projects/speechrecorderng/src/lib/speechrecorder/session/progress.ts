@@ -2,6 +2,7 @@ import {Component, ElementRef, EventEmitter, Inject, Input, Optional, Output} fr
 import {Item} from './item';
 import {IntersectionObserverDirective} from "../../ui/intersection-observer.directive";
 import {SPEECHRECORDER_CONFIG, SpeechRecorderConfig, SprLogo} from "../../spr.config";
+import {SprTranslator} from "../../i18n/translate";
 
 
 @Component({
@@ -11,9 +12,9 @@ import {SPEECHRECORDER_CONFIG, SpeechRecorderConfig, SprLogo} from "../../spr.co
 <table class="mat-typography">
   <thead>
     <tr>
-      <th>#</th><!--<th>Code</th>-->
-      <th>Prompt</th>
-      <th>Status</th>
+      <th>{{i18n.t('spr.progress.index')}}</th><!--<th>Code</th>-->
+      <th>{{i18n.t('spr.progress.prompt')}}</th>
+      <th>{{i18n.t('spr.progress.status')}}</th>
     </tr>
   </thead>
   <tbody>
@@ -168,6 +169,7 @@ import {SPEECHRECORDER_CONFIG, SpeechRecorderConfig, SprLogo} from "../../spr.co
 export class Progress {
   isObs:IntersectionObserver;
   constructor(private elRef:ElementRef,
+              public readonly i18n: SprTranslator,
               @Optional() @Inject(SPEECHRECORDER_CONFIG) private config?: SpeechRecorderConfig) {
     this.isObs=new IntersectionObserver(ise=>{
       //console.debug("Intersection changed: ");

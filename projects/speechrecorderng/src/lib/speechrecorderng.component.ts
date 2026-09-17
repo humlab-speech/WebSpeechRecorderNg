@@ -21,6 +21,7 @@ import {RecorderComponent} from "./recorder_component";
 import {BasicRecorder} from "./speechrecorder/session/basicrecorder";
 import {SprDb} from "./db/inddb";
 import {SprLogger} from "./utils/logger";
+import {SprTranslator} from "./i18n/translate";
 
 export enum Mode {SINGLE_SESSION,DEMO}
 
@@ -58,12 +59,13 @@ export class SpeechrecorderngComponent extends RecorderComponent implements OnIn
                 private projectService:ProjectService,
                 private scriptService:ScriptService,
                 private recFilesService:RecordingService,
-                protected uploader:SpeechRecorderUploader) {
+                protected uploader:SpeechRecorderUploader,
+                private i18n: SprTranslator) {
       super(uploader);
 		}
 
     handleError(err:any){
-      let errMsg='Unknown error';
+      let errMsg=this.i18n.t('spr.error.unknown');
       if(err instanceof Error){
         errMsg=err.message;
       }
@@ -73,10 +75,10 @@ export class SpeechrecorderngComponent extends RecorderComponent implements OnIn
     }
 
   ngOnInit() {
-          this.controlAudioPlayer = new AudioPlayer( this);
+          this.controlAudioPlayer = new AudioPlayer( this, this.i18n);
       this.sm.controlAudioPlayer=this.controlAudioPlayer;
       this.sm.statusAlertType='info';
-      this.sm.statusMsg = 'Player initialized.';
+      this.sm.statusMsg = this.i18n.t('spr.status.playerInitialized');
 
   }
        ngAfterViewInit(){
@@ -112,7 +114,7 @@ export class SpeechrecorderngComponent extends RecorderComponent implements OnIn
           next: sess => {
             this.setSession(sess);
             this.sm.statusAlertType = 'info';
-            this.sm.statusMsg = 'Received session info.';
+            this.sm.statusMsg = this.i18n.t('spr.status.sessionInfo');
             this.sm.statusWaiting = false;
             if (sess.project) {
               //console.debug("Session associated project: "+sess.project)
@@ -159,18 +161,18 @@ export class SpeechrecorderngComponent extends RecorderComponent implements OnIn
   fetchScript(sess: Session) {
     if (sess.script) {
       this.sm.statusAlertType = 'info';
-      this.sm.statusMsg = 'Fetching recording script...';
+      this.sm.statusMsg = this.i18n.t('spr.status.fetchingScript');
       this.sm.statusWaiting = true;
       this.scriptService.scriptObservable(sess.script).subscribe({
         next: (script) => {
           this.sm.statusAlertType = 'info';
-          this.sm.statusMsg = 'Received recording script.';
+          this.sm.statusMsg = this.i18n.t('spr.status.scriptReceived');
           this.sm.statusWaiting = false;
           this.setScript(script)
           this.sm.session = sess;
           this.fetchRecordings(sess, this.script)
         }, error: (reason) => {
-          let errMsg = "Error fetching recording script: " + reason
+          let errMsg = this.i18n.t('spr.status.scriptFetchError', {value: reason})
           SprLogger.error(errMsg)
           this.sm.statusMsg = errMsg;
           this.sm.statusAlertType = 'error';
@@ -178,7 +180,7 @@ export class SpeechrecorderngComponent extends RecorderComponent implements OnIn
         }
       });
     } else {
-      let errMsg = "No recording script is defined for this session with ID " + sess.sessionId;
+      let errMsg = this.i18n.t('spr.status.noScript', {value: sess.sessionId});
       SprLogger.error(this.sm.statusMsg)
       this.sm.statusMsg = errMsg;
       this.sm.statusAlertType = 'error';
@@ -188,7 +190,7 @@ export class SpeechrecorderngComponent extends RecorderComponent implements OnIn
 
   fetchRecordings(sess: Session, script: Script) {
     this.sm.statusAlertType = 'info';
-    this.sm.statusMsg = 'Fetching infos of recordings...';
+    this.sm.statusMsg = this.i18n.t('spr.status.fetchingRecordings');
     this.sm.statusWaiting = true;
     let prNm: string | null = null;
     if (this.project) {
@@ -196,7 +198,7 @@ export class SpeechrecorderngComponent extends RecorderComponent implements OnIn
       rfsObs.subscribe({
         next: (rfs: Array<RecordingFileDescriptorImpl>) => {
           this.sm.statusAlertType = 'info';
-          this.sm.statusMsg = 'Received infos of recordings.';
+          this.sm.statusMsg = this.i18n.t('spr.status.recordingsReceived');
           this.sm.statusWaiting = false;
           if (rfs) {
             if (rfs instanceof Array) {
@@ -296,10 +298,10 @@ export class SpeechrecorderngComponent extends RecorderComponent implements OnIn
     //console.debug("Uploader: status: "+upStatus+", "+percentUpl+"%, Bytes in queue: "+sizeInQueue+' ('+DataSize.formatBytesToBinaryUnits(sizeInQueue)+')');
     if (UploaderStatus.ERR === upStatus) {
       this.sm.uploadStatus = 'warn'
-      this.sm.uploadStatusMsg = ue.lastError ? 'Upload error: ' + ue.lastError.message : null;
+      this.sm.uploadStatusMsg = ue.lastError ? this.i18n.t('spr.status.uploadErrorDetail', {value: ue.lastError.message}) : null;
     } else if (UploaderStatus.PARTIAL === upStatus) {
       this.sm.uploadStatus = 'warn'
-      this.sm.uploadStatusMsg = ue.lastError ? 'Upload failed: ' + ue.lastError.message : 'Some uploads failed. Recordings were not stored on the server.';
+      this.sm.uploadStatusMsg = ue.lastError ? this.i18n.t('spr.status.uploadFailed', {value: ue.lastError.message}) : this.i18n.t('spr.status.uploadPartial');
     } else {
       this.sm.uploadStatusMsg = null;
       if (percentUpl < 50) {
@@ -434,17 +436,17 @@ export class SpeechrecorderngComponent extends RecorderComponent implements OnIn
   audioPlayerUpdate(e:AudioPlayerEvent){
     if(PlaybackEventType.STARTED===e.type){
       this.sm.statusAlertType='info';
-      this.sm.statusMsg='Playback...';
+      this.sm.statusMsg=this.i18n.t('spr.status.playback');
     } else if (PlaybackEventType.ENDED === e.type) {
       this.sm.statusAlertType='info';
-      this.sm.statusMsg='Ready.';
+      this.sm.statusMsg=this.i18n.t('spr.status.ready');
     }else if(PlaybackEventType.ERROR=== e.type){
       this.sm.statusAlertType='error';
-      this.sm.statusMsg='Playback error.';
+      this.sm.statusMsg=this.i18n.t('spr.status.playbackError');
     }
   }
 		error(){
 		    this.sm.statusAlertType='error';
-			this.sm.statusMsg='ERROR: Recording.';
+			this.sm.statusMsg=this.i18n.t('spr.status.recordingError');
 		}
 	}

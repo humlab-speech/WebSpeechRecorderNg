@@ -16,12 +16,13 @@ import {SessionService} from "../session.service";
 import {RecordingService} from "../../recordings/recordings.service";
 import {MatSnackBar} from "@angular/material/snack-bar";
 import {ErrorHelper} from "../../../utils/utils";
+import {SprTranslator} from "../../../i18n/translate";
 
 @Component({
     selector: 'app-audiodisplayplayer',
     template: `
-      <h1>Recording file editing</h1>
-      <p>On export or delivery the editing selection of the recording file is cut out. If no editing selection is applied the original file is exported.</p>
+      <h1>{{ i18n.t('spr.recordings.editTitle') }}</h1>
+      <p>{{ i18n.t('spr.recordings.editHint') }}</p>
 
     <audio-display-scroll-pane #audioDisplayScrollPane></audio-display-scroll-pane>
       <div class="ctrlview">
@@ -70,8 +71,8 @@ export class RecordingFileUI extends RecordingFileViewComponent implements After
   savedEditSelection:Selection|null=null;
   editSaved:boolean=true
 
-  constructor(protected recordingFileService:RecordingFileService,protected recordingService:RecordingService,protected sessionService:SessionService,protected router:Router,protected route: ActivatedRoute, protected ref: ChangeDetectorRef,protected eRef:ElementRef, protected dialog:MatDialog,private snackBar: MatSnackBar) {
-    super(recordingFileService,recordingService,sessionService,router,route,ref,eRef,dialog)
+  constructor(protected recordingFileService:RecordingFileService,protected recordingService:RecordingService,protected sessionService:SessionService,protected router:Router,protected route: ActivatedRoute, protected ref: ChangeDetectorRef,protected eRef:ElementRef, protected dialog:MatDialog,private snackBar: MatSnackBar, i18n: SprTranslator) {
+    super(recordingFileService,recordingService,sessionService,router,route,ref,eRef,dialog,i18n)
     this.parentE=this.eRef.nativeElement;
 
   }
@@ -84,13 +85,13 @@ export class RecordingFileUI extends RecordingFileViewComponent implements After
     if(this.audioClip) {
       let s = this.audioClip.selection
       if (s) {
-        return "Apply current selection as editing selection";
+        return this.i18n.t('spr.recordings.applyCurrentSelection');
       }else{
-        return "Cancel out editing selection";
+        return this.i18n.t('spr.recordings.cancelEditingSelection');
       }
     }
     // just as fallback
-    return "Apply selection";
+    return this.i18n.t('spr.recordings.applySelection');
   }
 
   protected loadRecFile(rfId:number | string) {
@@ -129,21 +130,21 @@ protected loadedRecfile() {
             next:() => {}
             , error:(err) => {
 
-              const errMsg=ErrorHelper.message('Could not save edit selection to server',err);
+              const errMsg=ErrorHelper.message(this.i18n.t('spr.recordings.error.saveSelection'),err);
               this.dialog.open(MessageDialog, {
 
                 data: {
                   type: 'error',
-                  title: 'Save selection edit error',
+                  title: this.i18n.t('spr.dialog.saveSelectionError'),
                   msg: errMsg,
-                  advice: "Please check network connection and server state."
+                  advice: this.i18n.t('spr.dialog.networkAdvice')
                 }
               })
             }, complete:() => {
               // Or use returned selection value from server?
               this.savedEditSelection = s
               this.editSaved = true
-              this.snackBar.open('Selection edit saved successfully.', 'OK', {duration: 1500})
+              this.snackBar.open(this.i18n.t('spr.recordings.selectionSaved'), this.i18n.t('spr.dialog.ok'), {duration: 1500})
             }
           });
       }

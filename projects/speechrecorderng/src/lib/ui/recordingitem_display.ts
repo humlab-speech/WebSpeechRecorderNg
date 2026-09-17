@@ -7,6 +7,7 @@ import {LevelBar} from "../audio/ui/livelevel";
 import {Action} from "../action/action";
 import {ResponsiveComponent} from "./responsive_component";
 import {BreakpointObserver} from "@angular/cdk/layout";
+import {SprTranslator} from "../i18n/translate";
 
 
 export const MIN_DB_LEVEL = -40.0;
@@ -15,30 +16,30 @@ export const DEFAULT_WARN_DB_LEVEL = -2;
 @Component({
     selector: 'spr-recordingitemcontrols',
     template: `
-        <button matTooltip="Start playback" class="spr-play" (click)="playStartAction?.perform()"
+        <button [matTooltip]="i18n.t('spr.audio.startPlayback')" class="spr-play" (click)="playStartAction?.perform()"
           [disabled]="playStartAction?playStartAction.disabled:true">
           <mat-icon>play_arrow</mat-icon>
         </button>
-        <button matTooltip="Stop playback" class="spr-stop" (click)="playStopAction?.perform()"
+        <button [matTooltip]="i18n.t('spr.audio.stopPlayback')" class="spr-stop" (click)="playStopAction?.perform()"
           [disabled]="playStopAction?.disabled">
           <mat-icon>stop</mat-icon>
         </button>
         @if (!screenXs) {
-          <button matTooltip="Toggle detailed audio display" [disabled]="disableAudioDetails || !audioLoaded"
+          <button [matTooltip]="i18n.t('spr.audio.toggleDetails')" [disabled]="disableAudioDetails || !audioLoaded"
             (click)="showRecordingDetails()">
             <mat-icon>{{(audioSignalCollapsed) ? "expand_less" : "expand_more"}}</mat-icon>
           </button>
         }
         @if (enableDownload) {
-          <button matTooltip="Download current recording" [disabled]="disableAudioDetails || !audioLoaded"
+          <button [matTooltip]="i18n.t('spr.audio.downloadRecording')" [disabled]="disableAudioDetails || !audioLoaded"
             (click)="downloadRecording()">
             <mat-icon>file_download</mat-icon>
           </button>
         }
-        <div class="spr-peak-panel"><table style="border-style: none"><tr><td>Peak:</td><td><span class="spr-peak"
-        [class.spr-peak-over]="peakDbLvl > warnDbLevel" matTooltip="Peak level">{{peakDbLvl | number:'1.1-1'}} dB </span></td></tr>
+        <div class="spr-peak-panel"><table style="border-style: none"><tr><td>{{i18n.t('spr.audio.peak')}}</td><td><span class="spr-peak"
+        [class.spr-peak-over]="peakDbLvl > warnDbLevel" [matTooltip]="i18n.t('spr.audio.peakLevel')">{{peakDbLvl | number:'1.1-1'}} dB </span></td></tr>
         @if (_agc) {
-          <tr><td>AGC:</td><td><span matTooltip="Auto gain control">{{agcString}}</span></td></tr>
+          <tr><td>{{i18n.t('spr.audio.agc')}}</td><td><span [matTooltip]="i18n.t('spr.audio.agcTooltip')">{{agcString}}</span></td></tr>
         }</table></div>
         `,
     styles: [`:host {
@@ -165,7 +166,7 @@ export class RecordingItemControls extends ResponsiveComponent implements OnDest
 
   warnDbLevel = DEFAULT_WARN_DB_LEVEL;
 
-  constructor(protected bpo:BreakpointObserver,private ref: ElementRef, private changeDetectorRef: ChangeDetectorRef) {
+  constructor(protected bpo:BreakpointObserver,private ref: ElementRef, private changeDetectorRef: ChangeDetectorRef, public readonly i18n: SprTranslator) {
     super(bpo);
   }
 

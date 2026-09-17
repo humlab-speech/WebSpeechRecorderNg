@@ -11,6 +11,7 @@ import {NetAudioBufferSourceNode} from "./net_audio_buffer_source_node";
 import {AudioBufferSource, AudioSource} from "../audio_data_holder";
 import {AudioContextProvider} from "../context";
 import {SprLogger} from "../../utils/logger";
+import {SprTranslator} from "../../i18n/translate";
 
 
 
@@ -53,6 +54,7 @@ import {SprLogger} from "../../utils/logger";
         context:AudioContext|null=null;
         ready=false;
         listener:AudioPlayerListener;
+        private i18n:SprTranslator;
         _audioClip:AudioClip|null=null;
         private _audioSource:AudioSource|null=null;
         sourceBufferNode:AudioBufferSourceNode|null=null;
@@ -66,7 +68,8 @@ import {SprLogger} from "../../utils/logger";
 
         private timerVar:number|null=null;
 
-        constructor(listener:AudioPlayerListener) {
+        constructor(listener:AudioPlayerListener, i18n?:SprTranslator) {
+            this.i18n = i18n ?? new SprTranslator();
             this.listener=listener;
             this.bufSize = AudioPlayer.DEFAULT_BUFSIZE;
             this.n=navigator;
@@ -239,7 +242,7 @@ import {SprLogger} from "../../utils/logger";
                     } else if (this.context.state === 'closed') {
                         const msg = 'Error: Cannot start playback. Audio context is already closed!';
                         SprLogger.error(msg);
-                        throw new Error(msg);
+                        throw new Error(this.i18n.t('spr.playback.error.contextClosed'));
                     } else {
                         this._start();
                     }
@@ -274,7 +277,7 @@ import {SprLogger} from "../../utils/logger";
 
         private _start(playSelection=false){
                 if(!this.context){
-                    throw new Error("Could not get audio context!");
+                    throw new Error(this.i18n.t('spr.audio.error.noContext'));
                 }
 
           if (this._audioSource instanceof AudioBufferSource) {
@@ -380,7 +383,7 @@ import {SprLogger} from "../../utils/logger";
       startSelected() {
             this._audioContext();
           if(!this.context){
-              throw new Error("Could not get audio context!");
+              throw new Error(this.i18n.t('spr.audio.error.noContext'));
           }
 
           if(!this._startAction.disabled && !this.running) {
@@ -394,7 +397,7 @@ import {SprLogger} from "../../utils/logger";
           }else if(this.context.state==='closed'){
             const msg='Error: Cannot start playback of selection. Audio context is already closed!';
             SprLogger.error(msg);
-            throw new Error(msg);
+            throw new Error(this.i18n.t('spr.playback.error.selectionContextClosed'));
           }else{
             this._start(true);
           }

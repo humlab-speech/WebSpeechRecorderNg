@@ -155,6 +155,40 @@ Canvas painters (waveform, spectrogram, level meter) read the same tokens throug
 `SPR_SPECTRUM_RAMP` (exported from the package) is the luminance-monotonic spectrogram
 ramp; `buildSpectrumLut()` turns it into the table the sonagram worker paints with.
 
+### Translations
+
+The recorder's strings have English built in and are overridable per application, so the
+library does not force an i18n runtime on anyone:
+
+```ts
+// the library's fallback catalogue and the token it reads at runtime
+import {SPR_STRINGS, SPEECHRECORDER_STRINGS, SprTranslator} from 'speechrecorderng';
+
+// an application that already uses an i18n library supplies the catalogue, e.g. Transloco:
+{
+  provide: SPEECHRECORDER_STRINGS,
+  deps: [TranslocoService],
+  useFactory: (transloco: TranslocoService) => new Proxy({} as Record<string, string>, {
+    get: (_t, key) => typeof key === 'string' ? (transloco.translate(key) === key ? undefined : transloco.translate(key)) : undefined,
+  }),
+}
+```
+
+* A key the application does not provide falls back to `SPR_STRINGS`, so a partial translation
+  degrades to English rather than to a key name.
+* Placeholders use `{{name}}`: `spr.status.upload` is `Upload progress: {{value}}`.
+* `SPR_STRINGS` is the list to translate. `bin/build_i18n.mjs` (in this repository) generates the
+  catalogues from it plus the shell's own strings, and `bin/validate_i18n.mjs` fails when a locale
+  misses a key, carries an empty value, or when the source references a key the catalogue does not
+  define.
+* Key-binding labels (`Space`, `Esc`) are key names, not prose, and stay as they are; their
+  descriptions are translatable through `KeyBinding.descriptionKey`.
+
+The demo application in this repository is the reference: Transloco with `assets/i18n/{en,sv}.json`,
+a language switch in the toolbar, the choice persisted in `localStorage` under `spr.lang`, and
+`<html lang>` kept in sync. Date and number formats come from `LOCALE_ID`, which Angular resolves
+at bootstrap: switching language updates the text immediately, and the formats after a reload.
+
 ### Dark scheme
 
 The dark values ship with the theme and are opt-in through a root attribute — no

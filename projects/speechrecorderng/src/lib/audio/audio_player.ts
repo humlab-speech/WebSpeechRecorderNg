@@ -13,6 +13,7 @@ import {AudioDisplayScrollPane} from "./ui/audio_display_scroll_pane";
 import {AudioContextProvider} from "./context";
 import {AudioBufferSource, AudioDataHolder} from "./audio_data_holder";
 import {SprLogger} from "../utils/logger";
+import {SprTranslator} from "../i18n/translate";
 
 @Component({
     selector: 'app-audiodisplayplayer',
@@ -78,12 +79,12 @@ export class AudioDisplayPlayer implements AudioPlayerListener, OnInit,AfterView
   @ViewChild(AudioDisplayScrollPane, { static: true })
   private audioDisplayScrollPane!: AudioDisplayScrollPane;
 
-  constructor(protected route: ActivatedRoute, protected ref: ChangeDetectorRef,protected eRef:ElementRef) {
+  constructor(protected route: ActivatedRoute, protected ref: ChangeDetectorRef,protected eRef:ElementRef, public readonly i18n: SprTranslator = new SprTranslator()) {
     this.parentE=this.eRef.nativeElement;
     this.playStartAction = new Action("Start");
     this.playSelectionAction=new Action("Play selected");
     this.playStopAction = new Action("Stop");
-    this.status="Player created.";
+    this.status=this.i18n.t('spr.status.playerCreated');
   }
 
   ngOnInit(){
@@ -91,7 +92,7 @@ export class AudioDisplayPlayer implements AudioPlayerListener, OnInit,AfterView
     this.zoomFitToPanelAction=this.audioDisplayScrollPane.zoomFitToPanelAction;
     this.zoomOutAction=this.audioDisplayScrollPane.zoomOutAction;
     this.zoomInAction=this.audioDisplayScrollPane.zoomInAction;
-    this.ap = new AudioPlayer(this);
+    this.ap = new AudioPlayer(this, this.i18n);
   }
 
   ngAfterViewInit() {
@@ -138,7 +139,7 @@ export class AudioDisplayPlayer implements AudioPlayerListener, OnInit,AfterView
 
   started() {
     //console.debug("Play started");
-    this.status = 'Playing...';
+    this.status = this.i18n.t('spr.status.playing');
   }
 
   private load() {
@@ -172,7 +173,7 @@ export class AudioDisplayPlayer implements AudioPlayerListener, OnInit,AfterView
   private loaded(data: ArrayBuffer) {
 
     //console.debug("Loaded");
-    this.status = 'Audio file loaded.';
+    this.status = this.i18n.t('spr.status.audioFileLoaded');
     //console.debug("Received data ", data.byteLength);
 
     AudioContextProvider.decodeAudioData(data).then(audioBuffer => {
@@ -248,19 +249,19 @@ export class AudioDisplayPlayer implements AudioPlayerListener, OnInit,AfterView
 
   audioPlayerUpdate(e: AudioPlayerEvent) {
     if (EventType.STARTED === e.type) {
-      this.status = 'Playback...';
+      this.status = this.i18n.t('spr.status.playback');
       this.updateTimerId = window.setInterval(() => this.updatePlayPosition(), 50);
       this.playStartAction.disabled = true;
       this.playSelectionAction.disabled=true
       this.playStopAction.disabled = false;
     } else if (EventType.ENDED === e.type) {
-      this.status = 'Ready.';
+      this.status = this.i18n.t('spr.status.ready');
       window.clearInterval(this.updateTimerId);
       this.playStartAction.disabled = false;
       this.playSelectionAction.disabled=this.startSelectionDisabled()
       this.playStopAction.disabled = true;
     }else if (EventType.ERROR === e.type) {
-      this.status = 'Error.';
+      this.status = this.i18n.t('spr.status.error');
       window.clearInterval(this.updateTimerId);
       this.playStartAction.disabled = false;
       this.playSelectionAction.disabled=this.startSelectionDisabled()
@@ -273,7 +274,7 @@ export class AudioDisplayPlayer implements AudioPlayerListener, OnInit,AfterView
   }
 
   error() {
-    this.status = 'ERROR';
+    this.status = this.i18n.t('spr.status.errorUpper');
   }
 
 }

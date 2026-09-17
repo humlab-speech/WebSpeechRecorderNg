@@ -1,12 +1,13 @@
 import {Component, Input} from '@angular/core';
 import {RecordingFileUtil} from "./recording-file";
 import {SprRecordingFile} from "../../recording";
+import {SprTranslator} from "../../../i18n/translate";
 
 @Component({
     selector: 'app-recording-file-meta',
     template: `
     <mat-card appearance="outlined">
-      <mat-card-title>Recording file ID: {{recordingFile?.recordingFileId}}</mat-card-title>
+      <mat-card-title>{{ i18n.t('spr.recordings.fileId', {id: recordingFile?.recordingFileId ?? ''}) }}</mat-card-title>
       <mat-card-content>
         @if (stateLoading) {
           <mat-progress-spinner mode="indeterminate" [diameter]="20"></mat-progress-spinner>
@@ -14,38 +15,38 @@ import {SprRecordingFile} from "../../recording";
         <table>
           @if (itemCode) {
             <tr>
-              <td>Itemcode:</td>
+              <td>{{ i18n.t('spr.recordings.itemcode') }}</td>
               <td>{{itemCode}}</td>
             </tr>
           }
           @if (uuid && !itemCode) {
             <tr>
-              <td>UUID:</td>
+              <td>{{ i18n.t('spr.recordings.uuid') }}</td>
               <td>{{uuid}}</td>
             </tr>
           }
           @if (recordingFile?.startedDate) {
             <tr>
-              <td>Started:</td>
+              <td>{{ i18n.t('spr.recordings.started') }}:</td>
               <td>{{recordingFile?.startedDate}}</td>
             </tr>
           }
           @if (!recordingFile?.startedDate && recordingFile?.date) {
             <tr>
-              <td>Date:</td>
+              <td>{{ i18n.t('spr.recordings.date') }}</td>
               <td>{{recordingFile?.date}}</td>
             </tr>
           }
           @if (itemCode) {
             <tr>
-              <td>Prompt:</td>
+              <td>{{ i18n.t('spr.progress.prompt') }}:</td>
               <td>{{recordingAsPlainText()}}</td>
             </tr>
           }
     
           @if (sessionId) {
             <tr>
-              <td>Session:</td>
+              <td>{{ i18n.t('spr.recordings.session') }}</td>
               <td>{{sessionId}}</td>
             </tr>
           }
@@ -65,7 +66,7 @@ export class RecordingFileMetaComponent{
 
   @Input() stateLoading:boolean;
 
-  constructor() {
+  constructor(public readonly i18n: SprTranslator) {
     this.stateLoading=false;
   }
 

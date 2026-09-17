@@ -5,6 +5,7 @@ import {AudioBufferSource, AudioDataHolder} from "../audio_data_holder";
 import {Subscription} from "rxjs";
 import {SprLogger} from "../../utils/logger";
 import {sprToken} from "../../theme/theme";
+import {SprTranslator} from "../../i18n/translate";
 
 declare function postMessage(message: any, transfer: Array<any>): void;
 
@@ -45,7 +46,7 @@ export class AudioSignal extends AudioCanvasLayerComponent{
 
   private raAsSubsc:Subscription|null=null;
 
-  constructor(private ref: ElementRef) {
+  constructor(private ref: ElementRef, private i18n: SprTranslator) {
     super();
     this.workerURL = WorkerHelper.buildWorkerBlobURL(this.workerFunction)
     this._audioDataHolder = null;
@@ -385,7 +386,7 @@ export class AudioSignal extends AudioCanvasLayerComponent{
 
                     const raAsObs = raAs.framesObs(leftFramePos, framesPerPixel, arrAbBuf);
 
-                    this.drawStateText("Loading/Rendering...");
+                    this.drawStateText(this.i18n.t('spr.audio.state.loadingRendering'));
 
                     this.raAsSubsc = raAsObs.subscribe(
                       {

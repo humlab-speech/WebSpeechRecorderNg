@@ -24,6 +24,7 @@ import {SprRecordingFile} from "../../recording";
 import {RecordingFileUtil} from "./recording-file";
 import {MessageDialog} from "../../../ui/message_dialog";
 import {ErrorHelper} from "../../../utils/utils";
+import {SprTranslator} from "../../../i18n/translate";
 
 
 export class ItemcodeIndex{
@@ -100,8 +101,8 @@ export class RecordingFileViewComponent extends AudioDisplayPlayer implements On
   audioFetching:boolean;
   naviInfoLoading:boolean;
 
-  constructor(protected recordingFileService: RecordingFileService, protected recordingService: RecordingService, protected sessionService: SessionService, protected router:Router,protected route: ActivatedRoute, protected ref: ChangeDetectorRef, protected eRef: ElementRef, protected dialog: MatDialog) {
-    super(route, ref, eRef)
+  constructor(protected recordingFileService: RecordingFileService, protected recordingService: RecordingService, protected sessionService: SessionService, protected router:Router,protected route: ActivatedRoute, protected ref: ChangeDetectorRef, protected eRef: ElementRef, protected dialog: MatDialog, i18n: SprTranslator) {
+    super(route, ref, eRef, i18n)
     this.parentE = this.eRef.nativeElement;
 
     // TODO Should be initialized with false, but this causes in debug mode:
@@ -290,7 +291,7 @@ export class RecordingFileViewComponent extends AudioDisplayPlayer implements On
           {
             next: value => {
               this.audioFetching = false;
-              this.status = 'Audio file loaded.';
+              this.status = this.i18n.t('spr.status.audioFileLoaded');
               let clip = null;
               this.recordingFile = value;
               if (this.recordingFile) {
@@ -330,14 +331,14 @@ export class RecordingFileViewComponent extends AudioDisplayPlayer implements On
             }, error:(err) =>
       {
         this.audioFetching = false;
-        this.status = 'Error loading audio file';
-        const errMsg=ErrorHelper.message('Could not load audio file',err);
+        this.status = this.i18n.t('spr.status.audioFileError');
+        const errMsg=ErrorHelper.message(this.i18n.t('spr.recordings.error.loadAudioFile'),err);
         this.dialog.open(MessageDialog, {
           data: {
             type: 'error',
             title: this.status,
             msg: errMsg,
-            advice: "Please check network connection and server state or contact application administrator."
+            advice: this.i18n.t('spr.dialog.networkAdviceAdmin')
           }
         })
       }

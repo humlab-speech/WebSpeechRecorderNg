@@ -2,6 +2,7 @@ import {Component, Input, ViewChild} from '@angular/core'
 import {Action} from "../../action/action";
 import {MatCheckbox, MatCheckboxChange} from "@angular/material/checkbox";
 import {AudioClip} from "../persistor";
+import {SprTranslator} from "../../i18n/translate";
 
 
   @Component({
@@ -10,42 +11,42 @@ import {AudioClip} from "../persistor";
         <div #controlPanel style="display:flex;flex-direction: row;">
           <fieldset>
 
-            <legend>Play</legend>
+            <legend>{{i18n.t('spr.audio.play')}}</legend>
 
             <button (click)="playStartAction?.perform()" [disabled]="playStartAction?.disabled"
-              [style.color]="playStartAction?.disabled ? 'var(--spr-ink-subtle, #6D7C98)' : 'var(--spr-ok, #73A790)'" matTooltip="Play all">
+              [style.color]="playStartAction?.disabled ? 'var(--spr-ink-subtle, #6D7C98)' : 'var(--spr-ok, #73A790)'" [matTooltip]="i18n.t('spr.audio.playAll')">
               <mat-icon>play_arrow</mat-icon>
             </button>
             <button (click)="playSelectionAction?.perform()" [disabled]="playSelectionAction?.disabled"
-              [style.color]="playSelectionAction?.disabled ? 'var(--spr-ink-subtle, #6D7C98)' : 'var(--spr-ok, #73A790)'" matTooltip="Play selection">
+              [style.color]="playSelectionAction?.disabled ? 'var(--spr-ink-subtle, #6D7C98)' : 'var(--spr-ok, #73A790)'" [matTooltip]="i18n.t('spr.audio.playSelection')">
               <mat-icon>play_circle_outline</mat-icon>
             </button>
             <button (click)="playStopAction?.perform()" [disabled]="playStopAction?.disabled"
               [style.color]="playStopAction?.disabled ? 'var(--spr-ink-subtle, #6D7C98)' : 'var(--spr-caution, #D7B17C)'">
               <mat-icon>stop</mat-icon>
             </button>&nbsp;
-            <mat-checkbox #autoplaySelectionCheckbox (change)="autoPlaySelectionChange($event)">Autoplay on select
+            <mat-checkbox #autoplaySelectionCheckbox (change)="autoPlaySelectionChange($event)">{{i18n.t('spr.audio.autoplayOnSelect')}}
             </mat-checkbox>
           </fieldset>
           <fieldset>
 
-            <legend>Zoom</legend>
+            <legend>{{i18n.t('spr.audio.zoom')}}</legend>
             <button (click)="zoomFitToPanelAction?.perform()"
-            [disabled]="zoomFitToPanelAction?.disabled">{{zoomFitToPanelAction?.name}}</button>
+            [disabled]="zoomFitToPanelAction?.disabled">{{i18n.t('spr.audio.fitToPanel')}}</button>
             <button (click)="zoomOutAction?.perform()"
-            [disabled]="zoomOutAction?.disabled">{{zoomOutAction?.name}}</button>
+            [disabled]="zoomOutAction?.disabled">{{i18n.t('spr.audio.zoomOut')}}</button>
             <button (click)="zoomInAction?.perform()"
-            [disabled]="zoomInAction?.disabled">{{zoomInAction?.name}}</button>
+            [disabled]="zoomInAction?.disabled">{{i18n.t('spr.audio.zoomIn')}}</button>
             <button (click)="zoomSelectedAction?.perform()"
-            [disabled]="zoomSelectedAction?.disabled">{{zoomSelectedAction?.name}}</button>
+            [disabled]="zoomSelectedAction?.disabled">{{i18n.t('spr.audio.selected')}}</button>
           </fieldset>
           <fieldset>
-            <legend>Selection</legend>
+            <legend>{{i18n.t('spr.audio.selection')}}</legend>
             {{audioClip?.selection?.leftFrame}} @if (audioClip?.selection) {
             <span>to</span>
             } {{audioClip?.selection?.rightFrame}}
             <button (click)="clearSelection()" [disabled]="audioClip?.selection==null"
-              [style.color]="hasSelection() ? 'var(--spr-chrome, #2A4765)' : 'var(--spr-ink-subtle, #6D7C98)'" matTooltip="Clear selection">
+              [style.color]="hasSelection() ? 'var(--spr-chrome, #2A4765)' : 'var(--spr-ink-subtle, #6D7C98)'" [matTooltip]="i18n.t('spr.audio.clearSelection')">
               <mat-icon>clear</mat-icon>
             </button>
 
@@ -130,7 +131,7 @@ import {AudioClip} from "../persistor";
 
 		audio:any;
 
-		constructor() {}
+		constructor(public readonly i18n: SprTranslator) {}
 
     clearSelection(){
         if(this.audioClip!=null){

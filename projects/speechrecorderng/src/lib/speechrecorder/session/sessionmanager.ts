@@ -30,6 +30,7 @@ import {Item} from "./item";
 import {LevelBar, State as LiveLevelState} from "../../audio/ui/livelevel";
 import {BasicRecorder, ChunkAudioBufferReceiver, MAX_RECORDING_TIME_MS, RECFILE_API_CTX} from "./basicrecorder";
 import {ArrayAudioBuffer} from "../../audio/array_audio_buffer";
+import {SprTranslator} from "../../i18n/translate";
 import {AudioBufferSource, AudioDataHolder, AudioSource} from "../../audio/audio_data_holder";
 import {SprItemsCache} from "./recording_file_cache";
 import {IndexedDbAudioBuffer, PersistentAudioStorageTarget} from "../../audio/inddb_audio_buffer";
@@ -49,8 +50,8 @@ export const enum Status {
     selector: 'app-sprrecordingsession',
     providers: [SessionService],
     template: `
-    <app-warningbar [show]="isTestSession()" warningText="Test recording only!"></app-warningbar>
-    <app-warningbar [show]="isDefaultAudioTestSession()" severity="caution" warningText="This test uses default audio device! Regular sessions may require a particular audio device (microphone)!"></app-warningbar>
+    <app-warningbar [show]="isTestSession()" [warningText]="i18n.t('spr.warning.testRecording')"></app-warningbar>
+    <app-warningbar [show]="isDefaultAudioTestSession()" severity="caution" [warningText]="i18n.t('spr.warning.defaultDevice')"></app-warningbar>
     <app-sprprompting [projectName]="projectName"
       [startStopSignalState]="startStopSignalState" [promptItem]="promptItem" [showPrompt]="showPrompt"
       [items]="items?.items"
@@ -251,8 +252,9 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
               sessionService:SessionService,
               private recFileService:RecordingService,
               uploader: SpeechRecorderUploader,
+              i18n: SprTranslator,
               @Inject(SPEECHRECORDER_CONFIG) config?: SpeechRecorderConfig) {
-    super(bpo,changeDetectorRef,dialog,sessionService,uploader,config);
+    super(bpo,changeDetectorRef,dialog,sessionService,uploader,i18n,config);
     this.status = Status.IDLE;
     this.audio = document.getElementById('audio');
     if (this.config && this.config.enableUploadRecordings !== undefined) {
@@ -333,7 +335,7 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
     //   });
     //   return;
     // } else {
-      this.ac = new AudioCapture();
+      this.ac = new AudioCapture(this.i18n);
       if (this.ac) {
         this.transportActions.startAction.onAction = () => this.startItem();
         this.ac.listener = this;
@@ -344,15 +346,15 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
         //this.ac.listDevices();
       } else {
         this.transportActions.startAction.disabled = true;
-        let errMsg = 'Browser does not support Media/Audio API!';
-        this.statusMsg = 'ERROR: ' + errMsg;
+        let errMsg = this.i18n.t('spr.dialog.unsupportedBrowserMsg');
+        this.statusMsg = this.i18n.t('spr.status.errorPrefix', {msg: errMsg});
         this.statusAlertType = 'error';
         this.dialog.open(MessageDialog, {
           data: {
             type: 'error',
-            title: 'Error',
+            title: this.i18n.t('spr.dialog.unsupportedBrowserTitle'),
             msg: errMsg,
-            advice: 'Please use a supported browser.',
+            advice: this.i18n.t('spr.dialog.unsupportedBrowserAdvice'),
           }
         });
         return;
@@ -766,7 +768,7 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
                       }
                     } else {
                       // Should actually be handled by the error resolver
-                      this.statusMsg = 'Recording file could not be loaded.'
+                      this.statusMsg = this.i18n.t('spr.status.recordingFileLoadFailed')
                       this.statusAlertType = 'error'
                     }
                     if (fabDh) {
@@ -781,7 +783,7 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
                   error: err => {
                     SprLogger.error("Could not load recording file from server: " + err);
                     this.liveLevelDisplayState = LiveLevelState.READY;
-                    this.statusMsg = 'Recording file could not be loaded: ' + err;
+                    this.statusMsg = this.i18n.t('spr.status.recordingFileLoadError', {error: err});
                     this.statusAlertType = 'error';
                     this.changeDetectorRef.detectChanges();
                   }
@@ -807,7 +809,7 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
                     }
                   } else {
                     // Should actually be handled by the error resolver
-                    this.statusMsg = 'Recording file could not be loaded.'
+                    this.statusMsg = this.i18n.t('spr.status.recordingFileLoadFailed')
                     this.statusAlertType = 'error'
                   }
                   if (fabDh) {
@@ -823,7 +825,7 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
                 error: err => {
                   SprLogger.error("Could not load recording file from server: " + err);
                   this.liveLevelDisplayState = LiveLevelState.READY;
-                  this.statusMsg = 'Recording file could not be loaded: ' + err;
+                  this.statusMsg = this.i18n.t('spr.status.recordingFileLoadError', {error: err});
                   this.statusAlertType = 'error';
                   this.changeDetectorRef.detectChanges();
                 }
@@ -847,7 +849,7 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
                     }
                   } else {
                     // Should actually be handled by the error resolver
-                    this.statusMsg = 'Recording file could not be loaded.'
+                    this.statusMsg = this.i18n.t('spr.status.recordingFileLoadFailed')
                     this.statusAlertType = 'error'
                   }
                   if (fabDh) {
@@ -862,7 +864,7 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
                 error: err => {
                   SprLogger.error("Could not load recording file from server: " + err);
                   this.liveLevelDisplayState = LiveLevelState.READY;
-                  this.statusMsg = 'Recording file could not be loaded: ' + err;
+                  this.statusMsg = this.i18n.t('spr.status.recordingFileLoadError', {error: err});
                   this.statusAlertType = 'error';
                 }
               });
@@ -886,7 +888,7 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
                     }
                   } else {
                     // Should actually be handled by the error resolver
-                    this.statusMsg = 'Recording file could not be loaded.'
+                    this.statusMsg = this.i18n.t('spr.status.recordingFileLoadFailed')
                     this.statusAlertType = 'error'
                   }
                   if (fabDh) {
@@ -900,13 +902,13 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
                 }, error: err => {
                   SprLogger.error("Could not load recording file from server: " + err);
                   this.liveLevelDisplayState = LiveLevelState.READY;
-                  this.statusMsg = 'Recording file could not be loaded: ' + err;
+                  this.statusMsg = this.i18n.t('spr.status.recordingFileLoadError', {error: err});
                   this.statusAlertType = 'error';
                 }
               });
             }
           } else {
-            this.statusMsg = 'Recording file could not be decoded. Audio context unavailable.'
+            this.statusMsg = this.i18n.t('spr.status.recordingFileDecodeFailed')
             this.statusAlertType = 'error'
           }
         }
@@ -1121,7 +1123,7 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
       this.applyPrompt();
     }
     this.statusAlertType = 'info';
-    this.statusMsg = 'Recording...';
+    this.statusMsg = this.i18n.t('spr.status.recording');
 
     let preDelay = DEFAULT_PRE_REC_DELAY;
     if (this.promptItem.prerecdelay!=null) {
@@ -1270,7 +1272,7 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
     this.transportActions.nextAction.disabled = true;
     this.transportActions.pauseAction.disabled = true;
     this.statusAlertType = 'info';
-    this.statusMsg = 'Recorded.';
+    this.statusMsg = this.i18n.t('spr.status.recorded');
     this.startStopSignalState = StartStopSignalState.IDLE;
 
       let adh:AudioDataHolder|null=null;
@@ -1309,7 +1311,7 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
                   netAb.ready();
                 }
                 this.uploadSet.onFail=(uploadSet)=>{
-                  this.error('Upload failed. Recordings were not stored on the server.','Please check your connection and retry.');
+                  this.error(this.i18n.t('spr.dialog.uploadFailedMsg'),this.i18n.t('spr.dialog.uploadFailedAdvice'));
                 }
               }
             }
@@ -1436,7 +1438,7 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
           this.sessionService.patchSessionObserver(this._session, body).subscribe()
         }
       }
-      this.statusMsg = 'Session complete!';
+      this.statusMsg = this.i18n.t('spr.status.sessionComplete');
       this.updateWakeLock();
       if(this.showSessionCompleteMessage) {
         this.dialog.open(SessionFinishedDialog, {});
@@ -1467,7 +1469,7 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
     this.changeDetectorRef.detectChanges();
   }
 
-  error(msg='An unknown error occured during recording.',advice:string='Please retry.') {
+  error(msg=this.i18n.t('spr.dialog.unknownError'),advice:string=this.i18n.t('spr.dialog.retryAdvice')) {
     this.status=Status.ERROR;
     super.error(msg,advice);
     this.updateNavigationActions();

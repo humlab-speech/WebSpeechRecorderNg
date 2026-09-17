@@ -1,16 +1,17 @@
 import {Component, Inject} from "@angular/core";
 import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
+import {SprTranslator} from "../../i18n/translate";
 
 @Component({
     selector: 'spr-session-finished-dialog',
-    template: `<h1 mat-dialog-title class="spr-dialog-title"><span class="spr-dialog-icon ok"><mat-icon>done_all</mat-icon></span> Session finished</h1>
+    template: `<h1 mat-dialog-title class="spr-dialog-title"><span class="spr-dialog-icon ok"><mat-icon>done_all</mat-icon></span> {{i18n.t('spr.session.finishedTitle')}}</h1>
   <div mat-dialog-content>
 
-    <p>Thank you! The recording session is complete.</p>
+    <p>{{i18n.t('spr.session.finishedBody')}}</p>
 
   </div>
   <div mat-dialog-actions>
-    <button mat-flat-button color="primary" (click)="closeDialog()">OK</button>
+    <button mat-flat-button color="primary" (click)="closeDialog()">{{i18n.t('spr.dialog.ok')}}</button>
   </div>
   `,
     styles: [`:host {
@@ -53,7 +54,8 @@ export class SessionFinishedDialog{
 
   constructor(
     public dialogRef: MatDialogRef<SessionFinishedDialog>,
-    @Inject(MAT_DIALOG_DATA) public data: any) {}
+    @Inject(MAT_DIALOG_DATA) public data: any,
+    public readonly i18n: SprTranslator) {}
 
   closeDialog(): void {
     this.dialogRef.close();

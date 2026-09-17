@@ -7,6 +7,7 @@ import {UUID} from "../../utils/utils";
 import {IndexedDbAudioBuffer, PersistentAudioStorageTarget} from "../inddb_audio_buffer";
 import {AudioContextProvider} from "../context";
 import {SprLogger} from "../../utils/logger";
+import {SprTranslator} from "../../i18n/translate";
 
 
 export const CHROME_ACTIVATE_ECHO_CANCELLATION_WITH_AGC=false;
@@ -175,7 +176,10 @@ export class AudioCapture {
 
   //private context:AudioContext|null=null;
 
-  constructor() {
+  private i18n:SprTranslator;
+
+  constructor(i18n?:SprTranslator) {
+    this.i18n = i18n ?? new SprTranslator();
     this.n = navigator;
   }
 
@@ -324,13 +328,13 @@ export class AudioCapture {
 
     const awn = new AudioWorkletNode(this.context, 'capture-interceptor');
     awn.onprocessorerror = (ev: Event) => {
-      let msg = 'Unknwon error';
+      let msg = 'Unknown error';
       if (ev instanceof ErrorEvent) {
         msg = ev.message;
       }
       SprLogger.error("Capture audio worklet error: " + msg);
       if (this.listener) {
-        this.listener.error(msg);
+        this.listener.error(ev instanceof ErrorEvent ? msg : this.i18n.t('spr.error.unknown'));
       }
     }
     let awnPt = awn.port;
@@ -391,7 +395,7 @@ export class AudioCapture {
                   if (err instanceof DOMException) {
                     errExpl = ': ' + err.name + ': ' + err.message;
                   }
-                  this.listener.error("Could not handle recorded audio data" + errExpl, "Please try to record again.");
+                  this.listener.error(this.i18n.t('spr.capture.error.handleRecordedData', {detail: errExpl}), this.i18n.t('spr.capture.advice.recordAgain'));
                 } else {
                   this.close();
                 }
@@ -423,7 +427,7 @@ export class AudioCapture {
     //console.debug("Capture open: ctx state: "+this.context.state);
     this.context=this._audioContext();
     if(!this.context){
-      throw new Error("Could not get audio context!");
+      throw new Error(this.i18n.t('spr.audio.error.noContext'));
     }
     if(this.context.state==='suspended'){
       //console.debug("Capture open: Resume context");
@@ -437,7 +441,7 @@ export class AudioCapture {
     }else if(this.context.state==='closed') {
         const msg='Error on start capture: The audio context is already closed.';
         SprLogger.error(msg);
-        throw new Error(msg);
+        throw new Error(this.i18n.t('spr.capture.error.contextClosed'));
     }else {
       this._open(channelCount, selDeviceId, autoGainControlConfigs,allowEchoCancellation);
     }
@@ -451,7 +455,7 @@ export class AudioCapture {
     this.context=this._audioContext();
 
     if(!this.context){
-      throw new Error("Could not get audio context!");
+      throw new Error(this.i18n.t('spr.audio.error.noContext'));
     }
 
     //var msc = new AudioStreamConstr();
@@ -705,21 +709,21 @@ export class AudioCapture {
             this.listener.opened();
           }
         } else {
-          this.listener.error('Browser does not support audio processing (ScriptProcessor.onaudioprocess method not found)!');
+          this.listener.error(this.i18n.t('spr.capture.error.noScriptProcessor'));
         }
       } else {
-        this.listener.error('Browser does not support audio processing (neither AudioWorkletProcessor nor ScriptProcessor)!');
+        this.listener.error(this.i18n.t('spr.capture.error.noAudioProcessing'));
       }
     }
         }, (e) => {
           SprLogger.error(e + " Error name: " +e.name);
           if (this.listener) {
             if('NotAllowedError' === e.name){
-              this.listener.error('Not allowed to use your microphone.','Please make sure that microphone access is allowed for this web page and reload the page.');
+              this.listener.error(this.i18n.t('spr.capture.error.microphoneNotAllowed'),this.i18n.t('spr.capture.advice.allowMicrophone'));
             }else if('NotReadableError' === e.name){
-              this.listener.error('Could not read from your audio device.','Please make sure your audio device is working.');
+              this.listener.error(this.i18n.t('spr.capture.error.deviceRead'),this.i18n.t('spr.capture.advice.checkDevice'));
             }else if('OverconstrainedError' === e.name){
-              let eMsg=e.msg?e.msg:'Overconstrained media device request error.';
+              let eMsg=e.msg?e.msg:this.i18n.t('spr.capture.error.overconstrained');
               this.listener.error(eMsg);
             } else {
               this.listener.error();

@@ -9,13 +9,14 @@ import {BreakpointObserver, Breakpoints} from "@angular/cdk/layout";
 import {ResponsiveComponent} from "../../ui/responsive_component";
 import {ThemePalette} from "@angular/material/core";
 import {KEY, keyLabel} from "./keybindings";
+import {SprTranslator} from "../../i18n/translate";
 
 
 
 @Component({
     selector: 'app-sprstatusdisplay',
     template: `
-    <p matTooltip="Status">
+    <p [matTooltip]="i18n.t('spr.status.status')">
       @if (statusWaiting) {
         <mat-progress-spinner mode="indeterminate" [diameter]="20" [strokeWidth]="3"></mat-progress-spinner>
         }@if (statusAlertType==='error') {
@@ -65,8 +66,12 @@ import {KEY, keyLabel} from "./keybindings";
 
 export class StatusDisplay {
   @Input() statusAlertType = 'info';
-  @Input() statusMsg = 'Initialize...';
+  @Input() statusMsg: string;
   @Input() statusWaiting =false;
+
+  constructor(public readonly i18n: SprTranslator) {
+    this.statusMsg = this.i18n.t('spr.status.initialize');
+  }
 }
 
 
@@ -94,27 +99,30 @@ export class UploadStatus {
 
   @Input() statusMsg: string|null = null;
 
+  constructor(private i18n: SprTranslator) {
+  }
+
   private _updateSpinner(){
 
     let uplMsg;
     if (this._awaitNewUpload || this._value === 0) {
       this.spinnerMode = 'indeterminate'
       this.displayValue='&nbsp;&nbsp;&nbsp;&nbsp;'
-      uplMsg='Preparing upload.'
+      uplMsg=this.i18n.t('spr.status.uploadPreparing')
     } else {
       this.spinnerMode = 'determinate'
       this.displayValue=this._value+'%'
       if(this._value===100){
-        uplMsg = 'Upload complete'
+        uplMsg = this.i18n.t('spr.status.uploadComplete')
       }else {
-        uplMsg = 'Upload progress: ' + this.displayValue
+        uplMsg = this.i18n.t('spr.status.upload', {value: this.displayValue ?? ''})
       }
     }
     if(this.status==='warn'){
       if(this.statusMsg){
         uplMsg=this.statusMsg
       }else{
-        uplMsg='Upload error occurred. Please check your network connection. '+uplMsg
+        uplMsg=this.i18n.t('spr.status.uploadError')+' '+uplMsg
       }
     }
     this.toolTipText=uplMsg
@@ -181,15 +189,15 @@ export class TransportActions {
   bwdAction: Action<void>;
   stopNonrecordingAction:Action<void>;
 
-  constructor() {
-    this.startAction = new Action('Start');
-    this.stopAction = new Action('Stop');
-    this.nextAction = new Action('Next');
-    this.pauseAction = new Action('Pause');
-    this.fwdNextAction = new Action('Next recording');
-    this.fwdAction = new Action('Forward');
-    this.bwdAction = new Action('Backward');
-    this.stopNonrecordingAction=new Action('Next');
+  constructor(i18n: SprTranslator = new SprTranslator()) {
+    this.startAction = new Action(i18n.t('spr.transport.start'));
+    this.stopAction = new Action(i18n.t('spr.transport.stop'));
+    this.nextAction = new Action(i18n.t('spr.transport.next'));
+    this.pauseAction = new Action(i18n.t('spr.transport.pause'));
+    this.fwdNextAction = new Action(i18n.t('spr.transport.nextRecording'));
+    this.fwdAction = new Action(i18n.t('spr.transport.forward'));
+    this.bwdAction = new Action(i18n.t('spr.transport.backward'));
+    this.stopNonrecordingAction=new Action(i18n.t('spr.transport.next'));
 
   }
 }
@@ -215,12 +223,12 @@ export class TransportActions {
       <button (click)="actions.pauseAction.perform()" [disabled]="pauseDisabled()" mat-stroked-button  class="transport-button-icon" [matTooltip]="pauseTooltip" [attr.aria-label]="pauseTooltip">
         <span><mat-icon class="transport-button-icon">pause</mat-icon></span>
         @if (!screenXs) {
-          <span class="transport-button-text">Pause</span>
+          <span class="transport-button-text">{{i18n.t('spr.transport.pause')}}</span>
         }
       </button>
     }
     @if (navigationEnabled && !screenXs) {
-      <button id="fwdNextBtn" (click)="actions.fwdNextAction.perform()" [disabled]="fwdNextDisabled()" mat-stroked-button class="transport-button-icon" matTooltip="Next recording" aria-label="Next recording">
+      <button id="fwdNextBtn" (click)="actions.fwdNextAction.perform()" [disabled]="fwdNextDisabled()" mat-stroked-button class="transport-button-icon" [matTooltip]="i18n.t('spr.transport.nextRecording')" [attr.aria-label]="i18n.t('spr.aria.nextRecording')">
         <span><mat-icon>redo</mat-icon></span>
       </button>
     }
@@ -304,24 +312,24 @@ export class TransportPanel extends ResponsiveComponent{
   startStopNextButtonName!:string;
   startStopNextButtonIconName!:string;
 
-    constructor(breakpointObserver: BreakpointObserver) {
+    constructor(breakpointObserver: BreakpointObserver, public readonly i18n: SprTranslator) {
       super(breakpointObserver);
     }
 
   get bwdTooltip():string {
-    return `Backward (${keyLabel(KEY.BACKWARD)})`;
+    return this.i18n.t('spr.transport.tooltip.backward', {key: keyLabel(KEY.BACKWARD)});
   }
 
   get startStopNextTooltip():string {
-    return `Start / Stop / Next (${keyLabel(KEY.START_STOP)})`;
+    return this.i18n.t('spr.transport.tooltip.startStopNext', {key: keyLabel(KEY.START_STOP)});
   }
 
   get pauseTooltip():string {
-    return `Pause (${keyLabel(KEY.PAUSE)})`;
+    return this.i18n.t('spr.transport.tooltip.pause', {key: keyLabel(KEY.PAUSE)});
   }
 
   get fwdTooltip():string {
-    return `Forward (${keyLabel(KEY.FORWARD)})`;
+    return this.i18n.t('spr.transport.tooltip.forward', {key: keyLabel(KEY.FORWARD)});
   }
 
   startDisabled() {
@@ -358,11 +366,11 @@ export class TransportPanel extends ResponsiveComponent{
 
     startStopNextName():string{
         if(!this.nextDisabled() || !this.stopNonrecordingDisabled()){
-            this.startStopNextButtonName= "Next"
+            this.startStopNextButtonName= this.i18n.t('spr.transport.next')
         }else if(!this.startDisabled()){
-            this.startStopNextButtonName="Start"
+            this.startStopNextButtonName=this.i18n.t('spr.transport.start')
         }else if(!this.stopDisabled()) {
-            this.startStopNextButtonName = "Stop"
+            this.startStopNextButtonName = this.i18n.t('spr.transport.stop')
         }
         return this.startStopNextButtonName;
     }
@@ -433,12 +441,12 @@ export class ReadyStateIndicator {
   hourGlassIconName='hourglass_empty'
   readyStateToolTip:string=''
 
-  constructor() {}
+  constructor(private i18n: SprTranslator) {}
 
   @Input() set ready(ready:boolean){
     this._ready=ready
     this.hourGlassIconName=this._ready?'hourglass_empty':'hourglass_full'
-    this.readyStateToolTip=this._ready?'Audio processing and upload done. You can leave the page without data loss.':'Please wait until audio processing and upload have finished. Please do not leave the page.'
+    this.readyStateToolTip=this._ready?this.i18n.t('spr.status.datasetDone'):this.i18n.t('spr.status.datasetPending')
   }
 
   get ready():boolean{

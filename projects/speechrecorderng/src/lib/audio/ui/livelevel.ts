@@ -10,6 +10,7 @@ import {
 } from "@angular/core"
 import {LevelInfo, LevelInfos, LevelListener} from "../dsp/level_measure";
 import {onSchemeChange, sprToken} from "../../theme/theme";
+import {SprTranslator} from "../../i18n/translate";
 
 export const DEFAULT_WARN_DB_LEVEL = -2;
 export const MIN_DB_LEVEL = -60.0;
@@ -77,7 +78,7 @@ export class LevelBar implements LevelListener,AfterViewInit,OnDestroy {
 
   warnDBLevel = DEFAULT_WARN_DB_LEVEL;
 
-  constructor(private ref: ElementRef, private changeDetectorRef: ChangeDetectorRef) {
+  constructor(private ref: ElementRef, private changeDetectorRef: ChangeDetectorRef, private i18n: SprTranslator) {
     this.dbValues = new Array<Array<number>>();
   }
 
@@ -373,9 +374,9 @@ export class LevelBar implements LevelListener,AfterViewInit,OnDestroy {
           let stateTxt='';
 
           if(this._state===State.LOADING){
-            stateTxt="Loading...";
+            stateTxt=this.i18n.t('spr.audio.state.loading');
           }else if(this._state===State.RENDERING){
-            stateTxt="Rendering...";
+            stateTxt=this.i18n.t('spr.audio.state.rendering');
           }
           g.fillText(stateTxt, 10, 25);
         }

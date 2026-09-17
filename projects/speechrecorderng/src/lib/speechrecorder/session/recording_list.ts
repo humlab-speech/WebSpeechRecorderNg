@@ -4,13 +4,14 @@ import {MediaUtils} from "../../media/utils";
 import {MatTableDataSource} from "@angular/material/table";
 import {RecFilesCache} from "./recording_file_cache";
 import {AudioDataHolder} from "../../audio/audio_data_holder";
+import {SprTranslator} from "../../i18n/translate";
 
 @Component({
     selector: 'app-recordinglist',
     template: `
     <mat-card appearance="outlined">
       <mat-card-header>
-        <h2>Recording list</h2>
+        <h2>{{i18n.t('spr.recordings.title')}}</h2>
       </mat-card-header>
       <mat-card-content>
         <table mat-table [dataSource]="recordingListDataSource" class="mat-elevation-z0">
@@ -18,21 +19,21 @@ import {AudioDataHolder} from "../../audio/audio_data_holder";
           <tr mat-row *matRowDef="let element; columns: cols;"
               [scrollIntoViewToBottom]="element.uuid===selectedRecordingFile?.uuid" [class.selected]="element.uuid===selectedRecordingFile?.uuid"></tr>
           <ng-container matColumnDef="index">
-            <th mat-header-cell *matHeaderCellDef mat-header>#</th>
+            <th mat-header-cell *matHeaderCellDef mat-header>{{i18n.t('spr.progress.index')}}</th>
             <td mat-cell class="monospaced"
                 *matCellDef="let element;let i = index">{{recordingListDataSource.data.length - i}}</td>
           </ng-container>
           <ng-container matColumnDef="startedDate">
-            <th mat-header-cell *matHeaderCellDef mat-header>Started</th>
+            <th mat-header-cell *matHeaderCellDef mat-header>{{i18n.t('spr.recordings.started')}}</th>
             <td mat-cell class="monospaced"
                 *matCellDef="let element">{{element.startedDate | date:'yyyy-MM-dd HH:mm:ss'}}</td>
           </ng-container>
           <ng-container matColumnDef="length">
-            <th mat-header-cell *matHeaderCellDef mat-header>Length</th>
+            <th mat-header-cell *matHeaderCellDef mat-header>{{i18n.t('spr.recordings.length')}}</th>
             <td mat-cell class="monospaced" *matCellDef="let element">{{lengthTimeFormatted(element)}}</td>
           </ng-container>
           <ng-container matColumnDef="action">
-            <th mat-header-cell *matHeaderCellDef>Action</th>
+            <th mat-header-cell *matHeaderCellDef>{{i18n.t('spr.recordings.action')}}</th>
             <td mat-cell *matCellDef="let element">
               <!--
               <mat-icon *ngIf="recordingFileCached(element)===false" style="font-size:0.8em;width:0.8em;height:0.8em">
@@ -42,7 +43,7 @@ import {AudioDataHolder} from "../../audio/audio_data_holder";
               <button mat-stroked-button color="primary" (click)="selectRecordingFile(element)"
                       [disabled]="selectDisabled || element.uuid===selectedRecordingFile?.uuid">
                 <mat-icon>edit_attributes</mat-icon>
-                Select
+                {{i18n.t('spr.recordings.select')}}
               </button>
 
             </td>
@@ -129,7 +130,7 @@ export class RecordingList implements AfterViewInit{
   @Output() selectedRecordingFileChanged = new EventEmitter<RecordingFile>();
   @Input() selectedRecordingFile:RecordingFile|null=null;
 
-  constructor() {
+  constructor(public readonly i18n: SprTranslator) {
     this.recordingListDataSource=new MatTableDataSource<RecordingFile>();
   }
 

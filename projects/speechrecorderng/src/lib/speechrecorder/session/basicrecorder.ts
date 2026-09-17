@@ -30,6 +30,7 @@ import {PersistentAudioStorageTarget} from "../../audio/inddb_audio_buffer";
 import {ResponsiveComponent} from "../../ui/responsive_component";
 import {BreakpointObserver} from "@angular/cdk/layout";
 import {SprLogger} from "../../utils/logger";
+import {SprTranslator} from "../../i18n/translate";
 
 export const FORCE_REQUEST_AUDIO_PERMISSIONS=false;
 export const RECFILE_API_CTX = 'recfile';
@@ -237,6 +238,7 @@ export abstract class BasicRecorder extends ResponsiveComponent{
                 public dialog: MatDialog,
                 protected sessionService:SessionService,
                 protected uploader: SpeechRecorderUploader,
+                public readonly i18n: SprTranslator,
                 @Inject(SPEECHRECORDER_CONFIG) public config?: SpeechRecorderConfig) {
     super(bpo);
     this.userAgent=UserAgentBuilder.userAgent();
@@ -250,7 +252,7 @@ export abstract class BasicRecorder extends ResponsiveComponent{
       let detBrVersStr=(detBrVers)?' '+detBrVers:'';
       SprLogger.debug("Detected browser: " +detBr+detBrVersStr);
     }
-    this.transportActions = new TransportActions();
+    this.transportActions = new TransportActions(this.i18n);
     this.playStartAction = new Action('Play');
     this.levelMeasure = new LevelMeasure();
     this.streamLevelMeasure = new StreamLevelMeasure();
@@ -314,7 +316,7 @@ export abstract class BasicRecorder extends ResponsiveComponent{
 
   enableStartUserGesture() {
     this.statusAlertType = 'info';
-    this.statusMsg = 'Ready.';
+    this.statusMsg = this.i18n.t('spr.status.ready');
   }
 
   configureStreamCaptureStream() {
@@ -398,19 +400,19 @@ export abstract class BasicRecorder extends ResponsiveComponent{
 
   start() {
     this.statusAlertType = 'info';
-    this.statusMsg = 'Starting session...';
+    this.statusMsg = this.i18n.t('spr.status.startingSession');
     this.statusWaiting=false;
     if(this._session) {
       if (this._session.sealed) {
         this.readonly = true
-        this.statusMsg = 'Session sealed!';
+        this.statusMsg = this.i18n.t('spr.status.sessionSealed');
         //let dialogRef = this.dialog.open(SessionSealedDialog, {});
         this.dialog.open(MessageDialog, {
           data: {
             type: 'error',
-            title: 'Error',
-            msg: "This session is sealed. Recordings cannot be added anymore.",
-            advice: 'Please ask your experimenter what to do (e.g start a new session).',
+            title: this.i18n.t('spr.dialog.error'),
+            msg: this.i18n.t('spr.dialog.sessionSealedMsg'),
+            advice: this.i18n.t('spr.dialog.sessionSealedAdvice'),
           }
         });
       } else {
@@ -450,7 +452,7 @@ export abstract class BasicRecorder extends ResponsiveComponent{
     this._selectedDeviceId=undefined;
 
     if (!this.readonly && this.ac && (FORCE_REQUEST_AUDIO_PERMISSIONS || (this._audioDevices && this._audioDevices.length > 0))) {
-      this.statusMsg = 'Requesting audio permissions...';
+      this.statusMsg = this.i18n.t('spr.status.requestingAudioPermissions');
       this.statusAlertType = 'info';
 
       this.ac.deviceInfos((mdis) => {
@@ -525,47 +527,47 @@ export abstract class BasicRecorder extends ResponsiveComponent{
               this.enableStartUserGesture()
             } else {
               // device not found
-              this.statusMsg = 'ERROR: Required audio device not available!';
+              this.statusMsg = this.i18n.t('spr.status.requiredAudioDeviceMissing');
               this.statusAlertType = 'error';
               this.readonly = true;
 
               this.dialog.open(MessageDialog, {
                 data: {
                   type: 'error',
-                  title: 'Required audio device',
-                  msg: "Required audio device not found",
-                  advice: "Please connect a suitable audio device for this project and retry (press the browser reload button)."
+                  title: this.i18n.t('spr.dialog.requiredAudioDeviceTitle'),
+                  msg: this.i18n.t('spr.dialog.requiredAudioDeviceMsg'),
+                  advice: this.i18n.t('spr.dialog.requiredAudioDeviceAdvice')
                 }
               })
             }
           }else{
             if(!audioCaptureDeviceAvail && !audioPlayDeviceAvail){
               // no device found
-              this.statusMsg = 'ERROR: No audio device available!';
+              this.statusMsg = this.i18n.t('spr.status.noAudioDeviceAvailable');
               this.statusAlertType = 'warn';
               //this.readonly = true;
 
               this.dialog.open(MessageDialog, {
                 data: {
                   type: 'warn',
-                  title: 'No audio device',
-                  msg: "No audio device found",
-                  advice: "Please connect an audio device and retry (press the browser reload button) or try to continue anyway."
+                  title: this.i18n.t('spr.dialog.noAudioDeviceTitle'),
+                  msg: this.i18n.t('spr.dialog.noAudioDeviceMsg'),
+                  advice: this.i18n.t('spr.dialog.noAudioDeviceAdvice')
                 }
               })
             }else {
               if (!this.readonly && !audioCaptureDeviceAvail) {
                 // no device found
-                this.statusMsg = 'WARNING: No audio capture device available!';
+                this.statusMsg = this.i18n.t('spr.status.noAudioCaptureDeviceAvailable');
                 this.statusAlertType = 'warning';
                 //this.readonly = true;
 
                 this.dialog.open(MessageDialog, {
                   data: {
                     type: 'warning',
-                    title: 'No audio capture device',
-                    msg: "No audio capture device found",
-                    advice: "Please connect an audio capture device and retry (press the browser reload button) or try to continue anyway."
+                    title: this.i18n.t('spr.dialog.noAudioCaptureDeviceTitle'),
+                    msg: this.i18n.t('spr.dialog.noAudioCaptureDeviceMsg'),
+                    advice: this.i18n.t('spr.dialog.noAudioCaptureDeviceAdvice')
                   }
                 })
               }
@@ -586,16 +588,16 @@ export abstract class BasicRecorder extends ResponsiveComponent{
 
                 if (!(this.userAgent.detectedBrowser===Browser.Safari || this.userAgent.detectedBrowser===Browser.Firefox)) {
                   // no device found
-                  this.statusMsg = 'WARNING: No audio playback device available!';
+                  this.statusMsg = this.i18n.t('spr.status.noAudioPlaybackDeviceAvailable');
                   this.statusAlertType = 'warn';
                   //this.readonly = true;
 
                   this.dialog.open(MessageDialog, {
                     data: {
                       type: 'warn',
-                      title: 'No audio playback device',
-                      msg: "No audio playback device found",
-                      advice: "Please connect an audio playback device and retry (press the browser reload button) or try to continue anyway."
+                      title: this.i18n.t('spr.dialog.noAudioPlaybackDeviceTitle'),
+                      msg: this.i18n.t('spr.dialog.noAudioPlaybackDeviceMsg'),
+                      advice: this.i18n.t('spr.dialog.noAudioPlaybackDeviceAdvice')
                     }
                   })
                 }
@@ -617,7 +619,7 @@ export abstract class BasicRecorder extends ResponsiveComponent{
 
       });
     }
-    this.statusMsg='Ready.';
+    this.statusMsg=this.i18n.t('spr.status.ready');
   }
 
   startItem() {
@@ -735,17 +737,17 @@ protected sessionsBaseUrl():string {
 
   closed() {
     this.statusAlertType = 'info';
-    this.statusMsg = 'Session closed.';
+    this.statusMsg = this.i18n.t('spr.status.sessionClosed');
   }
 
-  error(msg='An unknown error occured during recording.',advice:string='Please retry.') {
+  error(msg=this.i18n.t('spr.dialog.unknownError'),advice:string=this.i18n.t('spr.dialog.retryAdvice')) {
     this.navigationDisabled = false;
-    this.statusMsg = 'ERROR: Recording.';
+    this.statusMsg = this.i18n.t('spr.status.recordingError');
     this.statusAlertType = 'error';
     this.dialog.open(MessageDialog, {
       data: {
         type: 'error',
-        title: 'Recording error',
+        title: this.i18n.t('spr.dialog.recordingError'),
         msg: msg,
         advice: advice
       }

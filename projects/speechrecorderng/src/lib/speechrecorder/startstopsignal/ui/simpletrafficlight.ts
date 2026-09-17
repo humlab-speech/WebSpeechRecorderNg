@@ -1,5 +1,6 @@
 import {Component,Input} from '@angular/core'
 import {StartStopSignal, State} from '../startstopsignal'
+import {SprTranslator} from "../../../i18n/translate";
 
 /**
  * Subject-facing record/stop signal.
@@ -90,7 +91,7 @@ export class SimpleTrafficLight implements StartStopSignal {
   lightbottom!: string;
   stateLabel = '';
 
-  constructor() {
+  constructor(private i18n: SprTranslator) {
     this.status=State.OFF;
   }
 
@@ -105,22 +106,22 @@ export class SimpleTrafficLight implements StartStopSignal {
       this.lighttop = 'hold';
       this.lightmid = 'off';
       this.lightbottom = 'off';
-      this.stateLabel = 'Stop';
+      this.stateLabel = this.i18n.t('spr.signal.stop');
     } else if (State.PRERECORDING == status) {
       this.lighttop = 'hold';
       this.lightmid = 'cue';
       this.lightbottom = 'off';
-      this.stateLabel = 'Get ready';
+      this.stateLabel = this.i18n.t('spr.signal.getReady');
     } else if (State.RECORDING == status) {
       this.lighttop = 'off';
       this.lightmid = 'off';
       this.lightbottom = 'live';
-      this.stateLabel = 'Recording';
+      this.stateLabel = this.i18n.t('spr.signal.recording');
     } else if (State.POSTRECORDING == status) {
       this.lighttop = 'off';
       this.lightmid = 'cue';
       this.lightbottom = 'off';
-      this.stateLabel = 'Wait';
+      this.stateLabel = this.i18n.t('spr.signal.wait');
     }
   }
 }

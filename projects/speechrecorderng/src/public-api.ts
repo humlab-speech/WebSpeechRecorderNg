@@ -44,6 +44,9 @@ export {RecordingFileUI} from './lib/speechrecorder/session/recordingfile/record
 export {SpeechRecorderConfig,ApiType} from './lib/spr.config'
 export type {SprLogo, SpeechRecorderBranding} from './lib/spr.config'
 export {Logos} from './lib/ui/logos'
+
+/* Translations: English is built in, the application supplies the rest. */
+export {SPR_STRINGS, SPEECHRECORDER_STRINGS, SprTranslator} from './lib/i18n/translate'
 export {UploadConfig,UploadError,UploaderStatus,UploaderStatusChangeEvent} from './lib/net/uploader'
 export {SpeechrecorderngComponent} from './lib/speechrecorderng.component'
 export {KEY, KEY_BINDINGS, KeyBinding, keyLabel} from './lib/speechrecorder/session/keybindings'
