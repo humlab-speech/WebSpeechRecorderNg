@@ -1,4 +1,4 @@
-import {Component, HostBinding, OnDestroy, OnInit} from "@angular/core";
+import {Component, HostBinding, NgZone, OnDestroy, OnInit} from "@angular/core";
 import {ActivatedRoute} from "@angular/router";
 import {PromptingContainer} from "../session/prompting";
 import {TransportActions} from "../session/controlpanel";
@@ -132,11 +132,15 @@ export class SprRespondentView implements OnInit, OnDestroy {
   readonly inertActions = new TransportActions(new SprTranslator());
   snapshot: SprRespondentSnapshot | null = null;
 
-  private readonly onWindowMessage = (event: MessageEvent) => {
+  private readonly onWindowMessage = (event: MessageEvent) => this.zone.run(() => {
     if (event.origin === location.origin) {
       this.receive(event.data);
     }
-  };
+  });
+  /* `BroadcastChannel.onmessage` runs outside Angular's zone — zone.js does not patch it. Without
+     `run` the snapshot lands in the component but no change detection follows, and the window keeps
+     showing its previous stage until something unrelated triggers a cycle. */
+  private readonly onChannelMessage = (event: MessageEvent) => this.zone.run(() => this.receive(event.data));
   private readonly onVisibility = () => {
     if (document.visibilityState === 'visible') {
       this.sendHello();
@@ -144,7 +148,7 @@ export class SprRespondentView implements OnInit, OnDestroy {
   };
   private readonly onPageShow = () => this.sendHello();
 
-  constructor(private route: ActivatedRoute, readonly i18n: SprTranslator) {}
+  constructor(private route: ActivatedRoute, readonly i18n: SprTranslator, private zone: NgZone) {}
 
   /** True when neither transport can reach a recorder: no channel and no window to talk to. */
   get unsupported(): boolean {
@@ -189,7 +193,7 @@ export class SprRespondentView implements OnInit, OnDestroy {
     }
     try {
       this.channel = new BroadcastChannel(respondentChannelName(this.sessionId));
-      this.channel.onmessage = this.onWindowMessage;
+      this.channel.onmessage = this.onChannelMessage;
     } catch (e) {
       this.channel = null;
     }
