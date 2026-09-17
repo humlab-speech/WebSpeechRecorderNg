@@ -26,6 +26,8 @@ export const SPR_STRINGS: Record<string, string> = {
   'spr.transport.tooltip.startStopNext': 'Start / Stop / Next ({{key}})',
   'spr.transport.tooltip.pause': 'Pause ({{key}})',
   'spr.transport.tooltip.forward': 'Forward ({{key}})',
+  'spr.transport.respondent': 'Respondent display',
+  'spr.transport.tooltip.respondent': 'Show the prompt stage on the second screen ({{key}})',
 
   // Traffic light -------------------------------------------------------------
   'spr.signal.stop': 'Stop',
@@ -194,6 +196,26 @@ export const SPR_STRINGS: Record<string, string> = {
   'spr.status.uploadFailed': 'Upload failed: {{value}}',
   'spr.status.uploadPartial': 'Some uploads failed. Recordings were not stored on the server.',
 
+  // Respondent display --------------------------------------------------------
+  'spr.respondent.windowTitle': 'SpeechRecorder — respondent display (session {{session}})',
+  'spr.respondent.waitingTitle': 'Waiting for the recorder',
+  'spr.respondent.waitingBody': 'This window shows the prompt stage of the running session. It connects as soon as the recorder window sends it.',
+  'spr.respondent.unsupportedTitle': 'Respondent display not supported',
+  'spr.respondent.unsupportedBody': 'This browser cannot mirror the stage into a second window. Chrome 107+, Edge 107+, Firefox 104+ and Safari 16+ can.',
+  'spr.respondent.blocked': 'The browser blocked the respondent window. Allow popups for this site and try again.',
+  'spr.respondent.unsupportedStatus': 'This browser cannot show the respondent display (needs Chrome 107+, Edge 107+, Firefox 104+ or Safari 16+).',
+
+  // Capture device ------------------------------------------------------------
+  'spr.capture.device': 'Recording device',
+  'spr.capture.deviceTooltip': 'Microphone this session records from',
+  'spr.capture.default': 'Browser default',
+  'spr.capture.permissionNeeded': 'Microphone access is needed to list the devices',
+  'spr.capture.grantAccess': 'List devices',
+  'spr.capture.none': 'No microphone found',
+  'spr.capture.missing': 'The selected device is not available',
+  'spr.capture.locked': 'Fixed by the project settings',
+  'spr.capture.recordingBlocked': 'Stop the recording to change the device',
+
   // Keyboard manual ----------------------------------------------------------
   'spr.keybinding.startStop': 'Start or stop recording',
   'spr.keybinding.pause': 'Pause recording',
@@ -201,6 +223,7 @@ export const SPR_STRINGS: Record<string, string> = {
   'spr.keybinding.play': 'Play back the recording',
   'spr.keybinding.forward': 'Go to the next prompt',
   'spr.keybinding.backward': 'Go to the previous prompt',
+  'spr.keybinding.respondent': 'Open or focus the respondent display',
 
   // Accessibility -------------------------------------------------------------
   'spr.aria.menu': 'Menu',

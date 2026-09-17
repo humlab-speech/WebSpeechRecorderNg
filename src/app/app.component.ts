@@ -21,6 +21,13 @@ export class AppComponent extends ResponsiveComponent{
 
   constructor(protected bpo:BreakpointObserver, private transloco: TranslocoService) {
     super(bpo);
+    // The respondent display runs in its own window: it picks up a language switch from here.
+    window.addEventListener('storage', (event) => {
+      if (event.key === LANGUAGE_STORAGE_KEY && event.newValue && event.newValue !== this.transloco.getActiveLang()
+        && (LANGUAGES as readonly string[]).includes(event.newValue)) {
+        this.setLanguage(event.newValue as Language);
+      }
+    });
   }
 
   get language(): string {

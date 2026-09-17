@@ -26,6 +26,8 @@ import {SprLogger} from "../utils/logger";
     [zoomOutAction]="zoomOutAction"
     [zoomSelectedAction]="zoomSelectedAction"
     [zoomFitToPanelAction]="zoomFitToPanelAction"></audio-display-control>
+
+    <spr-capture-device-control class="spr-capture-device-control"></spr-capture-device-control>
   `,
     styles: [
         `:host {
@@ -48,8 +50,15 @@ import {SprLogger} from "../utils/logger";
         fieldset{
             border: 1px solid var(--spr-canvas-grid, #24497E);
       }
-      `
-    ],
+      `, `
+      /* The recording device sits in the corner of the spectrogram view, above the audio. */
+      .spr-capture-device-control {
+        position: absolute;
+        top: 8px;
+        right: 12px;
+        z-index: 6;
+      }
+      `],
     standalone: false
 })
 export class AudioDisplay implements OnInit,AfterViewInit {

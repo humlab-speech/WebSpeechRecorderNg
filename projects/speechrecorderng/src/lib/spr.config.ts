@@ -56,6 +56,12 @@ encryptPersistentRecordings?: boolean=false;
  * without any marks, which is what a generic deployment wants.
  */
 branding?: SpeechRecorderBranding;
+/**
+ * Key (a `KeyboardEvent.key` value) that opens or focuses the respondent display. Not set: the
+ * built-in default in `keybindings.ts` applies. A key already taken by another shortcut is
+ * reported at startup and the default is kept.
+ */
+respondentDisplayKey?: string | null = null;
   constructor(){
     this.apiEndPoint=null;
     this.apiType=null;

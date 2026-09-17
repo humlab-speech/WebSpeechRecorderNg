@@ -8,6 +8,7 @@ import {IndexedDbAudioBuffer, PersistentAudioStorageTarget} from "../inddb_audio
 import {AudioContextProvider} from "../context";
 import {SprLogger} from "../../utils/logger";
 import {SprTranslator} from "../../i18n/translate";
+import {SprCaptureDevice} from "./capture-device.service";
 
 
 export const CHROME_ACTIVATE_ECHO_CANCELLATION_WITH_AGC=false;
@@ -136,6 +137,16 @@ export class AudioCapture {
     this._persistentAudioStorageTarget = value;
   }
 
+
+  /** The input device the open stream came from, or `null` while no capture is open. */
+  activeInputDevice(): SprCaptureDevice | null {
+    const track = this.stream?.getAudioTracks?.()[0];
+    if (!track) {
+      return null;
+    }
+    const settings = track.getSettings ? track.getSettings() : null;
+    return {id: settings?.deviceId ?? '', label: track.label ?? ''};
+  }
 
   get opened(): boolean {
     return this._opened;

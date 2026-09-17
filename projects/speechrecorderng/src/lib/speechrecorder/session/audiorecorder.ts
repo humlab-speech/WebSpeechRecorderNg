@@ -849,6 +849,15 @@ export class AudioRecorder extends BasicRecorder implements OnInit,AfterViewInit
     return (!(this.status === Status.BLOCKED || this.status=== Status.IDLE || this.status===Status.ERROR) || this.processingRecording || this.sessionService.uploadCount>0)
   }
 
+  /**
+   * The capture may be reopened for another device only between takes: `isActive()` also covers
+   * pending uploads, which do not depend on the microphone and must not block a switch.
+   */
+  protected override isBusyRecording(): boolean {
+    return !(this.status === Status.BLOCKED || this.status === Status.IDLE
+      || this.status === Status.ERROR);
+  }
+
 
   updateWakeLock(dataSaved:boolean=this.dataSaved){
     //console.debug("Update wake lock: dataSaved: "+dataSaved+", not active: "+! this.isActive())

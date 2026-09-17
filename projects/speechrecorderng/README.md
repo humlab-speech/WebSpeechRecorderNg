@@ -245,6 +245,51 @@ indicators below 1100 px. Marks never shrink or squash; the slot drops them inst
   licence. The demo application in this repository serves them from `src/assets/img`; keep the
   clear space the owner's guidelines specify.
 
+### Respondent display
+
+A session can be mirrored to a second window, so a respondent reads the prompts on their own
+screen. The mirror shows the stage and nothing else — the instruction line
+(`spr-recinstructions`), the prompt itself (plain text, decorated prompt blocks or an image) and
+the start/stop light; no progress rail, no audio view, no transport, no status.
+
+* **`D` opens the window, `D` again brings it to the front.** The key is configurable:
+  `respondentDisplayKey` in `SpeechRecorderConfig` takes any `KeyboardEvent.key` value; a key that
+  another shortcut already uses is reported at startup and the default is kept. The transport bar
+  carries the same control, which is the way in on machines without a keyboard.
+* The mirror is a route of its own, `spr/respondent/:id`, registered with `SPR_ROUTES` — a
+  consumer gets it with the module, no wiring. A window opened by hand (drag the tab to the
+  second screen) works too: it announces itself and is answered with the current stage, and until
+  that answer arrives it says that it is waiting.
+* Transport: a session scoped `BroadcastChannel`, with `postMessage` to the window handle as the
+  second path for contexts where the channel is partitioned (a recorder embedded cross-site) or
+  missing. Snapshots carry a sequence number, so a duplicate on the slower path is ignored.
+  `BroadcastChannel` needs Safari/iOS 15.4 or newer, Chrome 50, Firefox 38 or Edge 15 — every
+  browser this library supports has it; without a channel a window opened by the recorder still
+  works over the handle, and one opened by hand says that it is unsupported instead of staying
+  blank.
+* The mirror follows the operator: prompt changes, a hidden prompt (`showPrompt`), the start/stop
+  light, the session's end, the language (the shell switches it in every window — this repository
+  listens for the `spr.lang` storage event) and the scheme (`data-spr-scheme`).
+* The recorder does not read anything back from the mirror: it is output only.
+
+### Recording device
+
+The audio view — the one with the spectrogram — carries a microphone picker in its top right
+corner. It lists the browser's `audioinput` devices, remembers the choice under
+`localStorage['spr.captureDevice']` (device id **and** label: browsers rotate ids per origin, so
+the label is the fallback), and refreshes when devices are plugged or unplugged.
+
+* Browsers hide device labels until microphone access has been granted once. The picker offers a
+  button that asks for it on the click (the browser requires a user gesture).
+* The project's `audioDevices` list stays authoritative: when it names a device and that device is
+  present, the picker shows it and disables the choice. The existing behaviour for a *missing*
+  required device is unchanged (error dialog, recorder read-only).
+* The choice is handed to `AudioCapture.open(…, deviceId, …)`, so the per-browser constraint
+  building stays in one place. It applies at the next capture start; a switch between takes
+  reopens the capture right away, and one made during a take is remembered and applied as soon as
+  the take is over. A remembered device that is gone is reported (the picker marks it) instead of
+  being substituted silently — the capture then uses the browser default.
+
 ### Migrating from the previous theme
 
 The recorder no longer ships the Material green/amber/red palette, and no component keeps

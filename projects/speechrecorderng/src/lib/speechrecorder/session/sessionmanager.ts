@@ -17,7 +17,9 @@ import {
 } from "@angular/core";
 import {SessionService} from "./session.service";
 import {State as StartStopSignalState} from "../startstopsignal/startstopsignal";
-import {KEY} from "./keybindings";
+import {KEY, collidingBinding, isEditableTarget, keyLabel} from "./keybindings";
+import {buildRespondentSnapshot} from "../respondent/respondent-snapshot";
+import {SCHEME_ATTRIBUTE} from "../../theme/theme";
 import {MatDialog} from "@angular/material/dialog";
 import {SpeechRecorderUploader} from "../spruploader";
 import {SPEECHRECORDER_CONFIG, SpeechRecorderConfig, SprLogo} from "../../spr.config";
@@ -100,7 +102,7 @@ export const enum Status {
           <app-sprstatusdisplay [statusMsg]="statusMsg" [statusAlertType]="statusAlertType" [statusWaiting]="statusWaiting"></app-sprstatusdisplay>
         }
       </div>
-      <app-sprtransport style="display:flex;flex:10 0 30%;justify-content: center;align-items: center; align-content: center" [readonly]="readonly" [actions]="transportActions" [navigationEnabled]="!items || items.length()>1"></app-sprtransport>
+      <app-sprtransport style="display:flex;flex:10 0 30%;justify-content: center;align-items: center; align-content: center" [readonly]="readonly" [actions]="transportActions" [navigationEnabled]="!items || items.length()>1" [respondentKey]="respondentKeyLabel()"></app-sprtransport>
       <div style="display:flex;flex:1 1 30%;flex-direction:row;justify-content: flex-end;align-items: center; align-content: center">
         @if (controlLogos) {
           <spr-logos class="spr-separator" [logos]="controlLogos" [height]="26"></spr-logos>
@@ -366,11 +368,111 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
       this.transportActions.stopNonrecordingAction.onAction=()=>this.stopNonrecording();
       this.transportActions.fwdNextAction.onAction = () => this.nextUnrecordedItem();
       this.transportActions.bwdAction.onAction = () => this.prevItem();
+      this.transportActions.respondentAction.onAction = () => this.openRespondentDisplay();
       this.playStartAction.onAction = () => this.controlAudioPlayer?.start();
 
     this.startStopSignalState = StartStopSignalState.OFF;
 
 }
+
+  /** Cached resolved key for the respondent display (config value or the built-in default). */
+  private respondentStageKey: string|null = null;
+  private lastPublishedPrompt: PromptItem|null = null;
+  private resolvedRespondentKey: string|null = null;
+
+  // The stage is republished as soon as anything the respondent sees changed. Comparing a short
+  // key per change detection cycle beats hunting every mutation site and cannot miss one.
+  ngDoCheck(): void {
+    super.ngDoCheck();
+    this.publishRespondentStage();
+  }
+
+  /** The configured key, unless it clashes with another shortcut — then the default applies. */
+  respondentKey(): string {
+    if (this.resolvedRespondentKey === null) {
+      this.resolvedRespondentKey = this.resolveRespondentKey();
+    }
+    return this.resolvedRespondentKey;
+  }
+
+  /** Human-readable key for buttons and tooltips. */
+  respondentKeyLabel(): string {
+    return keyLabel(this.respondentKey());
+  }
+
+  /**
+   * Shows the prompt stage on the respondent's screen, or brings that window to the front.
+   *
+   * Called from the key handler and from the transport bar. A keydown counts as a transient
+   * activation, which is what the browser requires before it lets `window.open` through.
+   */
+  openRespondentDisplay(): void {
+    const sessionId = this._session?.sessionId;
+    if (sessionId === undefined || sessionId === null) {
+      return;
+    }
+    this.publishRespondentStage(true);
+    const result = this.respondentDisplay.openOrFocus(String(sessionId));
+    if (result === 'blocked') {
+      this.statusMsg = this.i18n.t('spr.respondent.blocked');
+      this.statusAlertType = 'warn';
+    } else if (result === 'unsupported') {
+      this.statusMsg = this.i18n.t('spr.respondent.unsupportedStatus');
+      this.statusAlertType = 'warn';
+    }
+  }
+
+  private resolveRespondentKey(): string {
+    const configured = this.config?.respondentDisplayKey;
+    if (!configured) {
+      return KEY.RESPONDENT;
+    }
+    const clash = collidingBinding(configured);
+    if (clash) {
+      SprLogger.warn("Respondent display: the configured key '" + configured + "' is already used by '"
+        + clash.description + "'; keeping '" + KEY.RESPONDENT + "'.");
+      return KEY.RESPONDENT;
+    }
+    return configured;
+  }
+
+  private publishRespondentStage(force = false): void {
+    const sessionId = this._session?.sessionId;
+    if (sessionId === undefined || sessionId === null) {
+      return;
+    }
+    const prompt: PromptItem|null = this.promptItem ?? null;
+    const scheme = document.documentElement.getAttribute(SCHEME_ATTRIBUTE);
+    const key = [
+      this._promptIndex,
+      this.items?.items?.length ?? -1,
+      this.showPrompt,
+      this.startStopSignalState,
+      this._session?.status ?? '',
+      prompt === this.lastPublishedPrompt,
+      prompt?.itemcode ?? '',
+      prompt?.recinstructions?.recinstructions ?? '',
+      prompt?.mediaitems?.length ?? -1,
+      scheme ?? '',
+    ].join('|');
+    if (!force && key === this.respondentStageKey) {
+      return;
+    }
+    this.respondentStageKey = key;
+    this.lastPublishedPrompt = prompt;
+    this.respondentDisplay.publish(buildRespondentSnapshot({
+      sessionId: String(sessionId),
+      projectName: this.projectName ?? null,
+      itemIndex: this._promptIndex,
+      itemCount: this.items?.items?.length ?? null,
+      instruction: prompt?.recinstructions?.recinstructions ?? null,
+      showPrompt: this.showPrompt,
+      prompt,
+      signal: this.startStopSignalState,
+      ended: this._session?.status === 'COMPLETED',
+      scheme,
+    }));
+  }
 
   @HostListener('window:keypress', ['$event'])
   onKeyPress(ke: KeyboardEvent) {
@@ -406,6 +508,9 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
     }
     if (ke.key === KEY.BACKWARD) {
       this.transportActions.bwdAction.perform();
+    }
+    if (ke.key === this.respondentKey() && !ke.repeat && !isEditableTarget(ke)) {
+      this.openRespondentDisplay();
     }
   }
 
@@ -1012,6 +1117,15 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
 
   isActive(): boolean{
     return (!(this.status === Status.BLOCKED || this.status=== Status.IDLE || this.status===Status.ERROR) || this.processingRecording || this.sessionService.uploadCount>0)
+  }
+
+  /**
+   * The capture may be reopened for another device only between takes: `isActive()` also covers
+   * pending uploads, which do not depend on the microphone and must not block a switch.
+   */
+  protected override isBusyRecording(): boolean {
+    return !(this.status === Status.BLOCKED || this.status === Status.IDLE
+      || this.status === Status.ERROR || this.status === Status.NON_RECORDING_WAIT);
   }
 
     prevItem() {

@@ -155,6 +155,27 @@ The font is Inter (loaded from Google Fonts in `src/index.html`) with a
 `Helvetica Neue`/system fallback: an offline deployment keeps working, and
 `--spr-font-family` switches the whole application to a local font stack.
 
+### Respondent display
+
+The prompt stage can be mirrored to a second window for a respondent reading on their own screen:
+press `D` (configurable through `respondentDisplayKey` in the environment's
+`SpeechRecorderConfig`) or use the button in the transport bar. The mirror shows the instruction
+line, the prompt and the start/stop light — no progress rail, no audio view, no transport. It is
+the library route `spr/respondent/:id`; see the
+[module README](projects/speechrecorderng/README.md#respondent-display) for the transport, the
+browser requirement and how a window opened by hand connects.
+
+Popups must be allowed for the site: the key press opens a real window, and a blocked popup is
+reported in the status line instead of failing silently.
+
+### Recording device
+
+The audio view (the one with the spectrogram) has a microphone picker in its top right corner: it
+lists the input devices, remembers the choice in the browser and takes effect at the next
+recording (or immediately, between takes). A project that names a required device in its
+`audioDevices` list keeps precedence; see the
+[module README](projects/speechrecorderng/README.md#recording-device).
+
 ### Deployment on the server
 See [Angular Deployment/Server Configuration](https://angular.io/guide/deployment#server-configuration) for details.
 

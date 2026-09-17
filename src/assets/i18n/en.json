@@ -52,8 +52,10 @@
         "backward": "Backward ({{key}})",
         "startStopNext": "Start / Stop / Next ({{key}})",
         "pause": "Pause ({{key}})",
-        "forward": "Forward ({{key}})"
-      }
+        "forward": "Forward ({{key}})",
+        "respondent": "Show the prompt stage on the second screen ({{key}})"
+      },
+      "respondent": "Respondent display"
     },
     "signal": {
       "stop": "Stop",
@@ -108,7 +110,16 @@
         "allowMicrophone": "Please make sure that microphone access is allowed for this web page and reload the page.",
         "checkDevice": "Please make sure your audio device is working.",
         "recordAgain": "Please try to record again."
-      }
+      },
+      "device": "Recording device",
+      "deviceTooltip": "Microphone this session records from",
+      "default": "Browser default",
+      "permissionNeeded": "Microphone access is needed to list the devices",
+      "grantAccess": "List devices",
+      "none": "No microphone found",
+      "missing": "The selected device is not available",
+      "locked": "Fixed by the project settings",
+      "recordingBlocked": "Stop the recording to change the device"
     },
     "playback": {
       "error": {
@@ -244,13 +255,23 @@
       "uploadFailed": "Upload failed: {{value}}",
       "uploadPartial": "Some uploads failed. Recordings were not stored on the server."
     },
+    "respondent": {
+      "windowTitle": "SpeechRecorder — respondent display (session {{session}})",
+      "waitingTitle": "Waiting for the recorder",
+      "waitingBody": "This window shows the prompt stage of the running session. It connects as soon as the recorder window sends it.",
+      "unsupportedTitle": "Respondent display not supported",
+      "unsupportedBody": "This browser cannot mirror the stage into a second window. Chrome 107+, Edge 107+, Firefox 104+ and Safari 16+ can.",
+      "blocked": "The browser blocked the respondent window. Allow popups for this site and try again.",
+      "unsupportedStatus": "This browser cannot show the respondent display (needs Chrome 107+, Edge 107+, Firefox 104+ or Safari 16+)."
+    },
     "keybinding": {
       "startStop": "Start or stop recording",
       "pause": "Pause recording",
       "stop": "Stop recording and collapse the audio view",
       "play": "Play back the recording",
       "forward": "Go to the next prompt",
-      "backward": "Go to the previous prompt"
+      "backward": "Go to the previous prompt",
+      "respondent": "Open or focus the respondent display"
     },
     "aria": {
       "menu": "Menu",

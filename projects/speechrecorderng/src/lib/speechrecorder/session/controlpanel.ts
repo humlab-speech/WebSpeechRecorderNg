@@ -188,6 +188,7 @@ export class TransportActions {
   fwdAction: Action<void>;
   bwdAction: Action<void>;
   stopNonrecordingAction:Action<void>;
+  respondentAction: Action<void>;
 
   constructor(i18n: SprTranslator = new SprTranslator()) {
     this.startAction = new Action(i18n.t('spr.transport.start'));
@@ -198,6 +199,7 @@ export class TransportActions {
     this.fwdAction = new Action(i18n.t('spr.transport.forward'));
     this.bwdAction = new Action(i18n.t('spr.transport.backward'));
     this.stopNonrecordingAction=new Action(i18n.t('spr.transport.next'));
+    this.respondentAction = new Action(i18n.t('spr.transport.respondent'));
 
   }
 }
@@ -235,6 +237,11 @@ export class TransportActions {
     @if (navigationEnabled) {
       <button id="fwdBtn"  (click)="actions.fwdAction.perform()" [disabled]="fwdDisabled()" mat-stroked-button class="transport-button-icon" [matTooltip]="fwdTooltip" [attr.aria-label]="fwdTooltip">
         <span><mat-icon>chevron_right</mat-icon></span>
+      </button>
+    }
+    @if (respondentKey) {
+      <button id="respondentBtn" (click)="actions.respondentAction.perform()" mat-stroked-button class="transport-button-icon" [matTooltip]="respondentTooltip" [attr.aria-label]="respondentTooltip">
+        <span><mat-icon>cast</mat-icon></span>
       </button>
     }
     
@@ -308,6 +315,8 @@ export class TransportPanel extends ResponsiveComponent{
   @Input() actions!: TransportActions;
   @Input() navigationEnabled=true;
   @Input() pausingEnabled=true;
+  /** Key label of the respondent display; `null` hides the transport control. */
+  @Input() respondentKey: string|null = null;
 
   startStopNextButtonName!:string;
   startStopNextButtonIconName!:string;
@@ -330,6 +339,10 @@ export class TransportPanel extends ResponsiveComponent{
 
   get fwdTooltip():string {
     return this.i18n.t('spr.transport.tooltip.forward', {key: keyLabel(KEY.FORWARD)});
+  }
+
+  get respondentTooltip():string {
+    return this.i18n.t('spr.transport.tooltip.respondent', {key: this.respondentKey ?? ''});
   }
 
   startDisabled() {
@@ -461,7 +474,7 @@ export class ReadyStateIndicator {
       <div style="flex-direction: row" >
         <app-sprstatusdisplay style="flex:0 0 0" [statusMsg]="statusMsg" [statusAlertType]="statusAlertType" [statusWaiting]="statusWaiting"
         class="hidden-xs"></app-sprstatusdisplay>
-        <app-sprtransport style="flex:10 0 0" [readonly]="readonly" [actions]="transportActions" [navigationEnabled]="navigationEnabled"></app-sprtransport>
+        <app-sprtransport style="flex:10 0 0" [readonly]="readonly" [actions]="transportActions" [navigationEnabled]="navigationEnabled" [respondentKey]="respondentKey"></app-sprtransport>
         @if (enableUploadRecordings) {
           <app-uploadstatus style="flex:0 0 0" [value]="uploadProgress"
           [status]="uploadStatus" [statusMsg]="uploadStatusMsg" [awaitNewUpload]="processing"></app-uploadstatus>
@@ -480,7 +493,7 @@ export class ReadyStateIndicator {
           }
           <app-readystateindicator [ready]="_ready"></app-readystateindicator>
         </div>
-        <app-sprtransport [readonly]="readonly" [actions]="transportActions" [navigationEnabled]="navigationEnabled"></app-sprtransport>
+        <app-sprtransport [readonly]="readonly" [actions]="transportActions" [navigationEnabled]="navigationEnabled" [respondentKey]="respondentKey"></app-sprtransport>
       </div>
     }
     `,
@@ -510,6 +523,8 @@ export class ControlPanel extends ResponsiveComponent {
   @Input() currentRecording: AudioBuffer| null| undefined;
   @Input() enableUploadRecordings!: boolean;
   @Input() navigationEnabled=true;
+  /** Key label of the respondent display; `null` hides the control (no session to mirror). */
+  @Input() respondentKey: string|null = null;
 
   _ready=true
 

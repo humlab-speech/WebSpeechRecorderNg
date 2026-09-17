@@ -52,8 +52,10 @@
         "backward": "Bakåt ({{key}})",
         "startStopNext": "Start / Stopp / Nästa ({{key}})",
         "pause": "Paus ({{key}})",
-        "forward": "Framåt ({{key}})"
-      }
+        "forward": "Framåt ({{key}})",
+        "respondent": "Visa promptscenen på respondentens skärm ({{key}})"
+      },
+      "respondent": "Respondentvy"
     },
     "signal": {
       "stop": "Stopp",
@@ -108,7 +110,16 @@
         "allowMicrophone": "Kontrollera att åtkomst till mikrofonen är tillåten för webbsidan och ladda om sidan.",
         "checkDevice": "Kontrollera att ljudenheten fungerar.",
         "recordAgain": "Försök spela in igen."
-      }
+      },
+      "device": "Inspelningsenhet",
+      "deviceTooltip": "Mikrofonen som sessionen spelar in från",
+      "default": "Webbläsarens standard",
+      "permissionNeeded": "Mikrofonåtkomst krävs för att visa enheterna",
+      "grantAccess": "Visa enheter",
+      "none": "Ingen mikrofon hittades",
+      "missing": "Vald enhet är inte tillgänglig",
+      "locked": "Fastställd av projektinställningarna",
+      "recordingBlocked": "Stoppa inspelningen för att byta enhet"
     },
     "playback": {
       "error": {
@@ -244,13 +255,23 @@
       "uploadFailed": "Uppladdningen misslyckades: {{value}}",
       "uploadPartial": "Vissa uppladdningar misslyckades. Inspelningarna sparades inte på servern."
     },
+    "respondent": {
+      "windowTitle": "SpeechRecorder – respondentvy (session {{session}})",
+      "waitingTitle": "Väntar på inspelaren",
+      "waitingBody": "Det här fönstret visar promptscenen för den pågående sessionen. Det ansluter så snart inspelarfönstret skickar den.",
+      "unsupportedTitle": "Respondentvyn stöds inte",
+      "unsupportedBody": "Den här webbläsaren kan inte spegla scenen till ett andra fönster. Chrome 107+, Edge 107+, Firefox 104+ och Safari 16+ kan.",
+      "blocked": "Webbläsaren blockerade respondentfönstret. Tillåt popup-fönster för webbplatsen och försök igen.",
+      "unsupportedStatus": "Den här webbläsaren kan inte visa respondentvyn (kräver Chrome 107+, Edge 107+, Firefox 104+ eller Safari 16+)."
+    },
     "keybinding": {
       "startStop": "Starta eller stoppa inspelningen",
       "pause": "Pausa inspelningen",
       "stop": "Stoppa inspelningen och fäll in ljudvyn",
       "play": "Spela upp inspelningen",
       "forward": "Gå till nästa prompt",
-      "backward": "Gå till föregående prompt"
+      "backward": "Gå till föregående prompt",
+      "respondent": "Öppna eller fokusera respondentfönstret"
     },
     "aria": {
       "menu": "Meny",

@@ -13,9 +13,11 @@ import {AudioClip} from "../../audio/persistor";
 import {Action} from "../../action/action";
 import {MIN_DB_LEVEL} from "../../ui/recordingitem_display";
 import {Upload, UploadHolder, UploadSet} from "../../net/uploader";
-import {ChangeDetectorRef, Inject} from "@angular/core";
+import {ChangeDetectorRef, Directive, Inject, inject} from "@angular/core";
 import {SPEECHRECORDER_CONFIG, SpeechRecorderConfig} from "../../spr.config";
 import {SpeechRecorderUploader} from "../spruploader";
+import {CaptureDeviceService} from "../../audio/capture/capture-device.service";
+import {RespondentDisplayService} from "../respondent/respondent-display.service";
 
 import {
   SequenceAudioFloat32ChunkerOutStream,
@@ -96,6 +98,11 @@ export class ChunkManager implements SequenceAudioFloat32OutStream{
 
 }
 
+/**
+ * Base of the two recorder surfaces. It carries a lifecycle hook (`ngDoCheck`) for the device
+ * picker, so the abstract base needs the decorator — it is never declared in a module itself.
+ */
+@Directive()
 export abstract class BasicRecorder extends ResponsiveComponent{
   get allowEchoCancellation(): boolean {
     return this._allowEchoCancellation;
@@ -185,6 +192,17 @@ export abstract class BasicRecorder extends ResponsiveComponent{
   protected _audioDevices: Array<AudioDevice> | null| undefined;
   protected _selectedDeviceId:string|undefined=undefined;
   protected selCaptureDeviceId: ConstrainDOMString | null;
+  /** Operator's device pick from the audio view; `undefined` follows the project device or default. */
+  private captureDeviceOverride: string | undefined = undefined;
+  /** The picker is bound to the recorder once per instance, not once per item. */
+  private captureDevicesBound = false;
+  /** A device pick that had to wait for the running take to end. */
+  private captureSwitchPending = false;
+  /* Both services are injected as fields: `BasicRecorder` is abstract and extended by two
+     components, so a constructor parameter would have to be threaded through both of them. */
+  protected readonly captureDevices = inject(CaptureDeviceService);
+  /** Window on the respondent's screen; `SessionManager` publishes the stage to it. */
+  protected readonly respondentDisplay = inject(RespondentDisplayService);
   protected _channelCount = 2;
   protected _autoGainControlConfigs: Array<AutoGainControlConfig> | null| undefined;
   protected _allowEchoCancellation:boolean=false;
@@ -635,15 +653,99 @@ export abstract class BasicRecorder extends ResponsiveComponent{
     this.transportActions.pauseAction.disabled = true;
   }
 
+  /**
+   * The device the capture opens with: the project's required device first (a match in the
+   * project's `audioDevices`), then the operator's pick from the audio view, else the default.
+   */
+  protected effectiveCaptureDeviceId(): string | undefined {
+    return this._selectedDeviceId ?? this.captureDeviceOverride;
+  }
+
+  /** Binds the audio view's device picker to this recorder; once per instance is enough. */
+  private bindCaptureDevices(): void {
+    if (this.captureDevicesBound) {
+      return;
+    }
+    this.captureDevicesBound = true;
+    this.captureDevices.subscribe((reason) => {
+      if (reason === 'select') {
+        this.applyCaptureDeviceSelection();
+      }
+    });
+    // A remembered device needs the enumerated list to be matched by label; re-resolve once it is
+    // there, so the first take of a session already records from the operator's device.
+    void this.captureDevices.refresh().then(() => {
+      if (this._selectedDeviceId === undefined && this.captureDeviceOverride === undefined) {
+        this.captureDeviceOverride = this.captureDevices.deviceIdForCapture();
+      }
+    });
+  }
+
+  /**
+   * Applies a pick from the audio view. A running capture is reopened with the new device — but
+   * only while no take is in flight, because reopening drops the current stream. A switch that
+   * arrives during a take is remembered and applied as soon as the recorder is idle again.
+   */
+  private applyCaptureDeviceSelection(): void {
+    if (this._selectedDeviceId !== undefined) {
+      return;   // the project requires a particular device; the picker only displays it
+    }
+    const deviceId = this.captureDevices.deviceIdForCapture();
+    if (deviceId === this.captureDeviceOverride) {
+      return;
+    }
+    this.captureDeviceOverride = deviceId;
+    this.captureSwitchPending = true;
+    this.applyPendingCaptureDeviceSwitch();
+  }
+
+  private applyPendingCaptureDeviceSwitch(): void {
+    if (!this.captureSwitchPending || !this.ac?.opened || !this.captureSwitchAllowed()) {
+      return;
+    }
+    this.captureSwitchPending = false;
+    SprLogger.info('Capture device: reopening the capture with the selected device.');
+    // Out of the change detection pass: the reopen tears down and rebuilds the audio graph.
+    setTimeout(() => {
+      this.ac?.close();
+      this.startCapture();
+    });
+  }
+
+  /** Whether the recorder is idle enough to reopen the capture. */
+  protected captureSwitchAllowed(): boolean {
+    return !this.isBusyRecording();
+  }
+
+  /**
+   * Whether a take is in flight. The subclasses know their own state; the conservative default
+   * keeps a capture from being reopened underneath a running one.
+   */
+  protected isBusyRecording(): boolean {
+    return true;
+  }
+
+  // Keeps the audio view's device picker in step, and applies a device switch that had to wait
+  // for the take to end: a disabled picker means "not now, stop first".
+  ngDoCheck(): void {
+    this.captureDevices.setBusy(this.isBusyRecording());
+    this.applyPendingCaptureDeviceSwitch();
+  }
+
   protected startCapture() {
+    this.bindCaptureDevices();
+    this.captureDevices.setLocked(this._selectedDeviceId !== undefined);
+    this.captureDeviceOverride ??= this._selectedDeviceId === undefined
+      ? this.captureDevices.deviceIdForCapture() : undefined;
     if (this.ac) {
       if (!this.ac.opened) {
-        if (this._selectedDeviceId) {
-          SprLogger.info("Open session with audio device Id: \'" + this._selectedDeviceId + "\' for " + this._channelCount + " channels");
+        const deviceId = this.effectiveCaptureDeviceId();
+        if (deviceId) {
+          SprLogger.info("Open session with audio device Id: \'" + deviceId + "\' for " + this._channelCount + " channels");
         } else {
           SprLogger.info("Open session with default audio device for " + this._channelCount + " channels");
         }
-        this.ac.open(this._channelCount, this._selectedDeviceId, this._autoGainControlConfigs,this._allowEchoCancellation);
+        this.ac.open(this._channelCount, deviceId, this._autoGainControlConfigs,this._allowEchoCancellation);
       } else {
         this.ac.start();
       }
@@ -652,6 +754,7 @@ export abstract class BasicRecorder extends ResponsiveComponent{
 
   opened() {
     if(this.ac) {
+      this.captureDevices.setActive(this.ac.activeInputDevice());
       this.ac.start();
     }
   }

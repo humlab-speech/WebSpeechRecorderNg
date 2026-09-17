@@ -94,6 +94,8 @@ const SV = {
   'spr.transport.tooltip.pause': 'Paus ({{key}})',
   'spr.transport.tooltip.forward': 'Framåt ({{key}})',
 
+  'spr.transport.respondent': 'Respondentvy',
+  'spr.transport.tooltip.respondent': 'Visa promptscenen på respondentens skärm ({{key}})',
   // library — signal
   'spr.signal.stop': 'Stopp',
   'spr.signal.getReady': 'Gör dig beredd',
@@ -255,6 +257,26 @@ const SV = {
   'spr.status.uploadFailed': 'Uppladdningen misslyckades: {{value}}',
   'spr.status.uploadPartial': 'Vissa uppladdningar misslyckades. Inspelningarna sparades inte på servern.',
 
+  // library — respondent display
+  'spr.respondent.windowTitle': 'SpeechRecorder – respondentvy (session {{session}})',
+  'spr.respondent.waitingTitle': 'Väntar på inspelaren',
+  'spr.respondent.waitingBody': 'Det här fönstret visar promptscenen för den pågående sessionen. Det ansluter så snart inspelarfönstret skickar den.',
+  'spr.respondent.unsupportedTitle': 'Respondentvyn stöds inte',
+  'spr.respondent.unsupportedBody': 'Den här webbläsaren kan inte spegla scenen till ett andra fönster. Chrome 107+, Edge 107+, Firefox 104+ och Safari 16+ kan.',
+  'spr.respondent.blocked': 'Webbläsaren blockerade respondentfönstret. Tillåt popup-fönster för webbplatsen och försök igen.',
+  'spr.respondent.unsupportedStatus': 'Den här webbläsaren kan inte visa respondentvyn (kräver Chrome 107+, Edge 107+, Firefox 104+ eller Safari 16+).',
+
+  // library — capture device
+  'spr.capture.device': 'Inspelningsenhet',
+  'spr.capture.deviceTooltip': 'Mikrofonen som sessionen spelar in från',
+  'spr.capture.default': 'Webbläsarens standard',
+  'spr.capture.permissionNeeded': 'Mikrofonåtkomst krävs för att visa enheterna',
+  'spr.capture.grantAccess': 'Visa enheter',
+  'spr.capture.none': 'Ingen mikrofon hittades',
+  'spr.capture.missing': 'Vald enhet är inte tillgänglig',
+  'spr.capture.locked': 'Fastställd av projektinställningarna',
+  'spr.capture.recordingBlocked': 'Stoppa inspelningen för att byta enhet',
+
   // library — keyboard manual
   'spr.keybinding.startStop': 'Starta eller stoppa inspelningen',
   'spr.keybinding.pause': 'Pausa inspelningen',
@@ -262,6 +284,7 @@ const SV = {
   'spr.keybinding.play': 'Spela upp inspelningen',
   'spr.keybinding.forward': 'Gå till nästa prompt',
   'spr.keybinding.backward': 'Gå till föregående prompt',
+  'spr.keybinding.respondent': 'Öppna eller fokusera respondentfönstret',
 
   // library — accessibility
   'spr.aria.menu': 'Meny',

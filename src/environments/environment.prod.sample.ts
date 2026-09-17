@@ -6,6 +6,10 @@
 // build` performs that copy when the file is missing, so a fresh checkout builds with these
 // defaults.
 
+// Deployment options of the recorder (SpeechRecorderConfig); the full list is documented in
+// projects/speechrecorderng/README.md. Example: move the respondent display off `D`:
+//   respondentDisplayKey: 'F9',
+
 export const environment = {
   production: true,
   apiType: 'normal',

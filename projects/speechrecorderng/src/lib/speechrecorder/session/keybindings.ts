@@ -14,6 +14,7 @@ export const KEY = {
   PLAY: 'MediaPlayPause',
   FORWARD: 'ArrowRight',
   BACKWARD: 'ArrowLeft',
+  RESPONDENT: 'd',
 } as const;
 
 export interface KeyBinding {
@@ -52,10 +53,35 @@ export const KEY_BINDINGS: KeyBinding[] = [
     key: KEY.BACKWARD, label: '←', description: 'Go to the previous prompt',
     descriptionKey: 'spr.keybinding.backward',
   },
+  {
+    key: KEY.RESPONDENT, label: 'D', description: 'Open or focus the respondent display',
+    descriptionKey: 'spr.keybinding.respondent',
+  },
 ];
 
 /** Human-readable label for a key value, falling back to the raw value. */
 export function keyLabel(key: string): string {
   const binding = KEY_BINDINGS.find((b) => b.key === key);
   return binding ? binding.label : key;
+}
+
+/**
+ * Whether the event targets a field the operator types into. The shortcuts must not fire there —
+ * `d` would otherwise open the respondent window while a recording file is being renamed.
+ */
+export function isEditableTarget(event: KeyboardEvent): boolean {
+  const target = event.target as HTMLElement | null;
+  if (!target) {
+    return false;
+  }
+  const tag = target.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable === true;
+}
+
+/**
+ * A configured key that is already taken by another recorder shortcut. Both handlers listen on
+ * the window, so the caller warns about the clash instead of silently overriding a shortcut.
+ */
+export function collidingBinding(key: string, except: string = KEY.RESPONDENT): KeyBinding | undefined {
+  return KEY_BINDINGS.find((b) => b.key === key && b.key !== except);
 }
