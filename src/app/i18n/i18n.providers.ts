@@ -27,20 +27,47 @@ export function initialLanguage(): Language {
   return 'en';
 }
 
+/** Catalogue of one language, flattened to the dotted keys the recorder uses. */
+function flattenCatalogue(catalogue: unknown, prefix = '', out: Record<string, string> = {}): Record<string, string> {
+  if (typeof catalogue !== 'object' || catalogue === null) {
+    return out;
+  }
+  for (const [key, value] of Object.entries(catalogue as Record<string, unknown>)) {
+    const path = prefix ? prefix + '.' + key : key;
+    if (typeof value === 'string') {
+      out[path] = value;
+    } else {
+      flattenCatalogue(value, path, out);
+    }
+  }
+  return out;
+}
+
 /**
  * The recorder reads its strings through `SPEECHRECORDER_STRINGS`. Transloco owns the
- * catalogues, so the token gets a view onto the active language instead of a copy: a key
- * Transloco cannot resolve comes back `undefined` and the library falls back to its own
- * English text.
+ * catalogues, so the token gets a view onto the active language — with the *raw* values: the
+ * library interpolates its `{{placeholders}}` itself, and a value read through
+ * `transloco.translate()` without parameters comes back with every placeholder emptied.
+ * A key the catalogue does not define comes back `undefined`, so the library falls back to its
+ * own English text.
  */
 export function speechRecorderStringsFromTransloco(transloco: TranslocoService): Record<string, string> {
+  let cachedLanguage: string | null = null;
+  let cachedStrings: Record<string, string> = {};
+  const strings = (): Record<string, string> => {
+    const language = transloco.getActiveLang();
+    if (language !== cachedLanguage) {
+      cachedStrings = flattenCatalogue(transloco.getTranslation(language));
+      cachedLanguage = language;
+    }
+    return cachedStrings;
+  };
   return new Proxy({} as Record<string, string>, {
     get: (_target, property) => {
       if (typeof property !== 'string') {
         return undefined;
       }
-      const value = transloco.translate(property);
-      return value === property ? undefined : value;
+      return strings()[property];
     },
     has: () => true,
     ownKeys: () => [],
