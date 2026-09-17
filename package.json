@@ -24,7 +24,9 @@
     "build_and_pack_module": "npm run build_module && npm run pack_pi_module",
     "publish_module": "cd dist && cd speechrecorderng && npm publish",
     "start": "ng serve --host=127.0.0.1 --configuration development",
+    "prestart_prod": "node bin/ensure_env.mjs",
     "start_prod": "ng serve --host=127.0.0.1 --configuration production",
+    "prebuild": "node bin/ensure_env.mjs",
     "build": "ng build",
     "watch": "ng build --watch --configuration development"
   },

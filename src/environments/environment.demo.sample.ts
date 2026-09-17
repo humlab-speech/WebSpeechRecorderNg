@@ -1,7 +1,6 @@
-// The file contents for the current environment will overwrite these during build.
-// The build system defaults to the dev environment which uses `environment.ts`, but if you do
-// `ng build --env=prod` then `environment.prod.ts` will be used instead.
-// The list of which env maps to which file can be found in `.angular-cli.json`.
+// Example of a demo configuration: `apiType: 'files'` reads the recordings from `src/test`
+// instead of a REST API. angular.json defines no configuration for it — copy it over
+// `environment.ts` (used by `ng serve` and `ng build --configuration development`) to run with it.
 
 export const environment = {
   production: true,

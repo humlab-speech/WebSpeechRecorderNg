@@ -161,8 +161,10 @@ See [Angular Deployment/Server Configuration](https://angular.io/guide/deploymen
 To distinguish between the REST API base paths and the path for the web application the application should not be deployed to the top level directory of your Web-server.
 Choose an arbitrary base path for the app e.g. `/wsr/ng/dist/` and build the app accordingly:
 ```
-ng build --base-href=/wsr/ng/dist/ --prod
+ng build --base-href=/wsr/ng/dist/
 ```
+`ng build` is the production configuration: configure `src/environments/environment.prod.ts` before building (see [Configuration](#configuration)).
+
 Copy the dist folder to ```/wsr/ng/``` on your Web-Server and setup the fallback configuration for this path in your Web-Server.
 
 
@@ -177,6 +179,18 @@ Versions 2.x.x of WebSpeechRecorderNg use the REST API version v1, Versions 3.x.
 ## Configuration
 
 By default the API Endpoint ({apiEndPoint}) is an empty string, the API is then expected to be relative to the base path of the application. 
+
+The application takes its settings from the environment files in `src/environments`:
+
+* `environment.ts` — tracked defaults, used by `ng serve` and `ng build --configuration development`.
+* `environment.prod.sample.ts` — the template for a deployment.
+* `environment.prod.ts` — deployment specific and **not tracked by git**. Production builds (`npm run build`/`ng build`, the default configuration) replace `environment.ts` with it, see the `fileReplacements` entry of `WebSpeechRecorderNg:build:production` in `angular.json`.
+
+`npm run build` creates `environment.prod.ts` from the sample when it is missing, so a fresh checkout builds with the sample's defaults. For a real deployment copy the sample and edit the endpoint and options — the copy stays out of the repository, so deployment settings are never committed:
+
+```
+cp src/environments/environment.prod.sample.ts src/environments/environment.prod.ts
+```
 
 
 ## SpeechRecorder REST API description
@@ -546,7 +560,9 @@ The app will automatically reload if you change any of the source files.
 
 ### Build
 
-Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory. Use the `-prod` flag for a production build.
+Run `npm run build` to build the application (production, the default configuration). The build artifacts will be stored in the `dist/WebSpeechRecorderNg` directory. Use `npm run watch` or `ng build --configuration development` for a development build.
+
+The production build reads `src/environments/environment.prod.ts`, which is deployment specific and not tracked: `npm run build` creates it from `environment.prod.sample.ts` when it is missing, see [Configuration](#configuration).
 
 
 ### Build module
