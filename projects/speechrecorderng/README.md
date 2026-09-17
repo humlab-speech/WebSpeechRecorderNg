@@ -192,8 +192,12 @@ const SPR_CFG: SpeechRecorderConfig = {
 | Slot | Where | Notes |
 |---|---|---|
 | `promptStage` | top right of the prompt stage, beside the instruction line | single mark; costs ~3 px of the auto-fit prompt size at 1568×1334 |
-| `progressFooter` | below the prompt list, sticky at the bottom of the rail | list of marks, centred |
-| `controls` | right of the transport bar, before the state indicators | desktop only, hidden in the `screenXs` layout |
+| `progressFooter` | below the prompt list, sticky at the bottom of the rail | list of marks, centred; hidden below 768 px, like the rail itself |
+| `controls` | right of the transport bar, before the state indicators | both marks from 1100 px up, the first one below that, nothing below 768 px |
+
+The transport-bar and rail thresholds are measured, not guessed: at 1024 px the right cluster has
+263 px of slack for ~160 px of marks, and the row cannot fit a second mark next to the state
+indicators below 1100 px. Marks never shrink or squash; the slot drops them instead.
 
 * `height` is per mark (the slot default applies when omitted); width follows the aspect
   ratio, which the theme audit verifies against the file.

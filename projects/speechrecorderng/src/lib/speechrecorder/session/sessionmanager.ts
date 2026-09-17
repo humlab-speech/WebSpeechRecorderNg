@@ -101,7 +101,7 @@ export const enum Status {
       </div>
       <app-sprtransport style="display:flex;flex:10 0 30%;justify-content: center;align-items: center; align-content: center" [readonly]="readonly" [actions]="transportActions" [navigationEnabled]="!items || items.length()>1"></app-sprtransport>
       <div style="display:flex;flex:1 1 30%;flex-direction:row;justify-content: flex-end;align-items: center; align-content: center">
-        @if (controlLogos && !screenXs) {
+        @if (controlLogos) {
           <spr-logos class="spr-separator" [logos]="controlLogos" [height]="26"></spr-logos>
         }
         @if (!screenXs && enableUploadRecordings) {

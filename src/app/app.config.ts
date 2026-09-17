@@ -37,7 +37,7 @@ export const SPR_CFG: SpeechRecorderConfig = {
         src: `${IMG}/clarin-d.png`,
         alt: 'CLARIN-D logo',
         href: 'https://www.clarin-d.net/en/',
-        height: 22
+        height: 28
       }
     ]
   }

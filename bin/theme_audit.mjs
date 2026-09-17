@@ -112,6 +112,58 @@ const PAGE_PROBE = `(() => {
       inControlBar: !!img.closest('.controlpanel'),
     };
   });
+  // Transport bar: marks must not collide with the state indicators, everything must stay
+  // inside the bar, and the transport buttons must keep a usable target size.
+  const controlBar = (() => {
+    const panel = document.querySelector('div.controlpanel');
+    if (!panel) return null;
+    const box = el => {
+      const r = el.getBoundingClientRect();
+      return {x: r.x, y: r.y, width: r.width, height: r.height};
+    };
+    return {
+      panel: box(panel),
+      logos: Array.from(panel.querySelectorAll('spr-logos img')).map(img => ({src: img.getAttribute('src'), ...box(img)})),
+      logoHosts: Array.from(panel.querySelectorAll('spr-logos')).map(host => box(host)),
+      indicators: ['app-uploadstatus', 'app-wakelockindicator', 'app-readystateindicator']
+        .flatMap(sel => Array.from(panel.querySelectorAll(sel)).map(el => ({selector: sel, ...box(el)}))),
+      buttons: Array.from(panel.querySelectorAll('app-sprtransport button')).map(btn => box(btn)),
+    };
+  })();
+  const overlaps = (a, b) =>
+    a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+  const controlProblems = [];
+  if (controlBar) {
+    const bar = controlBar.panel;
+    for (const item of [...controlBar.logos, ...controlBar.logoHosts, ...controlBar.indicators, ...controlBar.buttons]) {
+      if (item.width < 1 || item.height < 1) continue; // hidden, not laid out
+      if (item.x < bar.x - 1 || item.y < bar.y - 1 ||
+          item.x + item.width > bar.x + bar.width + 1 || item.y + item.height > bar.y + bar.height + 1) {
+        controlProblems.push('outside the transport bar: ' + (item.src || item.selector || 'button') +
+          ' at ' + [Math.round(item.x), Math.round(item.y), Math.round(item.width), Math.round(item.height)].join(','));
+      }
+    }
+    for (const logo of controlBar.logos) {
+      for (const indicator of controlBar.indicators) {
+        if (overlaps(logo, indicator)) {
+          controlProblems.push('logo ' + logo.src + ' overlaps ' + indicator.selector);
+        }
+      }
+    }
+    for (const button of controlBar.buttons) {
+      if (button.width < 40) {
+        controlProblems.push('transport button squeezed to ' + Math.round(button.width) + 'px');
+      }
+    }
+  }
+  const railFit = (() => {
+    const rail = document.querySelector('app-sprprogress');
+    const table = rail ? rail.querySelector('table') : null;
+    if (!rail || !table) return null;
+    const cs = getComputedStyle(rail);
+    const inner = rail.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    return {inner: Math.round(inner), table: Math.round(table.getBoundingClientRect().width)};
+  })();
   const ownText = (el) => Array.from(el.childNodes).filter(n => n.nodeType === 3).map(n => n.textContent.trim()).join('').trim();
   const rows = [];
   document.querySelectorAll('*').forEach(el => {
@@ -159,6 +211,8 @@ const PAGE_PROBE = `(() => {
   return JSON.stringify({
     rows,
     logos,
+    controlProblems,
+    railFit,
     tokens,
     pins,
     fit: { scrollHeight: document.documentElement.scrollHeight, innerHeight: window.innerHeight },
@@ -242,11 +296,20 @@ for (const [width, height] of VIEWPORTS) {
     failures.push(`${width}x${height}: probe returned nothing (${JSON.stringify(out.result?.exceptionDetails?.exception?.description || out.result)})`);
     continue;
   }
-  const { rows, logos, tokens, pins, fit } = JSON.parse(raw);
+  const { rows, logos, controlProblems, railFit, tokens, pins, fit } = JSON.parse(raw);
+  if (railFit && railFit.table > railFit.inner + 1) {
+    failures.push(
+      `${width}x${height}: progress table ${railFit.table}px is wider than the rail's ${railFit.inner}px box (clipped)`
+    );
+  }
+  for (const problem of controlProblems || []) {
+    failures.push(`${width}x${height}: ${problem}`);
+  }
   const tokenColors = new Set(Object.values(tokens).map(toRgbString).filter(Boolean));
 
   for (const logo of logos || []) {
     const [lx, ly, lw, lh] = logo.rect;
+    if (lw < 1 || lh < 1) continue; // hidden by a responsive rule: not rendered, not measured
     if (!logo.naturalWidth || !logo.naturalHeight) {
       failures.push(`${width}x${height}: logo ${logo.src} did not load (natural size 0)`);
       continue;

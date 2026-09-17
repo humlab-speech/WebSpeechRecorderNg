@@ -106,7 +106,7 @@ export const enum Status {
         </div>
       </div>
       <div style="flex:0 1 30%;display:flex;justify-items: flex-end;justify-content:flex-end" >
-        @if (controlLogos && !screenXs) {
+        @if (controlLogos) {
           <spr-logos class="spr-separator" [logos]="controlLogos" [height]="26"></spr-logos>
         }
         @if (!screenXs && enableUploadRecordings) {

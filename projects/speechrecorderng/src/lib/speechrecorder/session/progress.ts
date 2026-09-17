@@ -154,6 +154,14 @@ import {SPEECHRECORDER_CONFIG, SpeechRecorderConfig, SprLogo} from "../../spr.co
       margin: 0 -8px -12px -12px; /* bleed to the host's padding box */
       background: var(--spr-surface, #FFFFFF);
       border-top: 1px solid var(--spr-border, #D8DFE8);
+    }
+
+    /* Below this the operator rail does not fit the viewport (the recorder's desktop layout
+       needs ~900px), so the footer would be clipped rather than seen. */
+    @media (max-width: 767.98px) {
+      .spr-rail-footer {
+        display: none;
+      }
     }`],
     standalone: false
 })
