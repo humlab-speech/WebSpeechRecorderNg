@@ -205,7 +205,7 @@ resolved-token cache and dispatches a `resize`, which is what makes the audio la
 
 ### Logos (branding)
 
-The recorder renders the deploying institution's marks in three slots. It ships no image
+The recorder renders the deploying institution's marks in four slots. It ships no image
 files: an application points at its own assets.
 
 ```ts
@@ -213,12 +213,12 @@ const SPR_CFG: SpeechRecorderConfig = {
   apiEndPoint: 'api/v1',
   branding: {
     promptStage: {src: 'assets/img/visp_slogan_sv.svg', alt: 'VISP — Visible Speech', height: 28},
+    controlsLeft: [{src: 'assets/img/sweclarin_logo.png', alt: 'SweCLARIN logo',
+                    href: 'https://www.sweclarin.se/', height: 24}],
     controls: [{src: 'assets/img/bas.png', alt: 'Bavarian Archive for Speech Signals logo',
                 href: 'https://www.bas.uni-muenchen.de/Bas/BasHomeeng.html', height: 26},
                {src: 'assets/img/clarin-d.png', alt: 'CLARIN-D logo',
-                href: 'https://www.clarin-d.net/en/', height: 28},
-               {src: 'assets/img/sweclarin_logo.png', alt: 'SweCLARIN logo',
-                href: 'https://www.sweclarin.se/', height: 24}],
+                href: 'https://www.clarin-d.net/en/', height: 28}],
   },
 };
 ```
@@ -227,12 +227,13 @@ const SPR_CFG: SpeechRecorderConfig = {
 |---|---|---|
 | `promptStage` | bottom left of the prompt stage, below the prompt | single mark; costs ~3 px of the auto-fit prompt size at 1568×1334 |
 | `progressFooter` | below the prompt list, sticky at the bottom of the rail | list of marks, centred; hidden below 768 px, like the rail itself; unused by the demo |
-| `controls` | right of the transport bar, before the state indicators | the marks step aside as the row narrows: three from 1250 px, two from 1100 px, one above 768 px |
+| `controlsLeft` | left of the transport bar, before the status message | list of marks; stays at laptop widths, because nothing but the status message shares that end |
+| `controls` | right of the transport bar, before the state indicators | the marks step aside one at a time as the row narrows: a third from 1250 px, the second from 1100 px, none below 768 px |
 
-The transport-bar and rail thresholds are measured, not guessed: the three marks of the demo
-measure 300 px together, the right cluster can spend about 250 px at 1100 px, and the row cannot
-fit a second mark next to the state indicators below that — so the third mark steps aside at
-1250 px and the second at 1100 px. Marks never shrink or squash; the slot drops them instead.
+The transport-bar thresholds are measured, not guessed: the right cluster can spend about 250 px
+at 1100 px, so a third mark there costs about 100 px and has to give way first — which is why a
+mark that must stay visible on a laptop belongs in `controlsLeft`. Marks never shrink or squash;
+the slot drops them instead.
 
 * `height` is per mark (the slot default applies when omitted); width follows the aspect
   ratio, which the theme audit verifies against the file.

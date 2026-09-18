@@ -124,7 +124,7 @@ The dark scheme is opt-in with `<html data-spr-scheme="dark">`; the demo applica
 tokens, and the audio canvases repaint on the switch (`theme.ts` watches the attribute).
 
 Deployment logos (VISP, SWE-CLARIN, BAS, CLARIN-D) are configured in `src/app/app.config.ts`
-and served from `src/assets/img`; the library renders them into three slots without shipping
+and served from `src/assets/img`; the library renders them into four slots without shipping
 any asset — see
 [Logos in the module README](projects/speechrecorderng/README.md#logos-branding). Those marks
 belong to their owners and are **not** covered by this repository's MIT licence; keep them

@@ -5,7 +5,7 @@ import {SprLogo} from "../spr.config";
  * Renders the configuration's `branding` logos.
  *
  * Purely presentational: sizing, the link wrapper and the dark-scheme plate live here so the
- * three slots (prompt stage, progress rail footer, transport bar) cannot drift apart. The
+ * slots (prompt stage, progress rail footer, both ends of the transport bar) cannot drift apart. The
  * marks keep their own brand colours; the plate is transparent in the light scheme and white
  * in the dark one, so switching schemes does not shift the layout.
  *
@@ -55,10 +55,20 @@ import {SprLogo} from "../spr.config";
       border-right: 1px solid var(--spr-border, #D8DFE8);
     }
 
+    /* The same cluster at the left end of the bar, ahead of the status message. It has the room
+       the trailing one lacks — the marks stay at laptop widths — and the phone layout drops it
+       with the rest of the bar's furniture. */
+    :host(.spr-leading) {
+      padding-right: 16px;
+      margin-right: 16px;
+      border-right: 1px solid var(--spr-border, #D8DFE8);
+    }
+
     /* The transport bar's right cluster is the elastic part of that row. Its budget at
        1100px is about 250px (transport needs 345px, the indicators 40px, the bar 40px of
-       padding). Three marks measure about 300px, so the third one gives way first, the
-       second below 1100px, and the first is what remains. */
+       padding), so its marks give way one at a time: a third one costs about 100px and steps
+       aside below 1250px, the second below 1100px. A mark that has to stay on a laptop screen
+       belongs at the bar's left end (controlsLeft) instead. */
     @media (max-width: 1249.98px) {
       :host(.spr-separator) .spr-logo-plate:nth-child(n + 3) {
         display: none;
@@ -70,10 +80,11 @@ import {SprLogo} from "../spr.config";
       }
     }
 
-    /* 600-767px leaves the cluster too little room for a mark next to the indicators, and
-       768px up is where this bar is meant to be used. */
+    /* 600-767px is the phone arrangement: the bar drops its marks with the rest of its
+       furniture, and 768px up is where this bar is meant to be used. */
     @media (max-width: 767.98px) {
-      :host(.spr-separator) {
+      :host(.spr-separator),
+      :host(.spr-leading) {
         display: none;
       }
     }`],

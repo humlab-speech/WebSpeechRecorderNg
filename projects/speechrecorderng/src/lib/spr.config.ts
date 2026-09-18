@@ -35,6 +35,8 @@ export interface SpeechRecorderBranding {
   promptStage?: SprLogo;
   /** Footer of the progress rail, below the prompt list. */
   progressFooter?: SprLogo[];
+  /** Left hand side of the transport bar, before the status message. */
+  controlsLeft?: SprLogo[];
   /** Right hand side of the transport bar, before the state indicators. */
   controls?: SprLogo[];
 }

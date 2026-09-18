@@ -98,6 +98,9 @@ export const enum Status {
     </div>
     <div #controlpanel class="controlpanel">
       <div style="flex:1 1 30%;justify-content: flex-start;align-items: center; align-content: center">
+        @if (leadingLogos) {
+          <spr-logos class="spr-leading" [logos]="leadingLogos" [height]="26"></spr-logos>
+        }
         @if (!screenXs) {
           <app-sprstatusdisplay [statusMsg]="statusMsg" [statusAlertType]="statusAlertType" [statusWaiting]="statusWaiting"></app-sprstatusdisplay>
         }
@@ -183,6 +186,12 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
   /** Marks for the transport bar, configured by the deploying application. */
   get controlLogos(): SprLogo[] | undefined {
     const logos = this.config?.branding?.controls;
+    return logos && logos.length ? logos : undefined;
+  }
+
+  /** Marks at the left end of the bar, ahead of the status message. */
+  get leadingLogos(): SprLogo[] | undefined {
+    const logos = this.config?.branding?.controlsLeft;
     return logos && logos.length ? logos : undefined;
   }
 

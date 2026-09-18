@@ -93,6 +93,9 @@ export const enum Status {
       </div>
     </div>
     <div #controlpanel class="controlpanel">
+      @if (leadingLogos) {
+        <spr-logos class="spr-leading" [logos]="leadingLogos" [height]="26"></spr-logos>
+      }
       @if (!screenXs) {
         <app-sprstatusdisplay style="flex:0 1 30%;" [statusMsg]="statusMsg" [statusAlertType]="statusAlertType"
           [statusWaiting]="statusWaiting"
@@ -218,6 +221,12 @@ export class AudioRecorder extends BasicRecorder implements OnInit,AfterViewInit
   /** Marks for the transport bar, configured by the deploying application. */
   get controlLogos(): SprLogo[] | undefined {
     const logos = this.config?.branding?.controls;
+    return logos && logos.length ? logos : undefined;
+  }
+
+  /** Marks at the left end of the bar, ahead of the status message. */
+  get leadingLogos(): SprLogo[] | undefined {
+    const logos = this.config?.branding?.controlsLeft;
     return logos && logos.length ? logos : undefined;
   }
 
