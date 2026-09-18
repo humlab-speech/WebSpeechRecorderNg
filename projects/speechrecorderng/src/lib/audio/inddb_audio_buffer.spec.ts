@@ -6,7 +6,6 @@ import {UUID} from "../utils/utils";
 
 describe('IndexedDbAudioBuffer',
   () => {
-    jasmine.DEFAULT_TIMEOUT_INTERVAL = 60000;
     let CHUNK_COUNT = 23;
     let CHUNK_SIZE = 50;
     let NUMBER_OF_CHANNELS = 2;
@@ -207,7 +206,8 @@ describe('IndexedDbAudioBuffer',
         aab = new IndexedDbAudioBuffer(pt, 2, 44100, 50, 0, UUID.generate());
         test1Loop(aab, RECORDING_FILE_CHUNKS_OBJECT_STORE_NAME, or, 0, 0, done);
       }
-    }
+    },
+    60000
   );
 
 
@@ -285,6 +285,6 @@ describe('IndexedDbAudioBuffer',
         });
       };
       openReq.onerror = () => { done.fail('open failed'); };
-  });
+  }, 60000);
 
 });

@@ -10,6 +10,7 @@ import {
     UploadSet,
     UploadStatus
 } from "./uploader";
+import {SprDb} from "../db/inddb";
 
 // Uploader uses window.setTimeout for retries. Tests run with real timers and small
 // retry delays (20ms base, 40ms cap) plus generous wait margins.
@@ -51,6 +52,31 @@ describe('Uploader', () => {
 
     function networkError(): ProgressEvent {
         return new ProgressEvent('network');
+    }
+
+    /**
+     * Empties the persisted upload queue. `indexedDB.deleteDatabase` is not usable here: the
+     * application keeps its SprDb connection open, and a drop request blocks until every
+     * connection closes, so its `onsuccess` never fires.
+     */
+    async function clearPersistedQueue(): Promise<void> {
+        await new Promise<void>((resolve) => {
+            SprDb.prepare().subscribe({
+                next: (db) => {
+                    try {
+                        const tr = db.transaction(SprDb.UPLOAD_QUEUE_OBJECT_STORE_NAME, 'readwrite');
+                        tr.objectStore(SprDb.UPLOAD_QUEUE_OBJECT_STORE_NAME).clear();
+                        tr.oncomplete = () => resolve();
+                        tr.onabort = () => resolve();
+                        tr.onerror = () => resolve();
+                    } catch {
+                        // no queue store yet: nothing persisted, nothing to clear
+                        resolve();
+                    }
+                },
+                error: () => resolve(),
+            });
+        });
     }
 
     it('marks server persisted and reports DONE on a successful upload', () => {
@@ -289,11 +315,7 @@ describe('Uploader', () => {
 
     it('persists blob uploads and restores them with the same key after a reload', async () => {
         // clean state
-        await new Promise<void>((resolve) => {
-            const dr = indexedDB.deleteDatabase('speechrecorder');
-            dr.onsuccess = () => resolve();
-            dr.onerror = () => resolve();
-        });
+        await clearPersistedQueue();
         // first uploader: upload fails terminally (maxAttempts 1), entry stays persisted
         const upl1 = uploader({persistQueue: true, maxAttempts: 1});
         const ul1 = new Upload(blob(10), '/api/persisted');
@@ -324,11 +346,7 @@ describe('Uploader', () => {
             upl3.restorePersistedUploads().subscribe({next: (n) => { restored2 = n; }, complete: () => resolve()});
         });
         expect(restored2).toBe(0);
-        await new Promise<void>((resolve) => {
-            const dr = indexedDB.deleteDatabase('speechrecorder');
-            dr.onsuccess = () => resolve();
-            dr.onerror = () => resolve();
-        });
+        await clearPersistedQueue();
     });
 
     it('fires onDone assigned after complete() once all uploads are done (late assignment)', () => {
