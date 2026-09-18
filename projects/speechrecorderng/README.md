@@ -213,12 +213,12 @@ const SPR_CFG: SpeechRecorderConfig = {
   apiEndPoint: 'api/v1',
   branding: {
     promptStage: {src: 'assets/img/visp_slogan_sv.svg', alt: 'VISP — Visible Speech', height: 28},
-    progressFooter: [{src: 'assets/img/sweclarin_logo.png', alt: 'SweCLARIN logo',
-                      href: 'https://www.sweclarin.se/', height: 24}],
     controls: [{src: 'assets/img/bas.png', alt: 'Bavarian Archive for Speech Signals logo',
                 href: 'https://www.bas.uni-muenchen.de/Bas/BasHomeeng.html', height: 26},
                {src: 'assets/img/clarin-d.png', alt: 'CLARIN-D logo',
-                href: 'https://www.clarin-d.net/en/', height: 22}],
+                href: 'https://www.clarin-d.net/en/', height: 28},
+               {src: 'assets/img/sweclarin_logo.png', alt: 'SweCLARIN logo',
+                href: 'https://www.sweclarin.se/', height: 24}],
   },
 };
 ```
@@ -226,12 +226,13 @@ const SPR_CFG: SpeechRecorderConfig = {
 | Slot | Where | Notes |
 |---|---|---|
 | `promptStage` | bottom left of the prompt stage, below the prompt | single mark; costs ~3 px of the auto-fit prompt size at 1568×1334 |
-| `progressFooter` | below the prompt list, sticky at the bottom of the rail | list of marks, centred; hidden below 768 px, like the rail itself |
-| `controls` | right of the transport bar, before the state indicators | both marks from 1100 px up, the first one below that, nothing below 768 px |
+| `progressFooter` | below the prompt list, sticky at the bottom of the rail | list of marks, centred; hidden below 768 px, like the rail itself; unused by the demo |
+| `controls` | right of the transport bar, before the state indicators | the marks step aside as the row narrows: three from 1250 px, two from 1100 px, one above 768 px |
 
-The transport-bar and rail thresholds are measured, not guessed: at 1024 px the right cluster has
-263 px of slack for ~160 px of marks, and the row cannot fit a second mark next to the state
-indicators below 1100 px. Marks never shrink or squash; the slot drops them instead.
+The transport-bar and rail thresholds are measured, not guessed: the three marks of the demo
+measure 300 px together, the right cluster can spend about 250 px at 1100 px, and the row cannot
+fit a second mark next to the state indicators below that — so the third mark steps aside at
+1250 px and the second at 1100 px. Marks never shrink or squash; the slot drops them instead.
 
 * `height` is per mark (the slot default applies when omitted); width follows the aspect
   ratio, which the theme audit verifies against the file.
