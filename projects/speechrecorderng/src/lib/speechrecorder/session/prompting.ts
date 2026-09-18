@@ -35,9 +35,11 @@ import {BreakpointObserver} from "@angular/cdk/layout";
     {{displayText()}}
   `,
     styles: [`:host {
-    padding: 0 0 4px;
-    justify-content: left; /* align horizontal center */
-    align-items: flex-start; /* align vertical  center */
+    /* One line of the caption, positioned by the header. The line height is explicit: the mirror
+       scales this caption to 16-28px, where the line box an engine derives from the font differs
+       from the operator's 13.6px one by more than the pixel the old padding compensated for. */
+    display: block;
+    line-height: 1.3;
     background: transparent;
     color: var(--spr-ink-muted, #4A6288);
     text-align: left;
@@ -494,7 +496,9 @@ export class PromptContainer implements OnInit,AfterContentChecked {
       gap: 16px;
       width: 100%;
       flex: 0 0 auto;
-      min-height: 24px;
+      /* 24px carries the operator's caption; the mirror raises the caption to 16-28px, and the
+         strip then grows with its own line box instead of centring the line against a floor. */
+      min-height: max(24px, calc(var(--spr-type-caption, 13.6px) * 1.3));
       text-align: left;
     }
 
