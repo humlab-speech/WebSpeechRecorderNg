@@ -16,7 +16,7 @@ export const SPR_CFG: SpeechRecorderConfig = {
     promptStage: {
       src: `${IMG}/visp_slogan_sv.svg`,
       alt: 'VISP — Visible Speech',
-      height: 28
+      height: 32
     },
     controlsLeft: [
       {
