@@ -18,14 +18,6 @@ export const SPR_CFG: SpeechRecorderConfig = {
       alt: 'VISP — Visible Speech',
       height: 28
     },
-    progressFooter: [
-      {
-        src: `${IMG}/sweclarin_logo.png`,
-        alt: 'SweCLARIN logo',
-        href: 'https://www.sweclarin.se/',
-        height: 24
-      }
-    ],
     controls: [
       {
         src: `${IMG}/bas.png`,
@@ -38,6 +30,12 @@ export const SPR_CFG: SpeechRecorderConfig = {
         alt: 'CLARIN-D logo',
         href: 'https://www.clarin-d.net/en/',
         height: 28
+      },
+      {
+        src: `${IMG}/sweclarin_logo.png`,
+        alt: 'SweCLARIN logo',
+        href: 'https://www.sweclarin.se/',
+        height: 24
       }
     ]
   }

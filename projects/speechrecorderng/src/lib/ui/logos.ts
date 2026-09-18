@@ -57,7 +57,13 @@ import {SprLogo} from "../spr.config";
 
     /* The transport bar's right cluster is the elastic part of that row. Its budget at
        1100px is about 250px (transport needs 345px, the indicators 40px, the bar 40px of
-       padding), so both marks fit from 1100px up and only the first one fits below. */
+       padding). Three marks measure about 300px, so the third one gives way first, the
+       second below 1100px, and the first is what remains. */
+    @media (max-width: 1249.98px) {
+      :host(.spr-separator) .spr-logo-plate:nth-child(n + 3) {
+        display: none;
+      }
+    }
     @media (max-width: 1099.98px) {
       :host(.spr-separator) .spr-logo-plate:nth-child(n + 2) {
         display: none;
