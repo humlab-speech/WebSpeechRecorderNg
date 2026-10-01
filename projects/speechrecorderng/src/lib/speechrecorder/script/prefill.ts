@@ -115,7 +115,9 @@ export class ScriptPrefillUtil {
 
   private static expandSection(section: Section, sources: Map<string, PrefillSource>, choices: PrefillChoices): Section {
     const groups = section.groups.map((group) => ScriptPrefillUtil.expandGroup(group, sources, choices));
-    return {...section, groups};
+    // A shuffle (if any) was computed against the pre-expansion groups; reset it so the caller's
+    // `randomize` re-derives it from the expanded prompt items.
+    return {...section, groups, _shuffledGroups: []};
   }
 
   private static expandGroup(group: Group, sources: Map<string, PrefillSource>, choices: PrefillChoices): Group {
@@ -140,7 +142,7 @@ export class ScriptPrefillUtil {
         promptItems.push(ScriptPrefillUtil.generatedItem(template, spec, list.entries[n], n + 1));
       }
     }
-    return {...group, promptItems};
+    return {...group, promptItems, _shuffledPromptItems: []};
   }
 
   private static generatedItem(template: Omit<PromptItem, 'prefill' | 'mediaitems' | 'itemcode'>, spec: PromptItemPrefill, entry: string, n: number): PromptItem {

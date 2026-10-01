@@ -130,6 +130,20 @@ describe('ScriptPrefillUtil.expand', () => {
     expect(() => ScriptPrefillUtil.expand(script, new Map([["empty", {lists: []}]]), {})).toThrowError(/holds no lists/);
   });
 
+  it('resets a shuffle that was computed before the expansion', () => {
+    const script = scriptWith(item("6", {
+      source: "words", select: "random", itemcodeFormat: "6.{n}", mediaitems: [{mimetype: "text/plain", text: "{entry}"}]
+    }));
+    // Simulate a script that was already randomized: the shuffle arrays point at the placeholder.
+    const staleItem: PromptItem = {itemcode: "6", mediaitems: []};
+    script.sections[0]._shuffledGroups = [script.sections[0].groups[0]];
+    script.sections[0].groups[0]._shuffledPromptItems = [staleItem];
+    const expanded = ScriptPrefillUtil.expand(script, new Map([["words", words]]), {"6": {source: "words", list: "w1"}});
+    const section = expanded.sections[0];
+    expect(section._shuffledGroups).toEqual([]);
+    expect(section.groups[0]._shuffledPromptItems).toEqual([]);
+  });
+
   it('fills {entry} in text, src and alt of the generated media items', () => {
     const script = scriptWith(item("6", {
       source: "words", select: "random", itemcodeFormat: "6.{n}",
