@@ -401,6 +401,11 @@ Properties (all required unless noted):
  * source: string: Resource id of the source, fetched from the same endpoint as the script
    (`GET {apiEndPoint}script/{source}`), so the source travels with the script bank.
  * select: enum: `random` — draw one of the source's lists per session.
+ * link: string: Optional. Items sharing the same `link` draw the same list number: one random
+   list id is drawn for the group and each item resolves it against its own source. Use it when
+   two sources share a numbering and must stay paired — e.g. the STI word and sentence lists,
+   so a session reads the words and sentences of the same `lista`. Unset: the item draws
+   independently.
  * itemcodeFormat: string: Item code of every generated item; `{n}` is replaced by the 1-based
    position of the entry in the drawn list (`"6.{n}"` yields `6.1` ... `6.N`).
  * mediaitems: array: Media items of every generated item; `{entry}` in `text`, `src` or `alt`
@@ -408,9 +413,12 @@ Properties (all required unless noted):
  * recinstructions: string: Optional operator instruction of every generated item. Not set: the
    placeholder's own instruction is kept.
 
-The source document has this shape (`src/test/script/sti-wordlists.json` and
-`sti-sentencelists.json` ship the STI lists — 330 word lists of 66 entries and 330 sentence
-lists of 10 entries, the list id being the STI list number):
+The source document has this shape (`src/test/script/sti-wordlists.json`,
+`sti-sentencelists.json` and `sti-sentencelists-practice.json` ship the STI lists — 330 word
+lists of 66 entries, 330 sentence lists of the 10 evaluated sentences (`1:`–`10:`) and 330
+practice lists of the 2 try-out sentences (`A:`, `B:`); the list id being the STI list number.
+`dysartri-kortversion-sti.json` links its word, practice and sentence items so one `lista`'s
+words, try-out pair and evaluated sentences are drawn together):
 
 ```json
 {

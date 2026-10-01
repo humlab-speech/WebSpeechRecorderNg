@@ -212,8 +212,36 @@
               "prefill": {
                 "source": "sti-wordlists",
                 "select": "random",
+                "link": "sti-lista",
                 "itemcodeFormat": "6.{n}",
                 "recinstructions": "Läs ordet",
+                "mediaitems": [
+                  {
+                    "mimetype": "text/plain",
+                    "text": "{entry}"
+                  }
+                ]
+              }
+            },
+            {
+              "itemcode": "7p",
+              "prerecdelay": 800,
+              "recduration": 30000,
+              "recinstructions": {
+                "recinstructions": "Instruktion: Läs övningsmeningarna ur STI"
+              },
+              "mediaitems": [
+                {
+                  "mimetype": "text/plain",
+                  "text": "Instruktion: Läs övningsmeningarna ur STI"
+                }
+              ],
+              "prefill": {
+                "source": "sti-sentencelists-practice",
+                "select": "random",
+                "link": "sti-lista",
+                "itemcodeFormat": "7p.{n}",
+                "recinstructions": "Läs övningsmeningen",
                 "mediaitems": [
                   {
                     "mimetype": "text/plain",
@@ -238,6 +266,7 @@
               "prefill": {
                 "source": "sti-sentencelists",
                 "select": "random",
+                "link": "sti-lista",
                 "itemcodeFormat": "7.{n}",
                 "recinstructions": "Läs meningen",
                 "mediaitems": [

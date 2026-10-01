@@ -85,6 +85,12 @@ export interface PromptItemPrefill {
   /** How the list is drawn. Only `"random"` is supported. */
   select: 'random';
   /**
+   * Items sharing the same `link` draw the same list number: one random list id is drawn for
+   * the group and each item resolves it against its own source. Use it when two sources share
+   * a numbering (e.g. STI word and sentence lists) and must stay paired within a session.
+   */
+  link?: string;
+  /**
    * Item code of each generated item; `{n}` is replaced by the 1-based position of the entry
    * in the list (e.g. `"6.{n}"` yields `6.1` … `6.N`).
    */

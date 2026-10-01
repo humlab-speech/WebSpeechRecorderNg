@@ -16,6 +16,26 @@ function wordItem(): PromptItem {
   };
 }
 
+function sentenceItem(): PromptItem {
+  return {
+    itemcode: "7", prerecdelay: 800, recduration: 30000,
+    mediaitems: [{mimetype: "text/plain", text: "placeholder"}],
+    prefill: {source: "sti-sentencelists", select: "random", itemcodeFormat: "7.{n}", mediaitems: [{mimetype: "text/plain", text: "{entry}"}]}
+  };
+}
+
+function linkedWordItem(): PromptItem {
+  const item = wordItem();
+  item.prefill = {...item.prefill!, link: "sti-lista"};
+  return item;
+}
+
+function linkedSentenceItem(): PromptItem {
+  const item = sentenceItem();
+  item.prefill = {...item.prefill!, link: "sti-lista"};
+  return item;
+}
+
 function scriptWith(items: Array<PromptItem>): Script {
   const group: Group = {promptItems: items, _shuffledPromptItems: []};
   const section: Section = {mode: "MANUAL", promptphase: "IDLE", training: false, groups: [group], _shuffledGroups: []};
@@ -24,8 +44,15 @@ function scriptWith(items: Array<PromptItem>): Script {
 
 const SOURCE: PrefillSource = {
   lists: [
-    {id: "l1", entries: ["apa", "bil"]},
-    {id: "l2", entries: ["hus", "sol"]},
+    {id: "l1", entries: ["apa","bil"]},
+    {id: "l2", entries: ["hus","sol"]},
+  ]
+};
+
+const SENTENCE_SOURCE: PrefillSource = {
+  lists: [
+    {id: "l1", entries: ["s1","s2"]},
+    {id: "l2", entries: ["s3","s4"]},
   ]
 };
 
@@ -125,6 +152,52 @@ describe('ScriptPrefillService', () => {
     httpMock.expectOne('script/sti-wordlists').flush('not found', {status: 404, statusText: 'Not Found'});
     expect(error).toBeTruthy();
     expect(completed).toBeFalse();
+  });
+
+  it('draws the same list number for linked items and presents the two sets in order', () => {
+    spyOn(Math, 'random').and.returnValue(0.99);   // floor(0.99 * 2) = 1 -> l2, for both sources
+    const script = scriptWith([linkedWordItem(), linkedSentenceItem()]);
+    let resolved: unknown = null;
+    service.resolve(script, sessionWith(undefined)).subscribe({
+      next: (value) => { resolved = value; }
+    });
+    httpMock.expectOne('script/sti-wordlists').flush(SOURCE);
+    httpMock.expectOne('script/sti-sentencelists').flush(SENTENCE_SOURCE);
+
+    const result = resolved as {script: Script, choices: Record<string, {source: string, list: string}>};
+    expect(result.choices["6"]).toEqual({source: "sti-wordlists", list: "l2"});
+    expect(result.choices["7"]).toEqual({source: "sti-sentencelists", list: "l2"});
+    const items = result.script.sections[0].groups[0].promptItems;
+    expect(items.map((i) => i.itemcode)).toEqual(["6.1", "6.2", "7.1", "7.2"]);
+    expect(items.map((i) => i.mediaitems[0].text)).toEqual(["hus", "sol", "s3", "s4"]);
+  });
+
+  it('pairs a fresh linked sibling with an already-stored choice', () => {
+    const script = scriptWith([linkedWordItem(), linkedSentenceItem()]);
+    let resolved: unknown = null;
+    service.resolve(script, sessionWith({"6": {source: "sti-wordlists", list: "l1"}})).subscribe({
+      next: (value) => { resolved = value; }
+    });
+    httpMock.expectOne('script/sti-wordlists').flush(SOURCE);
+    httpMock.expectOne('script/sti-sentencelists').flush(SENTENCE_SOURCE);
+
+    const result = resolved as {script: Script, choices: Record<string, {source: string, list: string}>};
+    expect(result.choices["6"]).toEqual({source: "sti-wordlists", list: "l1"});
+    expect(result.choices["7"]).toEqual({source: "sti-sentencelists", list: "l1"});
+  });
+
+  it('keeps independently stored choices even when a linked pair disagrees', () => {
+    const script = scriptWith([linkedWordItem(), linkedSentenceItem()]);
+    let resolved: unknown = null;
+    service.resolve(script, sessionWith({"6": {source: "sti-wordlists", list: "l1"}, "7": {source: "sti-sentencelists", list: "l2"}})).subscribe({
+      next: (value) => { resolved = value; }
+    });
+    httpMock.expectOne('script/sti-wordlists').flush(SOURCE);
+    httpMock.expectOne('script/sti-sentencelists').flush(SENTENCE_SOURCE);
+
+    const result = resolved as {script: Script, choices: Record<string, {source: string, list: string}>};
+    expect(result.choices["6"]).toEqual({source: "sti-wordlists", list: "l1"});
+    expect(result.choices["7"]).toEqual({source: "sti-sentencelists", list: "l2"});
   });
 
 });
