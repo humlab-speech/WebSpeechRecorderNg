@@ -409,7 +409,7 @@ Properties (all required unless noted):
    placeholder's own instruction is kept.
 
 The source document has this shape (`src/test/script/sti-wordlists.json` and
-`sti-sentencelists.json` ship the STI lists — 330 word lists of 66 entries and 329 sentence
+`sti-sentencelists.json` ship the STI lists — 330 word lists of 66 entries and 330 sentence
 lists of 10 entries, the list id being the STI list number):
 
 ```json
