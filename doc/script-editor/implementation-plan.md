@@ -706,11 +706,17 @@ existing prefill already covers word/sentence lists and the design's bank become
 
 ## 11. Outstanding work: plans for what is still missing
 
-All five items are closed below within stated limits; what remains is human: the two
-screen-reader passes, the two dry-run observations the driver cannot drive unattended, and the
-data-protection *choice* the pseudonymity switch exists to serve. §11.1 and §11.6 were the
-bookkeeping pair, §11.2 the accessibility audit, §11.5 the dry-run driver, §11.3 the deployment
-rehearsal and §11.4 the pseudonymity capability.
+**This section is the work's record: one numbered entry per change or finding, each carrying the evidence that
+closed it.** They were written as the work happened, so the numbering is chronological rather than thematic, and an
+entry is not rewritten when it turns out to be wrong — the correction is its own entry and the earlier one is
+annotated (§11.128, §11.140 and §11.146 are three of mine). The status is the word at the end of the heading:
+**Done** and **Fixed** for changes, **Verified**, **Checked** and **Built** for measurements and new checks,
+**Recorded** for things left deliberately, and a few one-offs that say what they are (`Withdrawn`, `Investigated`,
+`Capability done; the policy answer is the owner's`). The last entry, under `Summary`, is the state of what remains.
+
+It began as six items — §11.1 the FILES fixtures the editor was missing, §11.2 the screen-reader passes, §11.3 the
+deployment rehearsal, §11.4 the pseudonymity capability, §11.5 the dry-run driver, §11.6 the bookkeeping — and
+everything since is what those turned up.
 
 ### 11.1 FILES-mode fixtures the editor asks for and the tree does not have — **Done**
 
@@ -4583,6 +4589,26 @@ and each listed in the pull request's description:
 (§11.132–§11.147); the documented invariants — the script model (§11.142), the version handshake (§11.143), the API
 triad (§11.140–§11.141), the check catalogue, routes against audits — are each held by something that runs; and
 the observations are measured, with the five sweeps that measured them wrongly recorded alongside (§11.146).
+
+### 11.160 §11's own opening, which described six entries — **Done**
+
+The largest section of the diff — and the one a reader reaches last — opened by describing itself as *"all five items
+… §11.1 and §11.6 were the bookkeeping pair, §11.2 the accessibility audit, §11.5 the dry-run driver, §11.3 the
+deployment rehearsal and §11.4 the pseudonymity capability"*. It was written when §11 **had six entries**. Those six
+are still its first six, so the paragraph was not wrong about them; it was wrong as a description of the section, and
+it pointed a reader at a table of contents that had long stopped being one. It also mis-summarised §11.1, which is
+the FILES fixtures rather than a bookkeeping item.
+
+**Replaced with what a reader needs at that point**: what the section is (one entry per change or finding, each with
+the evidence that closed it), that the entries are chronological and never rewritten — the correction becomes its own
+entry and the earlier one is annotated, with §11.128, §11.140 and §11.146 as three of mine — what the status words
+mean, and that the last entry is the summary. The original six keep one sentence, because they are the section's
+origin and its first six headings are still theirs.
+
+**Deliberately no tallies.** The replacement names the status vocabulary and not how many entries carry each word —
+measured as Done 112, Fixed 28, Verified 5, Checked 3, Built 2, Recorded 4 — because counts in prose are exactly what
+this pass spent eight rounds finding stale (§11.154–§11.156). A reader wanting the state has §11.159; a reader wanting
+a count can grep the headings in one line.
 
 
 
