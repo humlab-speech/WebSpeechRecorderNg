@@ -1,0 +1,20 @@
+# Planted for bin/route_check.mjs, alongside routes.ts: the audit list, wrapped the way the real workflow
+# wraps it. `planted/audited` is routed and audited in both schemes; `planted/phantom` is audited and no route
+# renders it. The dark twins and the theme twins exist so the two cross-scheme and cross-tool rules stay quiet
+# and only the two route/audit mismatches are reported.
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Audit the planted routes
+        run: |
+          node bin/theme_audit.mjs --url http://127.0.0.1:4300/project/Demo1/planted/audited --viewports 1366x768
+          node bin/a11y_audit.mjs --url http://127.0.0.1:4300/project/Demo1/planted/audited --viewports 1366x768
+          node bin/theme_audit.mjs --url http://127.0.0.1:4300/project/Demo1/planted/audited \
+            --viewports 1366x768 --prepare bin/audit/use-dark-scheme.js
+          node bin/a11y_audit.mjs --url http://127.0.0.1:4300/project/Demo1/planted/audited \
+            --viewports 1366x768 --prepare bin/audit/use-dark-scheme.js
+          node bin/theme_audit.mjs --url http://127.0.0.1:4300/project/Demo1/planted/phantom \
+            --viewports 1366x768 --prepare bin/audit/use-dark-scheme.js
+          node bin/a11y_audit.mjs --url http://127.0.0.1:4300/project/Demo1/planted/phantom \
+            --viewports 1366x768 --prepare bin/audit/use-dark-scheme.js

@@ -160,6 +160,23 @@ jobs:
       # pointing at a URL that renders nothing to find faults in. Static, so it needs no browser.
       - name: Route coverage
         run: node bin/route_check.mjs
+      # And that check is held to biting: the fixture pair exposes a screen no audit visits and visits a URL no
+      # route renders, so both directions must be reported — and the legitimately audited screen must not be.
+      - name: Route coverage sensitivity
+        run: |
+          route_out=$(node bin/route_check.mjs --routes bin/route_fixtures/routes.ts --workflow bin/route_fixtures/workflow.yml 2>&1) && route_status=0 || route_status=$?
+          if [ "${route_status:-0}" = "0" ]; then
+            echo "the route check passed a pair with a gap in both directions"; echo "$route_out"; exit 1
+          fi
+          for expected in 'the router exposes /project/:p/planted/unrouted and no audit visits it' \
+            'an audit visits /project/Demo1/planted/phantom and no route renders it'; do
+            echo "$route_out" | grep -qF "$expected" || {
+              echo "the route check did not name: $expected"; echo "$route_out"; exit 1; }
+          done
+          if echo "$route_out" | grep -qF 'planted/audited'; then
+            echo "the route check complained about the legitimately audited screen"; echo "$route_out"; exit 1
+          fi
+          echo "the route check reported both gaps and left the audited screen alone"
       # One step: the dev server and the browser must stay alive until the audits have run
       # (a background process does not survive the end of the step that started it).
       - name: Audit the editor routes

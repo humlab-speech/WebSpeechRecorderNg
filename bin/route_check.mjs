@@ -12,12 +12,21 @@
  * The router is the ground truth for what exists; the audit lists are hand-written. This compares
  * the two, statically, without a browser.
  *
- * Usage: node bin/route_check.mjs
+ * Usage: node bin/route_check.mjs [--routes <file>] [--workflow <file>]
+ *
+ * The two paths exist so the check can be shown to bite: `bin/route_fixtures/` holds a router that exposes a
+ * screen no audit visits and an audit list that visits a URL no route renders, and the audit job's sensitivity
+ * step requires both to be reported — and that the legitimately audited screen is not.
  */
 import {readFileSync} from 'node:fs';
 
-const ROUTES = 'projects/spr-script-editor/src/app/app.routes.ts';
-const WORKFLOW = '.github/workflows/tests.yml';
+const args = process.argv.slice(2);
+const opt = (name, fallback) => {
+  const i = args.indexOf('--' + name);
+  return i >= 0 && args[i + 1] ? args[i + 1] : fallback;
+};
+const ROUTES = opt('routes', 'projects/spr-script-editor/src/app/app.routes.ts');
+const WORKFLOW = opt('workflow', '.github/workflows/tests.yml');
 const EDITOR_ORIGIN = 'http://127.0.0.1:4300';
 
 // --- what the router exposes ---------------------------------------------------------------

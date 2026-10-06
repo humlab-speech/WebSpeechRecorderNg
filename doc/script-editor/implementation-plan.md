@@ -3962,5 +3962,26 @@ tree's figure.
 
 **Still only run, not proved to bite**: `route_check` and `package_check`.
 
+### 11.135 The route check, held to biting — **Done, third of the four**
+
+`bin/route_check.mjs` gained `--routes` and `--workflow` (defaults unchanged), and `bin/route_fixtures/` plants a
+router and an audit list that disagree in **both** directions, which is the check's whole point: `routes.ts`
+exposes `/project/:p/planted/unrouted` that no audit visits, and the workflow audits
+`/project/Demo1/planted/phantom` that no route renders.
+
+**The fixture also has to leave the check's other two rules quiet**, or the sensitivity run would fail for reasons
+that have nothing to do with the routes and would prove nothing: the light/dark comparison and the theme/a11y
+comparison. So the legitimately audited screen carries dark twins for both tools, and the phantom appears only in
+dark lines — counted in neither comparison. The result is exactly the two intended problems, measured.
+
+The audit job's step requires both messages **and** that the audited screen is mentioned nowhere in the output: a
+check that flagged every route would pass a "does it fail" assertion and fail this one.
+
+**Verified**: the step as written names both gaps and leaves the audited screen alone; the real pair reports 8
+routed screens, all exercised by 9 audited URLs; `dead_exports` at 411; `workflow_check` six jobs; `editor_lint`
+its usual counts; the fixture directory is in no build.
+
+**Still only run, not proved to bite**: `package_check`.
+
 
 
