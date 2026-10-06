@@ -4322,5 +4322,32 @@ That last section is the one worth having: a reviewer can see what the large tes
 taking the size of the diff as evidence that it was worth it. The numbers in the body were taken from the run just
 before it was written, and match the pull request's own totals (355 files, +59,124/-188).
 
+### 11.150 The real CI run, and the first thing it caught that no local run could — **Verified, one fix**
+
+Every job in this register had been run locally, from the workflow's own text, and §11.144 recorded that. What no
+local run can show is GitHub's own view of it, and until §11.126's push nothing triggered it: `tests.yml` runs
+`on: push: branches: [master]` and `on: pull_request`, so the **pull request** is what starts it.
+
+**All six jobs pass on GitHub** — Server (node --test), Library (karma), Editor (karma + build), Theme audit (editor
+routes), the recorder dry run and the detail view — on the run at the tip of the branch and on the two before it.
+That closes the verification chain this register has been building: the jobs run locally, and they run there.
+
+**And it caught something local runs cannot.** Each of the six jobs carried: *"Node.js 20 is deprecated. The
+following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4,
+actions/setup-node@v4."* Twelve pins, all of them mine, and a warning that becomes a failure when the shim goes.
+Bumped to **v7** — the current major for both, and the version the fork's own `codeql.yml` already uses — and
+verified by *the run the push triggered* rather than by release notes: **zero occurrences** of the warning, all six
+jobs still green.
+
+**Two checks stay red, and neither is this branch's.** `CodeQL` (fails in 6 s) and `scan-pr / scan-pr` come from
+`codeql.yml` and `osv-scanner.yml`; this branch changes **only `tests.yml`** among the workflow files, and both of
+those are unchanged from `origin/master` — so they fail for every pull request to the fork, this one included. The
+OSV cause is specific and recorded: its reusable workflow, pinned at a `google/osv-scanner-action` revision, still
+calls `actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32`, which GitHub now rejects outright.
+
+**Recorded for the maintainer rather than fixed here**: repairing the fork's security workflows is a change to its
+tooling and not to the editor, and the OSV failure is inside a third-party reusable workflow. Both are stated
+plainly in the PR's checks, where a reviewer will meet them.
+
 
 
