@@ -16,11 +16,22 @@
  *      one of them.
  *
  * Usage: node bin/package_check.mjs   (after `npm run build_module`)
+ *
+ * `--package-dir <dir>` points the check at another built package, which exists so it can be shown to bite:
+ * `bin/package_fixtures/` is a package whose manifest promises files it does not contain, whose bundle imports
+ * a package it does not declare, and whose licence is absent from the manifest and differs from the
+ * repository's. The library job's sensitivity step requires every one of those to be reported — and the
+ * declared import not to be.
  */
 import {existsSync, readFileSync, readdirSync} from 'node:fs';
 import {join} from 'node:path';
 
-const PACKAGE_DIR = 'dist/speechrecorderng';
+const args = process.argv.slice(2);
+const opt = (name, fallback) => {
+  const i = args.indexOf('--' + name);
+  return i >= 0 && args[i + 1] ? args[i + 1] : fallback;
+};
+const PACKAGE_DIR = opt('package-dir', 'dist/speechrecorderng');
 const problems = [];
 
 if (!existsSync(PACKAGE_DIR)) {

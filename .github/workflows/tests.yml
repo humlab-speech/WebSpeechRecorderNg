@@ -91,6 +91,25 @@ jobs:
       # every external import in the shipped bundle is a declared dependency or peer (plan §11.44).
       - name: Package shape
         run: node bin/package_check.mjs
+      # And the packaging invariants are held to biting: bin/package_fixtures is a package whose manifest
+      # promises files it does not contain, whose bundle imports a package it does not declare, and which
+      # declares no licence and ships one that differs from the repository's. Every fault must be reported —
+      # and the import the manifest does declare must not be.
+      - name: Package shape sensitivity
+        run: |
+          pack_out=$(node bin/package_check.mjs --package-dir bin/package_fixtures 2>&1) && pack_status=0 || pack_status=$?
+          if [ "${pack_status:-0}" = "0" ]; then
+            echo "the package check passed a package with planted faults"; echo "$pack_out"; exit 1
+          fi
+          for expected in 'the manifest points' 'the shipped bundle imports rxjs, which the manifest does not declare' \
+            'the manifest declares no license' "the package's LICENSE differs from the repository's LICENSE.txt"; do
+            echo "$pack_out" | grep -qF "$expected" || {
+              echo "the package check did not name: $expected"; echo "$pack_out"; exit 1; }
+          done
+          if echo "$pack_out" | grep -qF 'imports tslib'; then
+            echo "the package check reported a package the manifest declares"; echo "$pack_out"; exit 1
+          fi
+          echo "the package check reported every planted fault and left the declared import alone"
       # Every key of en.json in every locale, every SPR_STRINGS key overridable, every key the source
       # references present, and the committed strings identical to what the generator produces — a
       # check that existed but that nothing ran (plan §11.25).

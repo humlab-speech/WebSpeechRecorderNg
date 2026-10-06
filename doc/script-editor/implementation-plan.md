@@ -3907,9 +3907,9 @@ build, `angular.json` and the tsconfigs do not name the directory; `dead_exports
 still reports six jobs.
 
 **What is still only run, not proved to bite**: `route_check`, `dead_exports`, `workflow_check` and
-`package_check` — of which §11.133 closed `workflow_check` in the same pass. Each of the rest would need a
-planted *tree* or *package* rather than a planted file, which is a larger change than this pass; recorded here so
-the gap is visible rather than assumed away.
+`package_check` — all four closed in the same pass (§11.133 workflow_check, §11.134 dead_exports, §11.135
+route_check, §11.136 package_check). Each needed a planted *tree* or *package* rather than a planted file, which
+is why they are separate entries.
 
 ### 11.133 The workflow check, held to biting — **Done** (§11.132, first of the four)
 
@@ -3982,6 +3982,28 @@ routed screens, all exercised by 9 audited URLs; `dead_exports` at 411; `workflo
 its usual counts; the fixture directory is in no build.
 
 **Still only run, not proved to bite**: `package_check`.
+
+### 11.136 The package check, held to biting — **Done, fourth of the four, and the set is closed**
+
+`bin/package_check.mjs` gained `--package-dir` (default unchanged), and `bin/package_fixtures/` is a built package
+carrying every fault that check guards: a manifest promising `./planted.d.ts` and the `./theme` subpath that the
+package does not contain (three promised paths, so three problems), a bundle importing `rxjs` that nothing
+declares, no `license` field, and a `LICENSE` whose text differs from the repository's. Seven problems, one per
+promised path plus the four rules.
+
+**The declared import is there on purpose.** The fixture bundle also imports `tslib`, which its manifest declares,
+and the step fails if the check mentions it — so a check that reported *every* import fails exactly where one that
+reported none does. Every fixture in this pass has that shape: a fault it must name and a neighbour it must not.
+
+**Verified**: the step as written reports all four rule families and leaves `tslib` alone; the real built package
+still passes (8 promised paths, 7 declared imports, MIT); `workflow_check` six jobs, `dead_exports` 411,
+`route_check` 8 screens, `editor_lint` its counts, and `node --test server/*.test.mjs` all still pass; none of the
+five fixture directories is named by any build configuration.
+
+**§11.132's gap is closed, and that is the point of this quartet.** Every gate in `bin/` is now held to biting:
+`editor_lint`, `workflow_check`, `dead_exports`, `route_check` and `package_check` each have a planted fixture and
+a CI step that requires the specific message and fails closed when its status is unset — where before §11.133 the
+audits alone were proved, and five gates would have looked identical whether they detected anything or not.
 
 
 

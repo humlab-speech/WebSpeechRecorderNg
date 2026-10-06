@@ -1,0 +1,2 @@
+Planted for bin/package_check.mjs: a licence file whose text differs from the repository's LICENSE.txt, which is
+the third thing the check guards — two copies of the notice are two chances to edit one of them.
