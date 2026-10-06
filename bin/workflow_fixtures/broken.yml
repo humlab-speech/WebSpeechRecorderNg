@@ -1,0 +1,29 @@
+# Planted for bin/workflow_check.mjs: the shape of a workflow GitHub would not run. One violation per
+# rule the check states, and the server job's sensitivity step requires every message below. There is no
+# top-level `name:` or `on:` here, on purpose.
+jobs:
+  planted-no-runs-on:
+    steps:
+      - run: echo ok
+  planted-unknown-job-key:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo ok
+    image: ubuntu
+  planted-no-steps:
+    runs-on: ubuntu-latest
+  planted-run-without-a-command:
+    runs-on: ubuntu-latest
+    steps:
+      - name: a run block with no command under it
+        run: |
+  planted-empty-step:
+    runs-on: ubuntu-latest
+    steps:
+      - 
+  planted-tab:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "a literal tab follows, which YAML forbids in the file's structure"
+          	echo "this line is indented with a tab"

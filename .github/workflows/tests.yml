@@ -34,6 +34,22 @@ jobs:
       # (bin/workflow_check.mjs).
       - name: Workflow structure
         run: node bin/workflow_check.mjs --verbose
+      # And the shape check is held to biting: bin/workflow_fixtures/broken.yml violates every rule the
+      # check states, one per rule, so a guard that stopped detecting fails here instead of passing the
+      # clean file above. This is the check whose silence would turn every other job off.
+      - name: Workflow structure sensitivity
+        run: |
+          wf_out=$(node bin/workflow_check.mjs --path bin/workflow_fixtures/broken.yml 2>&1) && wf_status=0 || wf_status=$?
+          if [ "${wf_status:-0}" = "0" ]; then
+            echo "the workflow check passed a file with planted violations"; echo "$wf_out"; exit 1
+          fi
+          for expected in 'contains a tab, which YAML forbids' 'no top-level `name:`' 'no top-level `on:`' \
+            'no `runs-on:`' 'is neither a job-level key this check knows' 'no steps' \
+            'a `run: |` block has no command' 'an empty step'; do
+            echo "$wf_out" | grep -qF "$expected" || {
+              echo "the workflow check did not name: $expected"; echo "$wf_out"; exit 1; }
+          done
+          echo "the workflow check named every planted violation"
 
   library:
     name: Library (karma)

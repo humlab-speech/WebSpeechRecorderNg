@@ -3907,8 +3907,32 @@ build, `angular.json` and the tsconfigs do not name the directory; `dead_exports
 still reports six jobs.
 
 **What is still only run, not proved to bite**: `route_check`, `dead_exports`, `workflow_check` and
-`package_check`. Each would need a planted *tree* or *package* rather than a planted file, which is a larger
-change than this pass; recorded here so the gap is visible rather than assumed away.
+`package_check` — of which §11.133 closed `workflow_check` in the same pass. Each of the rest would need a
+planted *tree* or *package* rather than a planted file, which is a larger change than this pass; recorded here so
+the gap is visible rather than assumed away.
+
+### 11.133 The workflow check, held to biting — **Done** (§11.132, first of the four)
+
+`workflow_check` came first of the four because its silence would be the most total: it guards the file every
+other job runs from, and its own comment says that a job appended by hand with one wrong indent turns every
+check in the repository off without any of them reporting it.
+
+`bin/workflow_check.mjs` gained `--path` (default unchanged), and `bin/workflow_fixtures/broken.yml` violates
+each of the eight rules it states: a tab, no top-level `name:`, no top-level `on:`, a job without `runs-on:`, a
+four-space job key it does not know, a job with no steps, a `run: |` with no command, and an empty step.
+
+**Two of the eight did not fire at first, and both were mine rather than the checker's.** The run block was
+written on the step line — `- run: |` — where the check looks for it at eight spaces under the step, and the
+"tab" was a sentence describing a tab rather than a tab. Both fixed by writing the fixture the way a workflow
+writes itself.
+
+The server job now runs a sensitivity step after the shape check: the check must exit non-zero on the fixture and
+name each message with `grep -qF`, and an unset status fails closed (`:-0`, §11.115's lesson).
+
+**Verified**: the step as written names all eight; the real workflow passes with six jobs; `dead_exports` is
+clean at 708; `route_check` reports 8 screens and 9 audited URLs; the fixture directory is in no build.
+
+**Still only run, not proved to bite**: `route_check`, `dead_exports` and `package_check`.
 
 
 

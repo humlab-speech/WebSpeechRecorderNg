@@ -17,12 +17,21 @@
  *   - each step a `- uses:` or `- run:` (or a `- name:` that leads to one), never empty;
  *   - each `run:` block at least one non-empty command line.
  *
- * Usage: node bin/workflow_check.mjs [--verbose]
+ * Usage: node bin/workflow_check.mjs [--verbose] [--path <file>]
+ *
+ * `--path` exists so the check can be shown to bite: `bin/workflow_fixtures/broken.yml` is a file with
+ * one violation per rule above, and the server job's sensitivity step requires every message from it. A
+ * guard that stopped detecting would otherwise pass exactly like a clean tree.
  */
 import {readFileSync} from 'node:fs';
 
-const PATH = '.github/workflows/tests.yml';
-const VERBOSE = process.argv.includes('--verbose');
+const args = process.argv.slice(2);
+const opt = (name, fallback) => {
+  const i = args.indexOf('--' + name);
+  return i >= 0 && args[i + 1] ? args[i + 1] : fallback;
+};
+const PATH = opt('path', '.github/workflows/tests.yml');
+const VERBOSE = args.includes('--verbose');
 const lines = readFileSync(PATH, 'utf8').split('\n');
 const problems = [];
 const jobNames = [];
