@@ -215,6 +215,21 @@ jobs:
             echo "$a11y_out" | grep -qF "$expected" || {
               echo "the accessibility audit did not name: $expected"; echo "$a11y_out"; exit 1; }
           done
+          # Angular's own development-build hints are excluded from the console rule (a11y_audit.mjs's
+          # IGNORED_CONSOLE, §11.127): they arrive asynchronously, so catching one was timing — one run
+          # in four on the recorder's error-dialog state — and they say nothing about the faults the
+          # rule is for. Both messages are planted together, so one run proves the rule still bites and
+          # does not bite on the hint.
+          hint_out=$(node bin/a11y_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script \
+            --prepare bin/audit/plant-angular-hint.js --viewports 1366x768 2>&1) && hint_status=0 || hint_status=$?
+          if [ "${hint_status:-0}" = "0" ]; then
+            echo "the accessibility audit passed a planted console warning"; echo "$hint_out"; exit 1
+          fi
+          echo "$hint_out" | grep -qF 'planted-genuine-warning' || {
+            echo "the accessibility audit did not report the planted console warning"; echo "$hint_out"; exit 1; }
+          if echo "$hint_out" | grep -qF 'NG0913'; then
+            echo "the accessibility audit judged Angular's development-build hint"; echo "$hint_out"; exit 1
+          fi
           # And the two theme rules a page of the application cannot show: with no token layer at all
           # the audit must say so, and the Material pins must be reported as unfollowed rather than
           # skipped. A page that is not the application is exactly that state, so this needs no

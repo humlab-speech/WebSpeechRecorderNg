@@ -3759,5 +3759,40 @@ the editor.
 **Corrected**: #39 closed with that reason, and reopened against the fork's own `master` as humlab-speech#1 —
 `isCrossRepository: false`, 335 files, +57,952/-188, draft. Draft because §11.58 is still a maintainer decision.
 
+### 11.127 A gate that failed one run in four: Angular's own dev hint — **Fixed**
+
+Verifying the six CI jobs locally — the PR claims they pass — turned up one failure. The detail-view job's
+error-dialog accessibility run reported `console: WARNING NG0913: An image with src .../bas.png is the Largest
+Contentful Paint (LCP) element but was given a "loading" value of lazy`. Three further runs of the same command
+passed, so it was timing rather than a fault: Angular's development build emits NG-coded performance advice
+*asynchronously*, after the audit's settle window, and whether a run catches one is a race. One run in four is a
+flaky gate, which is worse than no gate: it fails for a reason that has nothing to do with what was changed.
+
+The rule's own stated purpose settles the fix. Rule 16 is "the route loads without console errors, warnings or
+uncaught exceptions" — for a broken binding, a missing asset or an unhandled rejection. Advice about
+image-loading priority is none of those, and it comes from the framework, not from the page.
+
+So `bin/a11y_audit.mjs` names it: `IGNORED_CONSOLE = [/NG0913\b/]`, applied on both channels the console arrives
+through (`Runtime.consoleAPICalled` and `Log.entryAdded`), with the measurement written above the constant and
+the exclusion in the header's list of what rule 16 judges.
+
+**Both directions proven in one run.** `bin/audit/plant-angular-hint.js` logs the hint *and* a genuine warning;
+the audit exits non-zero, naming only the genuine one — `NG0913` appears nowhere in its output. Verified also
+that the hint alone passes, that the unplanted route passes, and that `plant-violations.js` still fails.
+
+**A permanent check** carries it in the audit job, in the same shape as the planted-violation assertions: the run
+must exit non-zero, must report `planted-genuine-warning`, and must not report `NG0913`. The workflow structure
+check is unaffected — six jobs, 412 lines.
+
+**The rest of the six jobs, verified on this branch.** Server: `node --test server/*.test.mjs`. Library: 148 pass,
+`ng build speechrecorderng` regenerating `spr.module.version.ts` identically to what is committed, and
+`package_check` (8 promised paths, 7 declared packages, MIT). Editor: 488 pass, house-rule lint, production build
+at 499.79 kB initial. The editor's routes through the theme and accessibility audits in light and dark. The
+recorder's screens through both audits at 1366x768 and 390x844, light and dark. The layout probe (4 measurements
+within 1px) and its three failure modes. The dry-run driver end to end: 7 items, the bank items D001/D002
+resolved by the server from the draw rule, prompt clips played, the headphone reminder shown, session COMPLETED.
+The detail view's overlay audits, and the tolerance-0 case failing with "outside tolerance" as the workflow
+asserts.
+
 
 
