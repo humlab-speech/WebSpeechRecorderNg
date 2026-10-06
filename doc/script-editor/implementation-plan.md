@@ -364,6 +364,14 @@ release path, and §11.70 drove its three paths by hand for that reason.
 
 ## 6. PR slicing (suggested order)
 
+**How it actually landed: one branch, one pull request** — 295 commits — with §11 as its record. The slices below
+are therefore a way to read the product half of the diff in parts rather than a list of commits that were made
+separately. They were also written before the verification layer existed, and **none of it appears among them**: the
+twenty slices cover the library, the recorder, the editor and the server, while slices 18 and 20 are the closest.
+A twenty-first belongs to that layer — the fifteen scripts under `bin/`, the six fixture trees that prove nine of
+them bite (§11.132–§11.147), `server/client-paths.test.mjs`, and this plan with its register — which is 40 of the
+diff's 355 files under `bin/` and 20 under `doc/`.
+
 1. `feat(lib): script model additions (playback, draw, banks, script metadata, exported utils)` — L1.
 2. `test(lib): characterisation tests for timing, prompt visibility and playback sequencing` — L2 part 1.
 3. `refactor(lib): extract promptVisibleAt/effectiveTiming/phase transitions` — L2 part 2, no behaviour change.
@@ -4494,6 +4502,25 @@ verifications ("Verified: library suite **136 pass**" at the moment that row lan
 parenthetical annotations would have been the noisy way to say that; one paragraph at §4's head says it for the
 whole section: the counts inside these rows are the numbers at the moment each row landed, and the tip's counts are
 in §11.144 and the README's §Testing.
+
+### 11.156 §6's PR slicing, and the layer that grew around it — **Done**
+
+§6 proposes twenty slices "(suggested order)" for the six pull requests it imagined. The branch landed as **one** —
+295 commits, 355 files, one pull request — so the list reads as a plan nobody followed until a reader asks what it
+is *for*. What it is good for is a **review map**: the slices line up with the product half of the diff.
+
+**And it was written before the verification layer existed**, which measured as *nothing* inside it. `orphan_check`,
+`client-paths`, `editor_lint`, all six fixture trees and this plan itself appear **zero** times among the twenty
+slices, while `bin/` is 40 of the diff's 355 files and `doc/` another 20 — so a reviewer reading by slices would
+find a tenth of the diff unassigned.
+
+**The section now says both**: how it landed, and that a twenty-first slice belongs to that layer — the fifteen
+scripts, the six fixture trees that prove nine of them bite (§11.132–§11.147), the client-path test, and the
+register. That is the first of these front-matter notes to *add a tool* rather than correct a claim: a map for a
+355-file review that admits what it does not cover.
+
+**Checked before writing**: the artifact names were grepped out of §6's text (all zero) and the diff counted by
+area, rather than assuming a section written at the start had been kept up.
 
 
 
