@@ -4522,5 +4522,24 @@ register. That is the first of these front-matter notes to *add a tool* rather t
 **Checked before writing**: the artifact names were grepped out of §6's text (all zero) and the diff counted by
 area, rather than assuming a section written at the start had been kept up.
 
+### 11.157 §9's index, §7's mitigations and the label citations — **Three mechanical checks, all clean**
+
+The plan's front matter holds three structures whose defects are mechanical rather than editorial, and an index rots
+without saying so. Each was checked with a script, and the result is recorded so it is not re-derived.
+
+- **§9's findings index resolves.** All **29** rows' "Addressed by" cells were parsed for decision labels (`D-x`),
+  task labels (`L…`, `E…`, `V…`, `S…`, `R…`) and milestones (`M0`–`M5`), and every token exists somewhere the plan
+  defines it: 23 decisions, 27 task labels, 6 milestones, **zero dangling targets**.
+- **§7's risk mitigations name things that exist.** All **32** risk rows were scanned for the artifacts their
+  mitigations promise — files, scripts, directories — and **none is missing**.
+- **No citation dangles the other way.** Every `A…`/`B…`/`C…`/`D…` label cited in §2, §4 or §10 appears in the
+  index. Ten index rows (A3, B2, B6, C1, C2, C3, C5, C6, D1, D10) are cited by no other section, which is what an
+  index is for rather than a gap: each of those rows' own targets resolve, and what the register adds — whether the
+  amendment was *made* — is §11's subject, not the index's.
+
+**What these checks do and do not establish.** They verify that the plan's labels resolve and its named paths
+exist; they say nothing about whether the work behind each label was done. That distinction is why §11 exists and
+why §11.123 measured decision coverage by hand rather than by citation.
+
 
 
