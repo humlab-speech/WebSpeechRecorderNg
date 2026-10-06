@@ -679,6 +679,29 @@ explicit. An item with neither behaves as `WITH_PROMPT` with `autoplay: true` an
 above. On a `type: 'nonrecording'` item only `WITH_PROMPT`, `BEFORE` and `ONDEMAND` have a phase to attach to; the
 item's `duration` then governs when the next item starts, not the clip.
 
+#### Scripts that need a newer recorder
+
+A script can declare what it needs. `Script.minRecorderVersion` is stamped by an editor, and
+`minRecorderVersionFor(script)` computes the floor from the features a script uses — exported together with
+`FEATURE_VERSIONS`, `featuresUsed`, `compareVersions` and `supportsRecorderVersion`. The player is gated on it when
+a session loads: a script whose floor is newer than the build is **refused** rather than run with a feature silently
+missing, and the status line names both versions (`spr.status.scriptVersionTooOld`). A receiver re-checks the same
+floor when it creates a session, so a deployment refuses too.
+
+The alternative is why the floor exists: a script that uses `playback` loaded by a recorder that predates it would
+run **without the clip** and report nothing. `FEATURE_VERSIONS.playback` is the version of the build that implements
+it, so a script that uses it is refused by anything older.
+
+#### The timing the recorder and an editor share
+
+The arithmetic behind an item's clocks is exported, so a tool can show the same timeline the recorder runs:
+`effectiveTiming(item)` returns the pre-recording delay, the recording length (null when the item runs until it is
+stopped), the post-recording delay, the item's maximum window, when its prompt sound plays and the sound itself,
+with every fallback above already applied. `ITEM_PHASES` and `nextPhase` are the item's phase sequence;
+`playbackPlan` fills a plan's defaults, `playbackStart` and `playbackTiming` are the placement decision, and
+`replayAllowed` is the replay rule — each of them on its own, so they can be tested without a session.
+`DEFAULT_PRE_REC_DELAY` (1000 ms) and `DEFAULT_POST_REC_DELAY` (500 ms) are exported with them.
+
 ### Recording file
 
 Cavox stores the recording in browser memory first. The recordings are then uploaded to the server as binary encoded WAVE files.

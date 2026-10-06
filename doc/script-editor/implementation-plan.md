@@ -4665,5 +4665,30 @@ statement of the semantics — and the five placement names in the new section w
 afterwards. Verified as well: the new table is two columns throughout, the pointer names a section that exists, and
 both READMEs' relative links resolve.
 
+### 11.164 The exported API the package README did not name — **Done**
+
+The same lens as §11.163, applied to the rest of what this work added to the library's public surface. The diff to
+`public-api.ts` adds three groups: the model types with `PromptDocUtil`, `MediaitemUtil` and `PromptitemUtil`; the
+phase and timing API (`ITEM_PHASES`, `nextPhase`, `effectiveTiming`, `playbackPlan`, `playbackStart`,
+`playbackTiming`, `replayAllowed`, `DEFAULT_PRE_REC_DELAY`, `DEFAULT_POST_REC_DELAY` and their types); and the
+version gate (`FEATURE_VERSIONS`, `compareVersions`, `featuresUsed`, `minRecorderVersionFor`,
+`supportsRecorderVersion`). **Neither README mentioned `minRecorderVersion` at all.**
+
+**The version gate is the one an integrator meets.** A session whose script needs a newer recorder is **refused**
+rather than run with a feature silently missing, the status line names both versions
+(`spr.status.scriptVersionTooOld`), and a receiver re-checks the same floor when it creates the session. Undocumented,
+that refusal arrives as a mystery — and it is the *guard* against exactly the silent difference the whole feature
+exists to prevent.
+
+**Two subsections added to the library README.** `#### Scripts that need a newer recorder`: the field, the computed
+floor, the exports, the load-time refusal and the receiver's re-check, with the silent alternative stated as the
+reason the floor exists — which is `feature-versions.ts`'s own doc comment rather than my paraphrase. And
+`#### The timing the recorder and an editor share`: what `effectiveTiming` returns, `ITEM_PHASES` and `nextPhase`,
+and the placement helpers, each usable on its own without a session.
+
+**Every symbol named was then checked against `public-api.ts`** — sixteen of them, all exported, or on `Script`, or
+the status key the component uses. A doc naming a symbol the package does not export is the exact failure §11.161
+was, and it is cheap to rule out.
+
 
 
