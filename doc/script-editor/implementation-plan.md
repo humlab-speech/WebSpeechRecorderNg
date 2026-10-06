@@ -4784,6 +4784,13 @@ directory because the workflow names it, the two checks agreeing without either 
 
 The README's gate list gained the bullet, placed so "every gate above is proved to bite" covers it.
 
+**And it ran there.** The run at the tip of the branch — the first produced by the ready-for-review event and the
+pushes after it — reports all six jobs passing, and the server job's own log carries both new steps:
+`Orphan check passed: 45 file(s) under bin, every one referenced` and `Docs check passed: all 20 flag(s) of
+server/server.mjs are named in README.md's "The receiver's options"`, with the sensitivity step closing on
+`the docs check reported both directions and nothing else`. §11.150's lesson held — a step run locally from the
+workflow's text is not one the runner has run — which is why this is quoted from the log rather than the local run.
+
 ### 11.169 ui-spec's route table against the router — **Checked, and deliberately not a gate**
 
 The same shape as §11.168 — a documented list against the code's list — and the obvious next one, since `ui-spec.md`
