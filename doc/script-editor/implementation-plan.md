@@ -4121,5 +4121,31 @@ today", which was already two behind before these three; it now says 65 and desc
 bullet. `dead_exports`, `editor_lint` and `workflow_check` are unaffected — the new file is a spec by name, so the
 first skips it.
 
+### 11.142 The model the editor must not copy — **Done**
+
+`data-model.md` opens with the invariant: the script model has a single definition in the library, and "the editor
+must not keep its own copy". Nothing checked it. A copy is the shape a silent divergence takes — the editor
+validating and saving one interface while the recorder reads another — and it would surface as a draft the
+recorder misreads, not as a failing test.
+
+**Measured before building anything.** The library's `script.ts` exports 32 model names; the editor declares
+**none** of them, and its `core/script.model.ts` keeps the invariant the documented way, with
+`export type { Group, Mediaitem, Playback, PromptItem, Script };`. So the rule records a property that holds, which
+is what makes it worth holding.
+
+**It is now rule 8 of `bin/editor_lint.mjs`**: no editor source may declare a name the model exports, and a
+re-export is not a declaration, so the form the model is actually used through passes untouched. It reads the
+model through its own `--model` option, defaulting to the real path — the same separation rule 6 got for
+`--validation`, which is what lets a fixture tree be linted at all.
+
+**Proved to bite**: `bin/lint_fixtures/planted-model-copy.ts` declares `Section`, the fixture tree now fails on
+eight violations with the message naming its line, and the editor job's step requires that message. The real tree
+passes — 194 font sizes, 291 colours, 80 click handlers, 144 paragraphs, 85 bound labels, 30 catalogued checks,
+145 own declarations — the new counter counting the editor's own declarations, which is the set this rule keeps
+free of model names.
+
+**And the README's lint bullet was incomplete**: it listed four of the eight rules as if that were the set. It now
+names all eight, including this one and its reason.
+
 
 

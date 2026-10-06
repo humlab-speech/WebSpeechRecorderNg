@@ -14,9 +14,13 @@
  *   6. the check catalogue agrees with the code: every id in `validation.md` has a check and a
  *      `describe`, every check it defines is catalogued, and the server publishes no unknown code;
  *   7. no `AudioContext` in the editor's sources — audio capture belongs to the recorder (D-G, README §3)
- *      and the editor's audition player uses an `HTMLMediaElement`.
+ *      and the editor's audition player uses an `HTMLMediaElement`;
+ *   8. no editor source declares a name the library's script model already exports. `data-model.md` opens
+ *      with "single definition for both applications … the editor must not keep its own copy", and a copy
+ *      is what drifts silently: the editor would validate and save one shape while the recorder reads
+ *      another. Re-exporting the model is how the invariant is kept, and a re-export is not a declaration.
  *
- * Usage: `node bin/editor_lint.mjs [--root <dir>] [--catalogue <file>] [--validation <dir>]`. Exits non-zero and names `file:line` for each
+ * Usage: `node bin/editor_lint.mjs [--root <dir>] [--catalogue <file>] [--validation <dir>] [--model <file>]`. Exits non-zero and names `file:line` for each
  * violation; `--verbose` also prints the counts of what passed. `--root` points the six source rules at
  * another tree (`bin/lint_fixtures`, a tree that plants one violation per rule); `--validation` moves with
  * rule 6's checks only, and defaults to the real ones.
@@ -54,7 +58,7 @@ function lineAt(text, index) {
 }
 
 const failures = [];
-const passed = {type: 0, colour: 0, click: 0, structure: 0, label: 0, catalogue: 0};
+const passed = {type: 0, colour: 0, click: 0, structure: 0, label: 0, catalogue: 0, model: 0};
 
 for (const path of filesUnder(ROOT, (name) => name.endsWith('.scss') || (name.endsWith('.ts') && !name.endsWith('.spec.ts')))) {
   const text = readFileSync(path, 'utf8');
@@ -170,6 +174,26 @@ for (const {where, text} of templates) {
   }
 }
 
+// 8: the editor re-exports the library's script model rather than keeping a copy of it. `data-model.md`
+// opens with "single definition for both applications … the editor must not keep its own copy", and a copy is
+// the shape a silent divergence takes: the editor would validate and save against one interface while the
+// recorder reads another. Declaring a name the model already exports is what that looks like; re-exporting it
+// is not a declaration, so the form the model is used through here passes untouched.
+const MODEL = opt('model', 'projects/speechrecorderng/src/lib/speechrecorder/script/script.ts');
+const modelNames = new Set([...readFileSync(MODEL, 'utf8')
+  .matchAll(/^export\s+(?:interface|type|class|enum)\s+([A-Za-z0-9_$]+)/gm)].map((match) => match[1]));
+for (const path of filesUnder(ROOT, (name) => name.endsWith('.ts') && !name.endsWith('.spec.ts'))) {
+  const text = readFileSync(path, 'utf8');
+  const where = relative(process.cwd(), path);
+  for (const match of text.matchAll(/^export\s+(?:interface|type|class|enum)\s+([A-Za-z0-9_$]+)/gm)) {
+    if (!modelNames.has(match[1])) {
+      passed.model += 1;
+      continue;
+    }
+    failures.push(`${where}:${lineAt(text, match.index)}: declares ${match[1]}, which the library's script model already defines — re-export it instead (data-model.md: one definition for both applications)`);
+  }
+}
+
 // 6: the check catalogue. `validation.md` calls itself the single source of truth for the ids, so
 // four lists have to agree and nothing else compares them: the catalogue's rows, the modules that
 // define each check, the specs that carry one `describe` per id, and the codes the server publishes.
@@ -225,11 +249,11 @@ for (const id of serverIds) {
 }
 
 if (VERBOSE) {
-  console.log(`checked ${passed.type} font sizes, ${passed.colour} colours, ${passed.click} click handlers, ${passed.structure} paragraphs, ${passed.label} bound labels, ${passed.catalogue} catalogued checks`);
+  console.log(`checked ${passed.type} font sizes, ${passed.colour} colours, ${passed.click} click handlers, ${passed.structure} paragraphs, ${passed.label} bound labels, ${passed.catalogue} catalogued checks, ${passed.model} own declarations`);
 }
 if (failures.length > 0) {
   for (const failure of failures) console.error(`✗ ${failure}`);
   console.error(`editor lint failed: ${failures.length} violation(s)`);
   process.exit(1);
 }
-console.log(`Editor lint passed (${passed.type} font sizes, ${passed.colour} colours, ${passed.click} click handlers, ${passed.structure} paragraphs, ${passed.label} bound labels, ${passed.catalogue} catalogued checks).`);
+console.log(`Editor lint passed (${passed.type} font sizes, ${passed.colour} colours, ${passed.click} click handlers, ${passed.structure} paragraphs, ${passed.label} bound labels, ${passed.catalogue} catalogued checks, ${passed.model} own declarations).`);

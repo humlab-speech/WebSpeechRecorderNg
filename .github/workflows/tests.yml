@@ -152,7 +152,8 @@ jobs:
             'div inside <p> — the browser hoists it out of the paragraph' \
             '(click) on <div> — use a control, or state its role' \
             'aria-label="Literal" is a literal — bind it from the strings' \
-            'AudioContext in the editor — audio capture belongs to the recorder (D-G)'; do
+            'AudioContext in the editor — audio capture belongs to the recorder (D-G)' \
+            "declares Section, which the library's script model already defines"; do
             echo "$lint_out" | grep -qF "$expected" || {
               echo "the house-rule lint did not name: $expected"; echo "$lint_out"; exit 1; }
           done

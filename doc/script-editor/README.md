@@ -617,10 +617,14 @@ rule).
   CI runs the whole list.
 - **House-rule lint.** `node bin/editor_lint.mjs` reads the editor's templates and styles and fails on
   the ui-spec §8 rules that are text rather than a rendered property: a `font-size` off the
-  `--spr-type-*` scale, a colour literal outside a `var(--spr-…)` fallback, and a `(click)` on a host
-  that is neither a control nor carries a `role`, and a block element inside `<p>` (the browser
-  hoists it out, so the rendered tree is not the template`s). CI runs it in the editor job; `--verbose` prints
-  the counts it checked.
+  `--spr-type-*` scale, a colour literal outside a `var(--spr-…)` fallback, a `(click)` on a host
+  that is neither a control nor carries a `role`, a block element inside `<p>` (the browser
+  hoists it out, so the rendered tree is not the template`s), a user-facing literal in an
+  `aria-label`/`title`/`placeholder` where the `*-strings` files belong, the check catalogue against the
+  code that defines it, no `AudioContext` (capture is the recorder's, §11.122), and no declaration of a
+  name the library's script model already exports — the editor re-exports that model rather than keeping a
+  copy of it ([data-model.md](data-model.md)). CI runs it in the editor job and requires it to name every
+  planted violation; `--verbose` prints the counts it checked.
 - **Dry run (recorder).** `bin/audit/dry_run.mjs` reads the session's **materialised script** from the
   receiver, so it knows each item's placement and section mode, then drives the real recorder and
   asserts, per item, where the clip played relative to the take's recording window:
