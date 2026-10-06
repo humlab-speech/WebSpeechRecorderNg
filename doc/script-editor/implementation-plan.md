@@ -3784,13 +3784,14 @@ So `bin/a11y_audit.mjs` names it: `IGNORED_CONSOLE = [/NG0913\b/]`, applied on b
 through (`Runtime.consoleAPICalled` and `Log.entryAdded`), with the measurement written above the constant and
 the exclusion in the header's list of what rule 16 judges.
 
-**Both directions proven in one run.** `bin/audit/plant-angular-hint.js` logs the hint *and* a genuine warning;
-the audit exits non-zero, naming only the genuine one — `NG0913` appears nowhere in its output. Verified also
-that the hint alone passes, that the unplanted route passes, and that `plant-violations.js` still fails.
+**Both directions proven in one run.** `bin/audit/plant-violations.js` logs the hint *and* a genuine warning —
+see §11.131 for why they live there rather than in a fixture of their own; the audit exits non-zero, naming only
+the genuine one — `NG0913` appears nowhere in its output. Verified also that the hint alone passes and that the
+unplanted route passes.
 
-**A permanent check** carries it in the audit job, in the same shape as the planted-violation assertions: the run
-must exit non-zero, must report `planted-genuine-warning`, and must not report `NG0913`. The workflow structure
-check is unaffected — six jobs, 412 lines.
+**A permanent check** carries it in the audit job, in the same shape as the planted-violation assertions: the
+accessibility run on that state must exit non-zero, must report `planted-genuine-warning` among the names it
+already required, and must not report `NG0913`. The workflow structure check is unaffected — six jobs.
 
 **The rest of the six jobs, verified on this branch.** Server: `node --test server/*.test.mjs`. Library: 148 pass,
 `ng build speechrecorderng` regenerating `spr.module.version.ts` identically to what is committed, and
@@ -3857,9 +3858,57 @@ every step that depends on it was run against that install.
 ("the route loads without console errors, warnings or uncaught exceptions"), the README's paragraph on the
 accessibility audit, and the README's sensitivity claim, which named only `plant-violations.js` as the proof that
 the audits bite. All three now state the exclusion, name it (`IGNORED_CONSOLE`), and record that
-`bin/audit/plant-angular-hint.js` holds both halves of the rule: the audit must report the planted warning and
-must not report the hint. The docs are the gate's contract, so a gate that changed under them was the one
-description of this work a reader could still be misled by.
+`bin/audit/plant-violations.js` holds both halves of the rule: the audit must report the planted warning and
+must not report the hint (§11.131). The docs are the gate's contract, so a gate that changed under them was the
+one description of this work a reader could still be misled by.
+
+### 11.131 The console fixture had to be a state both audits visit — **Fixed**
+
+§11.127 planted the console pair in a fixture of its own, `bin/audit/plant-angular-hint.js`, and pointed one
+accessibility run at it. `bin/route_check.mjs` refused it: "the a11y pass audits /project/Demo1/script with
+bin/audit/plant-angular-hint.js and no theme pass measures that state", exit 1.
+
+**The gate was right, and the fault was the state rather than the fixture.** Its rule is that every state an
+accessibility pass audits is also measured by a theme pass, so the two audits' coverage cannot drift apart. A
+fixture that only logs to the console gives a theme audit — which measures colours, type and layout — nothing to
+measure, so there is no honest theme run to pair it with. A console-only fixture is not a state this repository
+can have.
+
+**Moved into `bin/audit/plant-violations.js`**, which plants the theme, accessibility and logo violations and
+already has both passes pointed at it. It also logs the hint beside a genuine warning now, so the accessibility
+run on that state proves both halves of rule 16 in one invocation: `planted-genuine-warning` is named among the
+ten names the block already required, and `NG0913` is named nowhere. One state, two passes, no extra runs.
+
+**Verified on the tree**: `route_check` exits 0 again (8 screens, 9 audited URLs), `workflow_check` reports six
+jobs, `dead_exports` is clean at 708 exports, the accessibility run exits 1 with 18 problems including the
+planted warning and without the hint, and the theme run on that state is unchanged (lightgrey, 9px, 2.96:1).
+
+**Two neighbours, in the same pass.** `bin/editor_lint.mjs` gained `--validation`: rule 6 asks whether *this*
+project's catalogue, checks and server agree, so it no longer derives from `--root`, which is what lets
+`bin/lint_fixtures` be linted as a tree. And rule 3's message now reads `div inside <p>` rather than
+`<div inside <p>` — the tag slice kept the angle bracket. Both were needed before the lint's rules could be held
+to biting (below).
+
+### 11.132 The house-rule lint, held to biting — **Done**
+
+The audits are proved to bite by `plant-violations.js` and CI asserts they name every planted fault; §11.115
+called that block "the sharpest thing in it". The other gates were only *run*: `editor_lint`, `route_check`,
+`dead_exports`, `workflow_check` and `package_check` would all look identical if they stopped detecting anything.
+
+**`bin/lint_fixtures/` now plants one violation per lint rule** — a bare `font-size: 13px`, a colour literal
+outside a token fallback, a block element inside `<p>`, a `(click)` on a `div`, a literal `aria-label`, and an
+`AudioContext` — and the editor job gained a sensitivity step in the shape of the audits': the lint must exit
+non-zero on that tree and must name each message, checked with `grep -qF`, with `${lint_status:-0}` so an unset
+status fails closed rather than silently disarming the guard (§11.115's lesson).
+
+**Verified**: the step's shell run as written names all six messages; the real tree still passes (194 font sizes,
+291 colours, 80 click handlers, 144 paragraphs, 85 bound labels, 30 catalogued checks); the fixtures are in no
+build, `angular.json` and the tsconfigs do not name the directory; `dead_exports` stays clean; `workflow_check`
+still reports six jobs.
+
+**What is still only run, not proved to bite**: `route_check`, `dead_exports`, `workflow_check` and
+`package_check`. Each would need a planted *tree* or *package* rather than a planted file, which is a larger
+change than this pass; recorded here so the gap is visible rather than assumed away.
 
 
 

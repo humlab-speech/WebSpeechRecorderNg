@@ -581,7 +581,7 @@ rule).
   id, an image without `alt`, a page without `lang`, a second `h1`, a second `main`, a positive
   `tabindex`, a control inside a control and a 17 px target). The audit job requires both audits to fail
   and to name each one, so an audit that stops biting fails the job rather than passing quietly. The
-  console rule's two halves are checked the same way: `bin/audit/plant-angular-hint.js` plants Angular's
+  console rule's two halves are checked the same way: `bin/audit/plant-violations.js` plants Angular's
   own development-build hint beside a genuine warning, and the job requires the audit to fail naming the
   warning and without naming the hint.
   The theme audit also measures a phone width (390×844) on the screens that reflow — the editor stacks

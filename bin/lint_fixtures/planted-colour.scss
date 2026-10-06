@@ -1,0 +1,5 @@
+// Planted for bin/editor_lint.mjs rule 2: a colour literal standing on its own. A literal is allowed
+// only inside a token's fallback — `var(--spr-x, #abc)` — which is what the pattern documents.
+.planted {
+  border: 1px solid #abc;
+}

@@ -1,0 +1,6 @@
+// Planted for bin/editor_lint.mjs rule 1: a bare pixel size off the --spr-type-* scale.
+// The editor job's "House-rule lint sensitivity" step requires the lint to fail on this tree and to name
+// each rule below; a rule that stopped biting would pass it and fail the job instead.
+.planted {
+  font-size: 13px;
+}

@@ -16,8 +16,10 @@
  *   7. no `AudioContext` in the editor's sources — audio capture belongs to the recorder (D-G, README §3)
  *      and the editor's audition player uses an `HTMLMediaElement`.
  *
- * Usage: `node bin/editor_lint.mjs [--root <dir>] [--catalogue <file>]`. Exits non-zero and names `file:line` for each
- * violation; `--verbose` also prints the counts of what passed.
+ * Usage: `node bin/editor_lint.mjs [--root <dir>] [--catalogue <file>] [--validation <dir>]`. Exits non-zero and names `file:line` for each
+ * violation; `--verbose` also prints the counts of what passed. `--root` points the six source rules at
+ * another tree (`bin/lint_fixtures`, a tree that plants one violation per rule); `--validation` moves with
+ * rule 6's checks only, and defaults to the real ones.
  */
 import {readFileSync, readdirSync, statSync} from 'node:fs';
 import {join, relative} from 'node:path';
@@ -130,7 +132,7 @@ for (const {where, text} of templates) {
       continue;
     }
     if (paragraphDepth > 0) {
-      failures.push(`${where}:${lineAt(text, match.index)}: ${tag.slice(0, tag.indexOf(' ') < 0 ? tag.length - 1 : tag.indexOf(' '))} inside <p> — the browser hoists it out of the paragraph`);
+      failures.push(`${where}:${lineAt(text, match.index)}: ${tag.slice(1, tag.indexOf(' ') < 0 ? tag.length - 1 : tag.indexOf(' '))} inside <p> — the browser hoists it out of the paragraph`);
     }
   }
 
@@ -174,7 +176,13 @@ for (const {where, text} of templates) {
 // A dropped check or an id added without a catalogue row is invisible to the specs, which only test
 // the ids they already know about.
 const CATALOGUE = opt('catalogue', 'doc/script-editor/validation.md');
-const VALIDATION = join(ROOT, 'app/core/validation');
+/**
+ * Where the *checks* live — deliberately its own option rather than derived from `--root`. Rule 6 asks
+ * whether the catalogue, the checks and the server agree with each other, which is a question about this
+ * project, not about whichever tree the other rules are pointed at. A fixture tree (`bin/lint_fixtures`,
+ * used by the editor job's sensitivity step) therefore leaves rule 6 anchored to the real checks.
+ */
+const VALIDATION = opt('validation', 'projects/spr-script-editor/src/app/core/validation');
 const idOf = (text) => [...text.matchAll(/check([EWN]\d+)/g)].map((m) => m[1]);
 const catalogued = new Set();
 for (const line of readFileSync(CATALOGUE, 'utf8').split('\n')) {

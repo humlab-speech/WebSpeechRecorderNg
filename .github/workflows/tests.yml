@@ -89,6 +89,25 @@ jobs:
       # scale, a colour literal outside a var() fallback, a click handler on a div.
       - name: Editor house-rule lint
         run: node bin/editor_lint.mjs --verbose
+      # The lint's rules are held to biting the way the audits' are: bin/lint_fixtures plants one violation
+      # per rule, and this step fails if the lint passes that tree or stops naming a rule. The tree is not
+      # part of any build, and rule 6 stays anchored to the real checks and catalogue.
+      - name: House-rule lint sensitivity
+        run: |
+          lint_out=$(node bin/editor_lint.mjs --root bin/lint_fixtures 2>&1) && lint_status=0 || lint_status=$?
+          if [ "${lint_status:-0}" = "0" ]; then
+            echo "the house-rule lint passed a tree of planted violations"; echo "$lint_out"; exit 1
+          fi
+          for expected in 'font-size "13px" is not a --spr-type-* token' \
+            'colour "#abc" is not a --spr-* token' \
+            'div inside <p> — the browser hoists it out of the paragraph' \
+            '(click) on <div> — use a control, or state its role' \
+            'aria-label="Literal" is a literal — bind it from the strings' \
+            'AudioContext in the editor — audio capture belongs to the recorder (D-G)'; do
+            echo "$lint_out" | grep -qF "$expected" || {
+              echo "the house-rule lint did not name: $expected"; echo "$lint_out"; exit 1; }
+          done
+          echo "the house-rule lint named every planted violation"
       # Production is the configuration with the REST base, so this also proves the
       # environment replacement and the budgets.
       - name: Editor production build
@@ -211,24 +230,18 @@ jobs:
           for expected in 'exposes a button with no name' 'is 17 px high' 'has no lang attribute' \
             '2 h1 heading(s)' '2 main landmark(s)' 'tabindex=3' 'a control inside a control' \
             'id "planted-duplicate-id" appears 2 times' 'has no alt and is not marked decorative' \
-            'is aria-hidden but contains focusable content'; do
+            'is aria-hidden but contains focusable content' \
+            'planted-genuine-warning: a console warning the audit must still report'; do
             echo "$a11y_out" | grep -qF "$expected" || {
               echo "the accessibility audit did not name: $expected"; echo "$a11y_out"; exit 1; }
           done
-          # Angular's own development-build hints are excluded from the console rule (a11y_audit.mjs's
-          # IGNORED_CONSOLE, §11.127): they arrive asynchronously, so catching one was timing — one run
-          # in four on the recorder's error-dialog state — and they say nothing about the faults the
-          # rule is for. Both messages are planted together, so one run proves the rule still bites and
-          # does not bite on the hint.
-          hint_out=$(node bin/a11y_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script \
-            --prepare bin/audit/plant-angular-hint.js --viewports 1366x768 2>&1) && hint_status=0 || hint_status=$?
-          if [ "${hint_status:-0}" = "0" ]; then
-            echo "the accessibility audit passed a planted console warning"; echo "$hint_out"; exit 1
-          fi
-          echo "$hint_out" | grep -qF 'planted-genuine-warning' || {
-            echo "the accessibility audit did not report the planted console warning"; echo "$hint_out"; exit 1; }
-          if echo "$hint_out" | grep -qF 'NG0913'; then
-            echo "the accessibility audit judged Angular's development-build hint"; echo "$hint_out"; exit 1
+          # The console rule's other half: Angular's own development-build hint rides in the same fixture
+          # and must not be reported (a11y_audit.mjs's IGNORED_CONSOLE; §11.127 measured the exclusion —
+          # the hint arrives after the settle window, so catching one was timing rather than a fault).
+          # Both console messages share this state so the theme pass measures it too, which
+          # bin/route_check.mjs requires of every state an accessibility pass audits.
+          if echo "$a11y_out" | grep -qF 'NG0913'; then
+            echo "the accessibility audit judged Angular's development-build hint"; echo "$a11y_out"; exit 1
           fi
           # And the two theme rules a page of the application cannot show: with no token layer at all
           # the audit must say so, and the Material pins must be reported as unfollowed rather than

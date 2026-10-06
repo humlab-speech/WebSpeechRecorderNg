@@ -14,6 +14,12 @@
  *   node bin/theme_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script \
  *     --prepare bin/audit/plant-violations.js --viewports 1366x768
  * It must exit non-zero, naming each rule below.
+ *
+ * It also plants the two console messages rule 16 turns on: Angular's own development-build hint (NG0913,
+ * which no audit may report — §11.127 for the measurement) beside a warning the accessibility audit must.
+ * Both live here rather than in a fixture of their own, because a console-only state would leave the theme
+ * pass with nothing to measure in it, which `bin/route_check.mjs` refuses — every state an accessibility
+ * pass audits must also be measured by a theme pass.
  */
 (() => {
   const add = (tag, style, text) => {
@@ -125,5 +131,12 @@
   hidden.appendChild(hiddenButton);
   document.body.appendChild(hidden);
 
-  return 'planted 5 theme, 10 accessibility and 5 logo violations';
+  // The console rule's two halves (rule 16): Angular's own development-build hint, which the audit must
+  // ignore, and a warning it must report. §11.127 records the measurement behind the exclusion; this is
+  // what keeps both halves true, and it rides on this state so the theme pass measures it too.
+  console.warn('NG0913: An image with src http://127.0.0.1:4300/assets/img/bas.png is the Largest '
+    + 'Contentful Paint (LCP) element but was given a "loading" value of lazy');
+  console.warn('planted-genuine-warning: a console warning the audit must still report');
+
+  return 'planted 5 theme, 10 accessibility and 5 logo violations, plus the console rule\'s two halves';
 })()
