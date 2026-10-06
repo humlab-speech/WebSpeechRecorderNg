@@ -4260,5 +4260,29 @@ reported a wide conclusion from a narrow search. The rule this register should b
 "nothing references X" or "every Y is covered", the sweep's pattern, its inputs and its coverage are the first
 things to re-check — a lesson §11.70 already embodied and §11.139 failed to reuse.
 
+### 11.147 The cross-check that was a habit, again: the orphan check — **Built**
+
+§11.70 did the reference cross-check by hand and reported that every file under `bin/` then present had a referrer.
+**Nothing re-ran it.** `bin/` grew ten files in this pass, and §11.146 recorded five hand sweeps whose *own inputs*
+were wrong. A hand sweep is exactly as good as its pattern, so the pattern is code now:
+`bin/orphan_check.mjs`, in the server job, on every push.
+
+It reads **every text file in the repository** — the search space is a measurement rather than a list I write, which
+is the whole lesson — and fails on a file under `--root` that nothing references. Two ways to count: **by name**
+anywhere, documents included, which is how `bin/audit/use-locale-sv.js` counts since the root README documents it
+as a command; or **through a proper subdirectory** of the root, which is how a fixture tree counts when a check is
+pointed at it. A file directly in the root has no such escape: `bin` is not a reference, or everything would pass.
+
+**Measured on the tree**: 42 files under `bin/`, **35 referenced by name, 7 through a directory, none orphaned** —
+the same answer §11.70 reached by hand, now produced by a check that will keep producing it.
+
+**Proved to bite and to discriminate** with `bin/orphan_fixtures/`: one file that the fixture's own README names,
+and one it deliberately does not — because naming the second anywhere in this repository would *resolve* it. That
+trap is why the job's step asserts a **count** rather than a filename, and it makes the fixture guard itself: a
+later document that names the file turns the directory into one with no orphan, and the step fails loudly on the
+count instead of passing quietly.
+
+The README's gate list gained the bullet, and the sensitivity paragraph now names the sixth fixture directory.
+
 
 

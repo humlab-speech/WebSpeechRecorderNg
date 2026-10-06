@@ -43,6 +43,28 @@ jobs:
             echo "the dead-export check reported an export its own file names"; echo "$dead_out"; exit 1
           fi
           echo "the dead-export check reported the dead export and left the live one alone"
+      # Every file under bin/ is a tool or a fixture, so each must be referenced by something. §11.70 did this
+      # cross-check by hand and nothing re-ran it; §11.146 found five hand sweeps whose own inputs were wrong, and
+      # a hand sweep is exactly as good as its pattern.
+      - name: No orphaned tools
+        run: node bin/orphan_check.mjs --verbose
+      # And it is held to biting, both ways: the fixture directory holds one file nothing names (the check must
+      # report it) and one the fixture's own README names (the check must not). Naming the first one anywhere in
+      # this file would resolve it, which is why this step asserts a count rather than a filename.
+      - name: Orphan sensitivity
+        run: |
+          orphan_out=$(node bin/orphan_check.mjs --root bin/orphan_fixtures 2>&1) && orphan_status=0 || orphan_status=$?
+          if [ "${orphan_status:-0}" = "0" ]; then
+            echo "the orphan check passed a directory with an unreferenced file"; echo "$orphan_out"; exit 1
+          fi
+          reported=$(echo "$orphan_out" | grep -c 'referenced by nothing')
+          if [ "$reported" != "1" ]; then
+            echo "the orphan check reported $reported file(s), expected exactly one"; echo "$orphan_out"; exit 1
+          fi
+          if echo "$orphan_out" | grep -q 'used-fixture'; then
+            echo "the orphan check reported the file the fixture's README names"; echo "$orphan_out"; exit 1
+          fi
+          echo "the orphan check reported the unreferenced file and left the named one alone"
       # The file all of this runs from. A job appended by hand with one wrong indent turns every check
       # in the repository off without any of them reporting it, so its shape is checked here
       # (bin/workflow_check.mjs).

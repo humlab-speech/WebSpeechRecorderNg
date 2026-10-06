@@ -527,12 +527,20 @@ rule).
   and its dark scheme was broken (§11.45), and a renamed route would leave an audit line pointing at
   a URL that renders nothing to find faults in. It found `/project/:p/draws`, the project-scoped
   draws view, in the first direction (plan §11.46).
+- **No orphaned tools.** `node bin/orphan_check.mjs` reads every file under `bin/` and fails on one that
+  nothing references — by name, or through a directory a consumer scans (a check pointed at
+  `bin/lint_fixtures` is what uses that tree). Documents count as references, which is how a fixture a person
+  runs from the root README is used. §11.70 did this cross-check by hand and nothing re-ran it; it is a script
+  now, and the server job's fixture shows it reports an unreferenced file and leaves a named one alone.
 - **Every gate above is proved to bite.** Each check in `bin/` has a planted fixture it must fail on and a CI
   step that requires the specific message, so a gate that stopped detecting fails the job rather than passing
   quietly: `bin/lint_fixtures/` for the house-rule lint, `bin/workflow_fixtures/broken.yml` for the workflow
   shape, `bin/dead_export_fixtures/` for dead exports, `bin/route_fixtures/` for route coverage,
   `bin/package_fixtures/` for the packaging invariants, and `bin/audit/plant-violations.js` for the theme and
-  accessibility audits. In every job the check also runs on the real input, which must pass, so a check that
+  accessibility audits. `node bin/orphan_check.mjs` is the same idea one level up: every file under `bin/` is a
+  tool or a fixture, so each must be referenced by something, and the check is pointed at `bin/orphan_fixtures/`
+  — one file nothing names, one the fixture's README does — to show it reports the first and not the second. In
+  every job the check also runs on the real input, which must pass, so a check that
   over-reports fails there; and where a fixture can carry one cheaply it also holds a neighbour the check must
   *not* name — an export its own file uses, a screen both audits visit, an import the manifest declares, and
   Angular's own development-build hint (plan §11.132–§11.137).
