@@ -4147,5 +4147,28 @@ free of model names.
 **And the README's lint bullet was incomplete**: it listed four of the eight rules as if that were the set. It now
 names all eight, including this one and its reason.
 
+### 11.143 The feature table's two copies, and the guard that already held them together — **Verified**
+
+Following §11.142's lens — a documented invariant with no check — to the version handshake (data-model §5), the
+one place a **silent** failure is possible: a recorder older than the script's floor runs it without the clip and
+nobody is told. It turned out to be covered end to end: the library's `feature-versions.ts`, the editor's
+`minRecorderVersion` (with a spec), N04 and W10 (with specs), and the server's re-check at session creation
+(`store.requireRecorderVersion`, `feature-versions.test.mjs`, `publish.test.mjs`, `version.test.mjs`).
+
+**The interesting part is that the table exists twice** — the library's and `server/feature-versions.mjs`'s — under
+a header claiming "both are held to the same cases by their tests". That claim is true, and **I was wrong to
+assume it was not**: `server/feature-versions.test.mjs` reads the *library's source*, parses its
+`FEATURE_VERSIONS` body out of the text, and asserts the two are deep-equal, with the message "a feature added on
+one side must be added on the other". The comparison also pins the two *versions* together, because each side's
+`playback` value is its own version symbol and it compares by value.
+
+**Proved to bite rather than taken on trust**: adding `plantedfeature: '1.0.0'` to the library's table alone makes
+the server test fail on exactly that assertion (6 pass, 1 fail), and reverting restores 7/7. This is the same
+source-reading technique §11.141 uses for the client's paths, which is worth noticing as a pattern in this
+repository: where two copies of a fact are unavoidable, the test reads one of them from its text.
+
+**So this entry records an assumption of mine that was wrong in the good direction**, and the measurement that
+says so — the discipline of §11.128 and §11.140, applied to a case where the answer was "already guarded".
+
 
 
