@@ -12,6 +12,15 @@ plan review that drove an amendment; §9 maps each one to where it lands.
 
 ## 1. Ground truth (verified in the repository)
 
+**This table is the baseline the plan was written against, at commit `0c1de418`, and its third column is the plan's
+intent as of then — §11 is where each consequence came out.** Five have since landed, and the table reads as though
+they are still ahead: the workspace has a third project (`Cavox`, `speechrecorderng`, `spr-script-editor`) as M2's
+project block intended; the workflow runs **six** jobs rather than the receiver and library alone (§11.48–§11.50);
+the M1/M4 fixtures the table calls needed exist (`playback.json`, `bank-draw.json`, `large-500.json`, §4's R9 row);
+the media **list and delete** endpoints were added (rest-api §5, and the editor has a media service); and all five
+library exports L1 required — `PromptitemUtil`, `MediaitemUtil`, `PromptDocUtil`, `Order`, `VirtualViewBox` — are
+exported from `public-api.ts`, which is where the editor imports them from rather than keeping copies (L1 in §4).
+
 | Fact | Verified in | Consequence for the plan |
 |---|---|---|
 | Angular 20.3.x, CLI 20.3.36, `@angular/build` builders; Material 20.2, CDK 20.2.14, forms 20.3, TS 5.9.3 | `package.json` | CDK is already a dependency: drag-drop and virtual scroll need no new package. |
@@ -4434,6 +4443,28 @@ a new finding.
 are fifteen scripts and nine gated ones; the next said of the remaining six "whose CI steps run them", which is
 false for one. Both were caught by checking the sentence against `ls bin/`, `package.json` and the workflow — the
 sweep lesson of §11.146 turned on my own prose, which is where it keeps being needed.
+
+### 11.154 §1's ground truth, and the consequences it still reads as pending — **Done**
+
+§1 is the first table in the plan: facts verified at commit `0c1de418`, each with the consequence it had for the
+plan. At the end of the work it misleads in one specific way — the *facts* are framed as the baseline (several say
+"on `master`"), while the *consequences* read as still to come, and five of them have landed.
+
+**Each was checked before anything was written.** The workspace has a third project now (`Cavox`,
+`speechrecorderng`, `spr-script-editor`), which is what M2's project block intended; the workflow runs **six** jobs
+rather than the receiver and library alone (§11.48–§11.50); the M1/M4 fixtures the table calls needed exist —
+`playback.json` 8 kB, `bank-draw.json` 4 kB, `large-500.json` 136 kB (§4's R9 row); `rest-api.md` carries three
+media endpoint rows and the editor has a media service, so B1's gap is closed; and all five library exports L1
+required are in `public-api.ts`.
+
+**That last one carried a question worth answering rather than assuming.** The editor *imports* `PromptitemUtil`
+and `MediaitemUtil` from `'speechrecorderng'` — measured, not inferred — because §11.142's rule 8 guards duplicated
+*types* and would say nothing about a duplicated *function*. A copy of a utility is exactly the divergence the
+model rule exists to prevent, one level down.
+
+**One paragraph, not five annotated rows**, because the table's shape is the baseline-and-intent pair and a status
+per row would bury it. What stayed true is unannotated: `VERSION='3.11.26'`, `1.json` still legacy `promptUnits`,
+and the library still one eager `NgModule`.
 
 
 
