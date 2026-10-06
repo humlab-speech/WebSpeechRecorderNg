@@ -532,6 +532,11 @@ rule).
   `bin/lint_fixtures` is what uses that tree). Documents count as references, which is how a fixture a person
   runs from the root README is used. §11.70 did this cross-check by hand and nothing re-ran it; it is a script
   now, and the server job's fixture shows it reports an unreferenced file and leaves a named one alone.
+- **Documented options.** `node bin/docs_check.mjs` reads the flags `server/server.mjs` accepts and the section of
+  the README that documents them, and fails both ways: a flag nobody can discover is a deployment setting that
+  does not exist for its operator, and a documented flag the server does not accept is worse (§11.161). The
+  section is named by `--section`, because a README talks about other programs' flags too — the audits' `--url`
+  and `--viewports` are not the receiver's.
 - **Every gate above is proved to bite.** Each check in `bin/` has a planted fixture it must fail on and a CI
   step that requires the specific message, so a gate that stopped detecting fails the job rather than passing
   quietly: `bin/lint_fixtures/` for the house-rule lint, `bin/workflow_fixtures/broken.yml` for the workflow

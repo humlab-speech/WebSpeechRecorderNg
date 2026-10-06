@@ -65,6 +65,27 @@ jobs:
             echo "the orphan check reported the file the fixture's README names"; echo "$orphan_out"; exit 1
           fi
           echo "the orphan check reported the unreferenced file and left the named one alone"
+      # The receiver's flags are documented where a deployment looks: every flag server/server.mjs accepts is named
+      # in the README's receiver section, and that section names no flag it does not accept (§11.166).
+      - name: Docs check
+        run: node bin/docs_check.mjs --verbose
+      # And it is held to biting in both directions. The fixture pair's parser accepts one flag its section never
+      # names, and the section names one the parser does not accept: exactly two problems, no more and no fewer, and
+      # a flag outside the section is not read at all.
+      - name: Docs check sensitivity
+        run: |
+          docs_out=$(node bin/docs_check.mjs --server bin/docs_fixtures/server.mjs --doc bin/docs_fixtures/README.md 2>&1) && docs_status=0 || docs_status=$?
+          if [ "${docs_status:-0}" = "0" ]; then
+            echo "the docs check passed a pair that disagrees in both directions"; echo "$docs_out"; exit 1
+          fi
+          if ! echo "$docs_out" | grep -qE '^2 documentation problem'; then
+            echo "the docs check did not report exactly two problems"; echo "$docs_out"; exit 1
+          fi
+          for expected in 'does not name — a setting nobody can discover' 'documentation for a flag that is not there'; do
+            echo "$docs_out" | grep -qF "$expected" || {
+              echo "the docs check did not report: $expected"; echo "$docs_out"; exit 1; }
+          done
+          echo "the docs check reported both directions and nothing else"
       # The file all of this runs from. A job appended by hand with one wrong indent turns every check
       # in the repository off without any of them reporting it, so its shape is checked here
       # (bin/workflow_check.mjs).

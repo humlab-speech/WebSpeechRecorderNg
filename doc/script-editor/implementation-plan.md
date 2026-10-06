@@ -4760,5 +4760,29 @@ text, and that file is the package's page. Naming the repository path helps a re
 **Checked**: each topic the sentence claims is in `rest-api.md` (draft 39 mentions, publish 28, version 46, bank 41,
 draw 33, media 20, preview-session 2 — counted rather than assumed), and both READMEs' links resolve.
 
+### 11.168 The tenth gate: the receiver's flags against the README — **Built**
+
+§11.166 found by hand that the receiver takes twenty flags and the README named none of them. This is the part of
+that which can be a check, so the class does not need finding by hand twice. `bin/docs_check.mjs` reads the flags
+`server/server.mjs` accepts and the section of the README that documents them, and fails **both ways**: a flag the
+server accepts and the section does not name is a deployment setting its operator cannot discover, and a flag the
+section names that the server does not accept is §11.161's kind of documentation — a promise nothing implements.
+
+**The scoping is the design, and my first version got it wrong.** Scanning the whole file flagged `--url` and
+`--viewports`, which are the *audits'* flags; a README is a document about several programs, so the check reads one
+named section (`--section`, default *The receiver's options*) and nothing else.
+
+**Proved to bite in both directions with one fixture**: `bin/docs_fixtures/` holds a parser accepting two flags and a
+document whose section names one of them plus one the parser does not, so a single run yields exactly two problems.
+The fixture also carries a flag *above* its section that must not be read — which is what makes the scoping tested
+rather than assumed, and my first fixture put that line inside the section, where the check rightly counted it.
+
+**Verified**: the real pair passes (20 flags named, none invented); the fixture pair reports exactly two, one each
+way, and nothing for the flag outside the section; the server job's two new steps pass when extracted from the
+workflow and run; and the other eight gates still pass — including `orphan_check`, which accepts the new fixture
+directory because the workflow names it, the two checks agreeing without either being told about the other.
+
+The README's gate list gained the bullet, placed so "every gate above is proved to bite" covers it.
+
 
 
