@@ -2171,10 +2171,14 @@ Parameters* (GHSA-ff3f-86qr-9cv3). The tree declares `~20.3.31` across the frame
 20.3.31, and the shipped library's peer range is `~20.3.30`, so both the lockfile and what a consumer
 following the peers may install admit the vulnerable patches.
 
-**Reach in this repository: none.** The advisory's path is SSR, and nothing here uses it —
-`@angular/ssr`, `@angular/platform-server`, `provideServerRendering` and `ngExpressEngine` appear
-nowhere in the two applications or the library. This is a version-range finding, not a reachable
-defect.
+**Reach in this repository: none, and now measured rather than asserted.** The advisory's path is SSR, and
+nothing here uses it. Every name that path needs is absent across `projects/`, `server/`, `src/`, `bin/`,
+`package.json` and `angular.json`: `@angular/ssr`, `@angular/platform-server`, `provideServerRendering`,
+`ngExpressEngine`, `ServerModule`, `renderApplication`, `app.server` and any `server.ts` — zero occurrences
+each. Neither `@angular/ssr` nor `@angular/platform-server` is in the dependency tree at all (the only lockfile
+entry matching /ssr|platform-server/ is `ssri`, which is unrelated), and no TypeScript source imports
+`renderModule`, `renderApplication` or either package. npm's own data for the finding: severity high, range
+`20.0.0 - 20.3.31` (GHSA-ff3f-86qr-9cv3). This is a version-range finding, not a reachable defect.
 
 **Why it is not fixed here.** 20.3.32 and 20.3.33 exist and npm reports `fixAvailable`, but the
 framework packages peer-pin each other *exactly* (`@angular/forms@20.3.31` demands
@@ -2184,7 +2188,11 @@ this is an Angular version *alignment* rather than a dependency bump. Attempting
 `npm ci` restored it, both manifests were untouched, and the installed versions are back at 20.3.31
 (all verified). `ng update` is the tool that handles the alignment, and it accepts no `--dry-run`
 (checked), so it cannot be previewed — a maintainer's decision, and one that wants the full suites and
-the audits behind it.
+the audits behind it. Re-checked later, in case a plain in-range move was possible after all: `~20.3.31`
+does *permit* 20.3.32 and 20.3.33, so `npm update` was run for the nine framework packages. It moved none of
+them — the lockfile's resolved versions, `package.json` and the package set were all unchanged, measured
+against a copy of the lockfile — which is the same exact peer-pinning the hand attempt met from the other side.
+So the alignment really is `ng update` or nothing.
 
 **Two things for that decision.** The library's peer range `~20.3.30` should move to exclude the
 vulnerable patches when the next release is cut; narrowing a peer range is consumer-visible, which is
