@@ -497,6 +497,12 @@ Example script:
            
 ```  
 
+A prompt item can also carry a **`playback` plan** — where its sound plays (`WITH_PROMPT`, `BEFORE`,
+`PRERECORDING`, `DURING`, `ONDEMAND`), how many times it repeats, the gap between repeats, whether the operator may
+replay it, a cap on replays and a headphone prompt — which the recorder follows instead of the media item's
+`autoplay`/`replay` flags. The [module README](projects/speechrecorderng/README.md) documents it under *Prompt
+audio*.
+
 ### Recording file
 
 Cavox stores the recording in browser memory first. The recordings are then uploaded to the server as binary encoded WAVE files.

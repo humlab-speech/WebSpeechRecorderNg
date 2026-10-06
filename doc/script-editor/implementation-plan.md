@@ -4635,7 +4635,35 @@ Verifying §1 of `data-model.md` — twelve claims about what the recorder honou
 - **N05's trigger.** "a drawn group's `fixedBy: 'SPEAKER'` while `skipRecordedBySpeaker` is also set" — `checkN05`'s condition is that pair and nothing else.
 - **W08 and N06** exist with the wording the catalogue gives them, and W08's consequence ("the others are ignored") is the same fact §1 records as "only the first entry is used" — which `prompting.ts` implements, not `sessionmanager.ts`'s commented-out lines.
 
-**The sample's value is the ratio**: one false claim in the behaviour tables (§11.161), five true, and the true ones are true because something *runs* — a service, a check, a validation on two runtimes. What the false one lacked was exactly that, and §11.161's fix was to say so in the place a designer reads first.
+The sample's value is the ratio: one false claim in the behaviour tables (§11.161), five true, and the true ones are true because something *runs* — a service, a check, a validation on two runtimes. What the false one lacked was exactly that, and §11.161's fix was to say so in the place a designer reads first.
+
+### 11.163 The published library documented the old mechanism and not the new one — **Done**
+
+`projects/speechrecorderng/README.md` is what a consumer of the published package reads, and it devotes a long
+section to prompt audio: the per-mediaitem `autoplay`/`replay` flags, a clock table, headphones, caching, and the
+failure path when a clip cannot play. **It said nothing about the `Playback` model** — the feature this work added
+*to that same library*, which `script.ts` declares, `phases.ts` implements and eight fixtures exercise — while the
+documents under `doc/script-editor/` describe it for the editor's designers. A consumer following the package's own
+README would conclude that a script's only control over prompt audio is two booleans.
+
+**Measured before writing**: `minRecorderVersion`, `prefill`, `promptphase` and `nonrecording` appear **zero** times
+in that README, and `playback`/`Playback` once each, incidentally. This branch's own 48 added lines there were
+configuration documentation.
+
+**Added**: `#### The playback plan (since 3.11.26)`, after the flags it replaces — the five placements, the rest of
+the plan's fields with their defaults (`repeats` 1, `gap` 500 ms, `replayable` overriding `Mediaitem.replay`,
+`maxReplays` uncapped, `headphones`, `durationMs` measured by the receiver), and the precedence rule that a plan and
+the flags do not mix. The version in the heading is what `FEATURE_VERSIONS.playback` reports.
+
+**The root README gained a pointer**, because its "Embedded entity Media item" section shows example scripts and
+discusses neither mechanism; it now names the plan and defers to the module README, the idiom that file already uses
+for the theme, logos, translations and the respondent display.
+
+**Nothing written from memory.** Every sentence came from `script.ts`'s own comments, `phases.ts`'s
+`playbackStart`/`playbackTiming`/`replayAllowed`, and `data-model.md` §2.1's table, which is this work's frozen
+statement of the semantics — and the five placement names in the new section were diffed against the type
+afterwards. Verified as well: the new table is two columns throughout, the pointer names a section that exists, and
+both READMEs' relative links resolve.
 
 
 

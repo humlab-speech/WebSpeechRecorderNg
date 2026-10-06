@@ -655,6 +655,30 @@ step).
 sound automatically and repeatably, one that leaves it to the play control (`autoplay: false`),
 one that is played once without a replay (`replay: false`) and one text item.
 
+#### The `playback` plan (since 3.11.26)
+
+The `autoplay`/`replay` flags above are the per media item mechanism. A prompt item can instead carry a `playback`
+plan, which takes over placement, repeats and the replay rule:
+
+| `when` | What the sound does |
+|---|---|
+| `WITH_PROMPT` (default) | plays when the prompt is presented and the traffic light waits for it — the behaviour the flags above describe |
+| `BEFORE` | plays to the end before the pre-recording delay starts, so the speaker cannot talk over it |
+| `PRERECORDING` | plays inside the pre-recording delay; give the delay at least `repeats × duration + (repeats − 1) × gap` |
+| `DURING` | plays while the microphone is open (shadowing, masking); without `headphones: true` a loudspeaker is part of the recording |
+| `ONDEMAND` | shows a play control instead of playing by itself, so the speaker decides when to listen; implies `replayable` |
+
+The rest of the plan: `repeats` (times the clip plays back to back, default 1), `gap` (silence between repeats,
+default 500 ms), `replayable` (whether the operator may repeat it, overriding `Mediaitem.replay`), `maxReplays` (a
+cap, unset for none), `headphones` (ask the speaker for headphones before the section starts) and `durationMs` (an
+advisory clip length — the receiver measures the real one on upload).
+
+**A plan and the flags are two ways to say the same thing, and they do not mix.** An item that carries a `playback`
+plan has its `autoplay`/`replay` ignored, and a validation check flags an item that sets both so the intent is
+explicit. An item with neither behaves as `WITH_PROMPT` with `autoplay: true` and `replay: true` — the section
+above. On a `type: 'nonrecording'` item only `WITH_PROMPT`, `BEFORE` and `ONDEMAND` have a phase to attach to; the
+item's `duration` then governs when the next item starts, not the clip.
+
 ### Recording file
 
 Cavox stores the recording in browser memory first. The recordings are then uploaded to the server as binary encoded WAVE files.
