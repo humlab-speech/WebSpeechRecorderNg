@@ -4210,7 +4210,7 @@ drawn group — the features the editor writes, which is the claim the sentence 
 The link check that found no broken links before (§11.144) still finds none after: 85 relative links across the
 eight documents, all resolving.
 
-### 11.146 The reference sweep that left out a directory — **Fixed, and a fourth measurement error named**
+### 11.146 The reference sweep that left out a directory, and the four others like it — **Fixed**
 
 Re-measuring two claims from earlier entries rather than trusting them turned up one wrong entry, mine.
 
@@ -4238,6 +4238,27 @@ purpose. Its catalogue row says so (retired by D-W: a group can no longer hold b
 condition is unrepresentable), `checkE08()` returns `[]` by design, `errors.spec.ts` asserts exactly that under the
 name "E08 retired", and the *migration* decision it encodes is covered by `normalise.spec.ts`. A corpus case would
 have nothing to pin, since there is no draft that can express the condition.
+
+**Re-running that sweep completely found three more holes in it, and none of them a defect.** Its glob was
+`bin/*.mjs`, so the two `bin/*.js` tools were never in the list at all: `apply_version.js` and `mv_tgz_pkgs.js` are
+both named by `package.json` (`apply_module_version`, `pack_pi_module`). The fixture it called unreferenced is
+referenced by the **root** README, which documents it as a command — "Audit a locale with the existing harness …
+`--prepare bin/audit/use-locale-sv.js`" — so the accurate statement of its state is "no job runs it" rather than
+"nothing runs it", and the deliberate conclusion stands. And my own orphan check then flagged six of the lint
+fixtures, because it matched `bin/lint_fixtures/` with a trailing slash while the editor job runs `--root
+bin/lint_fixtures` without one: they are used through their directory, and the true orphan count is zero.
+
+**§11.70 is this same cross-check done properly.** It read `bin/` against everything that references it, reported
+that every one of the twenty-three files then present had at least one referrer, and drove all three paths of
+`mv_tgz_pkgs.js` in a temporary directory. So the later sweep was a regression in method rather than new ground —
+the earlier entry had it right, and I re-derived it with a narrower search and a wider conclusion.
+
+**The pattern, now with five instances**: §11.128's extraction stopped early, §11.137's terminator missed a
+last-in-job step, §11.140's regex matched only single-method rows, §11.139's file list omitted `server/`, and this
+one's glob and slash were both wrong. Every failure was in the *sweep*, never in the thing swept, and every one
+reported a wide conclusion from a narrow search. The rule this register should be read with: when an entry says
+"nothing references X" or "every Y is covered", the sweep's pattern, its inputs and its coverage are the first
+things to re-check — a lesson §11.70 already embodied and §11.139 failed to reuse.
 
 
 
