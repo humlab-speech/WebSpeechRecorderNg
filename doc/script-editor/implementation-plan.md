@@ -3930,9 +3930,37 @@ The server job now runs a sensitivity step after the shape check: the check must
 name each message with `grep -qF`, and an unset status fails closed (`:-0`, §11.115's lesson).
 
 **Verified**: the step as written names all eight; the real workflow passes with six jobs; `dead_exports` is
-clean at 708; `route_check` reports 8 screens and 9 audited URLs; the fixture directory is in no build.
+clean — 708 as the tool counted it then, 411 once §11.134 fixed the double count — `route_check` reports 8
+screens and 9 audited URLs; the fixture directory is in no build.
 
 **Still only run, not proved to bite**: `route_check`, `dead_exports` and `package_check`.
+
+### 11.134 The dead-export check, held to biting — and the double count it was hiding — **Done**
+
+`bin/dead_exports.mjs` gained `--root <dir>[,<dir>]` (default unchanged), and `bin/dead_export_fixtures/` plants
+both halves: `unused.ts` exports a symbol no file names, and `used.ts` exports one that its own file names. The
+server job's sensitivity step requires the check to exit non-zero, to report the first, and — the part that
+matters — *not* to report the second, so a check that reported everything fails there too.
+
+**Making the fixture bite exposed a defect in the check itself.** The report listed the same symbol on two
+identical lines, and `--verbose` counted "4 exported symbols in 2 files" for a fixture with two. The cause is two
+export patterns — one covering `abstract class`, `interface`, `type`, `enum`, `let`, `var`, the other
+`async function` — where `export const`, `export function` and `export class` satisfy *both*, so every such
+symbol was recorded twice.
+
+**Fixed** by recording through a `file::name` set: the union the two patterns exist for, without the duplication.
+
+**The count it printed was wrong too, not just the fixture's.** `--verbose` reported **708** exported symbols
+across the two trees; the tree has **411**. Five entries quote 708 — §11.37 (the sweep that became this gate),
+§11.48, §11.50, §11.131 and §11.133 — and each is quoting the tool's output as it was, so this entry is the
+correction rather than a rewrite of those. §11.133's line is annotated so a reader does not take 708 as the
+tree's figure.
+
+**Verified**: the step as written reports the dead export and leaves the live one alone; the real tree passes at
+411 exports; `workflow_check` still reports six jobs, `route_check` 8 screens and 9 audited URLs, and
+`editor_lint` its usual counts; the fixture directory is in no build.
+
+**Still only run, not proved to bite**: `route_check` and `package_check`.
 
 
 

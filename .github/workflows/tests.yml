@@ -29,6 +29,20 @@ jobs:
       # and public-api.ts makes its exports reachable for consumers rather than callers.
       - name: No unreferenced exports
         run: node bin/dead_exports.mjs --verbose
+      # And the dead-export check is held to biting: the fixture tree holds one export that no file names and
+      # one that its own file names, so a check that reported everything, or nothing, fails here instead.
+      - name: Dead-export sensitivity
+        run: |
+          dead_out=$(node bin/dead_exports.mjs --root bin/dead_export_fixtures 2>&1) && dead_status=0 || dead_status=$?
+          if [ "${dead_status:-0}" = "0" ]; then
+            echo "the dead-export check passed a tree with an unreferenced export"; echo "$dead_out"; exit 1
+          fi
+          echo "$dead_out" | grep -qF 'plantedUnusedExport' || {
+            echo "the dead-export check did not report the unreferenced export"; echo "$dead_out"; exit 1; }
+          if echo "$dead_out" | grep -qF 'plantedUsedExport'; then
+            echo "the dead-export check reported an export its own file names"; echo "$dead_out"; exit 1
+          fi
+          echo "the dead-export check reported the dead export and left the live one alone"
       # The file all of this runs from. A job appended by hand with one wrong indent turns every check
       # in the repository off without any of them reporting it, so its shape is checked here
       # (bin/workflow_check.mjs).

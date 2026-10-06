@@ -11,12 +11,17 @@
  * The recorder library is deliberately not scanned: it is upstream code this work does not own, and
  * `public-api.ts` makes many of its exports reachable for consumers rather than callers.
  *
- * Usage: node bin/dead_exports.mjs [--verbose]
+ * Usage: node bin/dead_exports.mjs [--verbose] [--root <dir>[,<dir>]]
  */
 import {readFileSync, readdirSync} from 'node:fs';
 import {join} from 'node:path';
 
-const VERBOSE = process.argv.includes('--verbose');
+const args = process.argv.slice(2);
+const opt = (name, fallback) => {
+  const i = args.indexOf('--' + name);
+  return i >= 0 && args[i + 1] ? args[i + 1] : fallback;
+};
+const VERBOSE = args.includes('--verbose');
 
 /**
  * Files whose exports exist for the specs: the shared check corpus and its helpers are used by
@@ -30,10 +35,21 @@ const TEST_INFRASTRUCTURE = new Set([
   'server/api-harness.mjs',
 ]);
 
-const ROOTS = [
+const DEFAULT_ROOTS = [
   {dir: 'projects/spr-script-editor/src', strip: 'projects/spr-script-editor/src/', api: null},
   {dir: 'server', strip: '', api: null},
 ];
+
+/**
+ * `--root <dir>[,<dir>]` replaces the default trees, which exists so the check can be shown to bite:
+ * `bin/dead_export_fixtures` holds one export no file names and one its own file names, and the server
+ * job's sensitivity step requires the first to be reported and the second not to be. Paths are stripped
+ * of the root, so a report reads relative to the tree being scanned.
+ */
+const ROOT_OPT = opt('root', null);
+const ROOTS = ROOT_OPT === null
+  ? DEFAULT_ROOTS
+  : ROOT_OPT.split(',').map((dir) => ({dir, strip: dir.endsWith('/') ? dir : dir + '/', api: null}));
 
 const files = [];
 const walk = (dir) => {
@@ -57,15 +73,27 @@ const source = new Map(files.map((file) => [file, readFileSync(file, 'utf8')]));
 const isSpec = (file) => /\.spec\.ts$/.test(file) || /\.test\.mjs$/.test(file);
 
 const exported = [];
+// Two patterns, because the forms differ (`abstract class`, `interface`, `type`, `enum`, `let`, `var` on one
+// side; `async function` on the other) — but `export const`/`function`/`class` satisfy both, so a symbol
+// would be recorded twice and reported twice. Measured before this: a fixture with two exports said
+// "scanned 4 exported symbols in 2 files", and a dead `export const` was listed on two identical lines.
+const recorded = new Set();
+const record = (file, name) => {
+  const key = `${file}::${name}`;
+  if (!recorded.has(key)) {
+    recorded.add(key);
+    exported.push({file, name});
+  }
+};
 for (const [file, text] of source) {
   if (isSpec(file)) {
     continue;
   }
   for (const match of text.matchAll(/export\s+(?:abstract\s+)?(?:const|function|class|interface|type|enum|let|var)\s+([A-Za-z0-9_$]+)/g)) {
-    exported.push({file, name: match[1]});
+    record(file, match[1]);
   }
   for (const match of text.matchAll(/export\s+(?:async\s+)?(?:function|const|class)\s+([A-Za-z0-9_$]+)/g)) {
-    exported.push({file, name: match[1]});
+    record(file, match[1]);
   }
 }
 
