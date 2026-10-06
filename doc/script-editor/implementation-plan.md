@@ -4560,5 +4560,27 @@ erases both.
 What the check ruled out is worth as much as what it found: the debris that would embarrass a 295-commit branch —
 fixup commits, `wip`, bare `fix` — is not there, which is the state a reviewer assumes and rarely verifies.
 
+### 11.159 What is still missing, at the end of this register — **Summary**
+
+Three checks ran and found nothing to fix, so they close the section rather than adding to it: the counts stated in
+the design docs' prose (the only one is the README's "**three screens** are measured at 390×844", and the dry-run job
+runs exactly three at that width), the catalogue's size (**30 rows: E11, W13, N06**) against the code `editor_lint`
+rule 6 compares it with, and the lint's own rule list (**8** documented, 8 implemented).
+
+**So the outstanding work is three decisions, none of them this work's to take**, each recorded with its evidence
+and each listed in the pull request's description:
+
+| Entry | Decision |
+|---|---|
+| §11.58 | One **high** advisory (`@angular/router >=20.0.0 <20.3.32`, SSR DoS). Reach here is none, but the tree's `~20.3.31` and the shipped peer range `~20.3.30` both admit the vulnerable patches — an Angular version *alignment* `ng update` performs, with no `--dry-run`. Narrowing a published peer range decides what consumers may install. |
+| §11.4 | The **pseudonym policy**: may the editor show which speaker recorded which item, and must pseudonyms replace speaker ids in the UI *and* the CSV? The capability landed (`--pseudonymise-speakers`, off by default, stable labels); the policy question is unanswered. |
+| §11.34 | The **recorder's pause control**, disabled in shipped code since the upstream stub of 2021 (`git blame`), which is why the dry run's pause-during-playback check cannot be met here. |
+
+**And everything else in the register is a completion.** The six CI jobs run green on GitHub for the pull request
+(§11.150); every gate under `bin/` is proved to bite with a planted fixture and a step that fails closed
+(§11.132–§11.147); the documented invariants — the script model (§11.142), the version handshake (§11.143), the API
+triad (§11.140–§11.141), the check catalogue, routes against audits — are each held by something that runs; and
+the observations are measured, with the five sweeps that measured them wrongly recorded alongside (§11.146).
+
 
 
