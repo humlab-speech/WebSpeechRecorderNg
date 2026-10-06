@@ -4349,5 +4349,24 @@ calls `actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32`, which 
 tooling and not to the editor, and the OSV failure is inside a third-party reusable workflow. Both are stated
 plainly in the PR's checks, where a reviewer will meet them.
 
+### 11.151 The open items, counted from the register rather than from memory — **Done**
+
+Checking the register for entries whose status is *not* a completion — which is what a register is for — finds
+**three decisions that belong to somebody else**: §11.4, the pseudonym policy, whose *capability* landed and whose
+question did not; §11.34, the recorder's pause control, which `git blame` puts in the upstream stub of 2021; and
+§11.58, the advisory alignment. My own summaries of this work said "§11.58 and the PR's review" for several rounds,
+which was wrong twice over: three decisions are waiting, and only one of them was in the pull request's
+description.
+
+**The PR body's open section now lists all three**, one line each with the evidence and the entry number, because
+that section is the part of a description a maintainer reads to decide whether to merge. Before this, an owner would
+have had to read 150 register entries to discover that a privacy policy and an upstream control were also waiting
+on them.
+
+**And the count is a measurement of the register, not a recollection.** The whole command is
+`grep -oE "^### 11\.[0-9]+ .*\*\*[^*]+\*\*" | grep -viE "Done|Fixed|Verified|Built|Checked"` — worth re-running before
+any summary of what is outstanding, which is the lesson §11.146 drew five times about sweeps and this entry draws
+once about status.
+
 
 
