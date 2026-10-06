@@ -4170,5 +4170,21 @@ repository: where two copies of a fact are unavoidable, the test reads one of th
 **So this entry records an assumption of mine that was wrong in the good direction**, and the measurement that
 says so — the discipline of §11.128 and §11.140, applied to a case where the answer was "already guarded".
 
+### 11.144 The three jobs I had changed, run end to end — **Verified**
+
+Six workflow changes later — five sensitivity steps and the amended audit block — the *jobs* had not been run as
+units since §11.129; only the new steps were, in §11.137. The steps are what changed, but a step lives in a job:
+its position, its effect on what runs after it, and the ordering the sensitivity steps depend on (the real run
+must come first) are job-level properties that a step-level run cannot see.
+
+**All three, exit 0.** Server, five steps: receiver tests, dead exports, dead-export sensitivity, workflow shape,
+workflow-shape sensitivity. Library, six (`npm ci` excepted): suite **148**, package build, package shape,
+package-shape sensitivity, i18n. Editor, four (`npm ci` excepted): suite **488**, house-rule lint — reporting
+`… 145 own declarations`, the counter rule 8 added — lint sensitivity, production build at 499.79 kB initial.
+
+The workflow is **491 lines**, up from 412 when the first sensitivity step landed, and `workflow_check` still
+reports six jobs. With §11.137's verbatim run of the audit step in its current form, and dry-run and detail-view
+never edited in this pass, all six jobs are now verified as they stand rather than as they stood.
+
 
 
