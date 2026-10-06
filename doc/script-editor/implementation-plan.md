@@ -4715,5 +4715,32 @@ section names all **twelve** fields of that type and all **five** of `DrawFilter
 **`filterVersion`** — which is what the check was for, and the second time in two rounds that writing documentation
 produced a claim I then had to correct.
 
+### 11.166 The receiver's twenty flags, four of them this work's and none documented — **Done**
+
+The root README's receiver section shows `npm run build` and `npm run serve:api` and **never lists a flag**, while
+`server/server.mjs` takes **twenty**. Five of them are this work's — `--recorder-version`,
+`--pseudonymise-speakers`, `--migrate`, `--gc` and `--gc-media` — and the README named **none** of them. Measured
+against the commit before this one: **thirteen of the twenty flags were absent**, the five above among them, and all
+five are absent from the library README too.
+
+**The two that change behaviour carry their reason in the table, not just their syntax.** `--recorder-version` is
+what a script's `minRecorderVersion` is compared against when a session is created, so a deployment that leaves it
+wrong has §11.164's guard *comparing against the wrong number* — the failure it exists to prevent, one level up. And
+`--pseudonymise-speakers` is the capability §11.4 records a policy question for: a switch nobody could use without
+reading the source, which made the policy question harder to answer than it needed to be.
+
+**One row per flag, in the server's own usage wording**, then checked **both ways** against `server/server.mjs`'s
+argument parsing: twenty flags in the server, twenty in the table, **none invented and none omitted**. That is the
+check §11.161's false claim would have failed.
+
+**The entry's own numbers were wrong when first written**, and the check above is why they are now right: it said
+"four are this work's" where there are five flags, and "thirteen of the sixteen older flags" where the measurement —
+taken from the parent commit rather than from the file I had just edited — is thirteen of twenty. A claim about
+absence is exactly the kind that needs its "before" state named.
+
+This is the fifth round of one class — what this work shipped that nobody documented — and the largest in
+operational terms: a deployment following the README could not pseudonymise speakers, migrate a legacy tree, prune
+retention, or set the version its recorder reports.
+
 
 
