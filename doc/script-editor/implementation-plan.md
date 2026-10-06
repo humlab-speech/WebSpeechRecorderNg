@@ -4005,5 +4005,24 @@ five fixture directories is named by any build configuration.
 a CI step that requires the specific message and fails closed when its status is unset — where before §11.133 the
 audits alone were proved, and five gates would have looked identical whether they detected anything or not.
 
+### 11.137 Those five steps, and the amended audit step, run from the file — **Verified**
+
+The five sensitivity steps were verified by *retyping* their shells as they had been written. That is not the same
+as running what the workflow contains, so each was extracted from `.github/workflows/tests.yml` by name — the step,
+its `run: |`, then the block to the next step or job key, dedented ten spaces — and executed. **All five exit 0**
+with their closing line: dead-export, workflow-structure, house-rule-lint, package-shape and route-coverage.
+
+**One extraction of mine was wrong again, in the same way as §11.128's.** The workflow-structure step is the
+*last* step of the server job, so its block ends at a two-space job key rather than at the next step, and my
+terminator pattern only matched the latter — the extraction swallowed the next job and died on `library: command
+not found`. Fixed by terminating on either.
+
+**The audit step needed the same treatment**, because §11.131 folded the console assertions into its
+planted-violation block and §11.135 added the route sensitivity step, so its last verbatim run predated both.
+Re-extracted (125 lines; 28 theme and 17 accessibility invocations plus the route check) and run: **exit 0**, 26
+theme and 15 accessibility runs passing, the step's own closing line — "both audits named every planted violation,
+and the token layer itself" — reached, nothing failing. The counts match the earlier run because the console
+assertions ride on an accessibility invocation that already existed rather than adding one.
+
 
 
