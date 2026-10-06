@@ -3794,5 +3794,27 @@ resolved by the server from the draw rule, prompt clips played, the headphone re
 The detail view's overlay audits, and the tolerance-0 case failing with "outside tolerance" as the workflow
 asserts.
 
+### 11.128 The audit step run as CI runs it — **Done, and §11.127's claim corrected**
+
+§11.127 said the editor's routes had been through the audits "in light and dark" on the strength of a
+representative subset — a few routes I picked. That is not what the step does, and saying so was an overclaim. So
+the step was extracted from the workflow (its body to line 257, dedented, only the browser binary substituted for
+macOS) and run as written: **28 theme and 17 accessibility invocations** over the editor's routes at 1366x768,
+1920x1080 and 390x844, light and the opt-in dark scheme, including the two states behind an interaction and the
+centre's selected card.
+
+**Exit 0.** Twenty-six theme runs and fifteen accessibility runs printed their pass line — every run that is not
+one of the four which must fail: the theme and accessibility planted-violation runs, Angular's dev hint
+(§11.127), and the page with no token layer.
+
+**My first extraction was truncated and I did not notice.** It stopped at line 241, cutting the token-layer
+block's two assertions and the closing echo. Because the step starts with `set -e`, the script still exited 0:
+the status half of that check — the audit must fail on `favicon.ico` — had run, the two `grep`s had not. Re-run
+on their own they hold: exit 1, naming both `no --spr-* tokens are defined (token layer inert)` and `does not
+follow --spr-primary`.
+
+The counts reconcile exactly: of the eighteen lines naming `a11y_audit.mjs`, one is §11.127's own comment,
+leaving seventeen invocations; two must fail; fifteen passed.
+
 
 
