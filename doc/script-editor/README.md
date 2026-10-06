@@ -524,6 +524,15 @@ rule).
   and its dark scheme was broken (§11.45), and a renamed route would leave an audit line pointing at
   a URL that renders nothing to find faults in. It found `/project/:p/draws`, the project-scoped
   draws view, in the first direction (plan §11.46).
+- **Every gate above is proved to bite.** Each check in `bin/` has a planted fixture it must fail on and a CI
+  step that requires the specific message, so a gate that stopped detecting fails the job rather than passing
+  quietly: `bin/lint_fixtures/` for the house-rule lint, `bin/workflow_fixtures/broken.yml` for the workflow
+  shape, `bin/dead_export_fixtures/` for dead exports, `bin/route_fixtures/` for route coverage,
+  `bin/package_fixtures/` for the packaging invariants, and `bin/audit/plant-violations.js` for the theme and
+  accessibility audits. In every job the check also runs on the real input, which must pass, so a check that
+  over-reports fails there; and where a fixture can carry one cheaply it also holds a neighbour the check must
+  *not* name — an export its own file uses, a screen both audits visit, an import the manifest declares, and
+  Angular's own development-build hint (plan §11.132–§11.137).
 - **Theme audit.** Run the editor (or the built bundle) and drive a headless Chrome the tool can
   attach to, then audit the routes and one interaction state:
 

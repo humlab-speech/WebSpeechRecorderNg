@@ -4024,5 +4024,13 @@ theme and 15 accessibility runs passing, the step's own closing line — "both a
 and the token layer itself" — reached, nothing failing. The counts match the earlier run because the console
 assertions ride on an accessibility invocation that already existed rather than adding one.
 
+**And the README's gate list now says what §11.132–§11.137 made true**: it describes each check's behaviour but
+said nothing about the set being proved, so it gained a bullet naming the five fixture trees, the audit fixture,
+and how over-reporting is caught — the check runs on the real input in the same job, which must pass, and where a
+fixture carries a neighbour the check must not name (an export its own file uses, a screen both audits visit, an
+import the manifest declares, the framework's dev hint), it does. Reading my own first wording of that bullet
+against the fixtures found the overstatement: the lint's and the workflow's fixtures carry no such neighbour, so
+the sentence now says which of the two mechanisms holds for each.
+
 
 
