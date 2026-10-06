@@ -4284,5 +4284,25 @@ count instead of passing quietly.
 
 The README's gate list gained the bullet, and the sensitivity paragraph now names the sixth fixture directory.
 
+### 11.148 A question asked twice would be a waste: whole modules nothing imports — **Checked, and not a gate**
+
+With `bin/` guarded by §11.147, the neighbouring question is whether a *module* nothing imports can sit in the
+editor or the library. Asked, and the answer is a decided no, so this is recorded rather than made a gate.
+
+**The editor**: 93 non-spec modules, of which two have no TypeScript importer — `src/main.ts`, which is the
+application's entry and named by the builder, and `src/environments/environment.prod.ts`, which `angular.json`
+names in `fileReplacements` for the production configuration. Both are referenced; neither is dead.
+
+**The library is out of scope by design, and that is written down**: `bin/dead_exports.mjs` says it is deliberately
+not scanned — upstream code, whose exports are made reachable for *consumers* through `public-api.ts` rather than
+by callers inside the repository. So the 61 modules my probe reported there as "no importer" are the expected shape
+of a barrelled library, not a finding.
+
+**And the probe itself was too crude to be a gate.** Its pattern matched `from './name'` and `from '../name'` but
+not `from './db/inddb'`, so it under-counted importers, and it knew nothing about barrels. It was enough to answer
+the question — the two editor hits resolve against the build configuration — and not enough to decide correctness
+on its own, which is the reason it is not code. A gate here would need to resolve the module graph the way the
+compiler does, and its answer for the library would still be "reachable through the barrel, on purpose".
+
 
 
