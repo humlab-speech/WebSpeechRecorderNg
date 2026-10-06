@@ -3816,5 +3816,32 @@ follow --spr-primary`.
 The counts reconcile exactly: of the eighteen lines naming `a11y_audit.mjs`, one is §11.127's own comment,
 leaving seventeen invocations; two must fail; fifteen passed.
 
+### 11.129 Every job's step, run as written — **Done**
+
+§11.128 ran the audit step verbatim; the same standard then applied to the rest. The dry-run and detail-view
+steps were extracted the same way — body to the next job, dedented, only the browser binary substituted, and the
+Linux-only `sudo apt-get`/pulseaudio block neutralised because it would prompt on this machine — and run as
+written.
+
+**dry-run: exit 0.** Nine theme and nine accessibility runs passed; the layout probe reported four measurements
+within 1px and all three of its failure modes; the driver went end to end — 7/7 rows, the bank items D001/D002
+resolved by the server from the draw rule, prompt clips played, the headphone reminder shown, session COMPLETED,
+"Dry run passed."
+
+**detail-view: exit 0.** Two theme and two accessibility runs, the error dialog's among them — the run that
+flaked before §11.127.
+
+**The library job's last step, which §11.127 did not cover at all**: `npm run validate:i18n` (242 keys in
+`en.json` and `sv.json`, 209 `SPR_STRINGS` keys, 203 referenced from source), `npm run build:i18n`, and
+`git diff --exit-code -- src/assets/i18n` — generated identical to what is committed.
+
+**Checked step by step against the workflow.** Server: `node --test server/*.test.mjs`, `dead_exports.mjs
+--verbose`, `workflow_check.mjs --verbose`. Library: the suite (148), `build_module` with the version file
+regenerating identically, `package_check.mjs`, i18n. Editor: the suite (488), `editor_lint.mjs --verbose`,
+`build_editor` — the step's own command. Audit, dry-run and detail-view: run verbatim.
+
+**The one step not run is `npm ci`.** It re-installs `node_modules`, and the tree already has a working install;
+every step that depends on it was run against that install.
+
 
 
