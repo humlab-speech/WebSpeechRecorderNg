@@ -4032,5 +4032,20 @@ import the manifest declares, the framework's dev hint), it does. Reading my own
 against the fixtures found the overstatement: the lint's and the workflow's fixtures carry no such neighbour, so
 the sentence now says which of the two mechanisms holds for each.
 
+### 11.138 The fixture trees are in no build — **Verified**
+
+The five fixture trees added in §11.133–§11.136 include three TypeScript files, one of which —
+`bin/route_fixtures/routes.ts` — names components that do not exist, because its whole purpose is to be compared
+statically. That is harmless only if no build compiles `bin/`, and "no build configuration names the directory" is
+**not** the same claim: a tsconfig `include` of `**/*.ts` would reach it without naming it, and the earlier checks
+in this pass only grepped for the directory names.
+
+**Measured rather than reasoned.** All three builds pass — `build_module`, `build_editor`, and the recorder's
+`build` — exit 0, no error lines, no mention of a fixture. The includes are per project and scoped
+(`src/**/*.spec.ts`, `src/**/*.d.ts`, the library's `exclude` of its spec files), so nothing reaches `bin/`. The
+suites that compile through their own spec configs were re-run against the fixtures in place: editor **488**,
+library **148**, both exit 0, and those includes are `**/*.spec.ts` and `**/*.d.ts` relative to each project —
+which no fixture matches, since none is a spec and none is a declaration file.
+
 
 
