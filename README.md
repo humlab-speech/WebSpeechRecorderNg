@@ -263,6 +263,27 @@ The endpoint stays relative and the browser only ever talks to the origin it loa
 application from, so no cross origin configuration is needed. Without the receiver the proxy
 answers 504 — sessions, scripts and uploads all come from the API.
 
+#### The receiver's options
+
+`npm run serve:api` runs `node server/server.mjs` with the defaults below; each one has a flag.
+
+| Option | Meaning |
+|---|---|
+| `--host`, `--port` | interface and port to listen on (default `127.0.0.1:8080`) |
+| `--api-base <path>` | API base path (default `/api/v1`); must equal the application's `apiEndPoint` |
+| `--data <dir>` | data directory, seeded on first run (default `server/data`) |
+| `--seed <dir\|none>` | fixture tree copied into an empty data directory (default `src/test`) |
+| `--app <dir\|none>` | built application to serve (default `dist/cavox/browser`) |
+| `--project`, `--script` | project and script of sessions created on demand |
+| `--no-auto-create` | answer `404` for sessions that do not exist instead of creating them |
+| `--no-cors`, `--credentials` | cross-origin behaviour, for a development server on another port |
+| `--max-body <bytes>`, `--concat-wait-ms <n>` | upload size limit, and how long a concat request waits for chunks still in flight |
+| `--quiet`, `--verbose` | log uploads and errors only, or every request |
+| `--recorder-version <v>` | **the version this receiver reports.** A script whose `minRecorderVersion` is above it is refused when a session is created, so it must match the recorder build the deployment actually serves — otherwise the guard against a script running with a feature silently missing compares against the wrong number |
+| `--pseudonymise-speakers` | **store and return a stable per-deployment label** (`sp-<12 hex>`) instead of the caller's speaker id. The salt lives in the data directory, so labels survive restarts and the copy-to-production transfer and differ between installations. Off by default |
+| `--migrate` | create the per-script layout for legacy flat scripts, then exit |
+| `--gc`, `--gc-media` | prune draft revisions and expired preview sessions — and, with `--gc-media`, media that no draft or version references — then exit |
+
 ## Configuration
 
 By default the API Endpoint ({apiEndPoint}) is an empty string, the API is then expected to be relative to the base path of the application. 
