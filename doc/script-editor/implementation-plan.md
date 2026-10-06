@@ -4069,5 +4069,31 @@ those — and would need a dark twin as well, which `bin/route_check.mjs` enforc
 rather than in what it does, it throws when it cannot reach its state (§11.40), and it remains a legitimate tool
 for a person auditing the demo app's language switch. What it should not be read as is coverage: no job runs it.
 
+### 11.140 The API triad rest-api.md ↔ the client ↔ the server — **Checked, no gap built**
+
+`rest-api.md` calls itself the list of every endpoint the editor needs, and the editor's HTTP layer is exercised
+**only against mocked HTTP**: its specs hand-write the paths they expect, so a wrong path in a service would pass
+every test in this repository and fail as a 404 only against a real server. Nothing compares the client's paths to
+the document, or to the server. That is the same shape as `editor_lint` rule 6 — which does exactly this for the
+validation ids — one level up, and there was no equivalent.
+
+**Measured both ways, and the triad is consistent today.** The document's summary table has 18 endpoint rows,
+including two whose method cell carries alternatives (`GET/PUT …/draft`, `POST/PUT/DELETE …/bank[/{b}/item…]`),
+plus `POST …/draft/_restore` documented in prose at §2.5 rather than in the table. The client builds fourteen path
+families through two helpers (`projectPath`, `apiPath`). Every one has a documented endpoint, and `_restore` is
+present in all four places a path can be: documented (§2.5), served (`server/api.mjs`), exercised
+(`server/publish.test.mjs`) and called (`script-api.service.ts`), with its own spec.
+
+**My own measurement was wrong twice before it was right, in a way worth recording.** The first extraction matched
+only rows with a single method and reported 16, which *hid the draft rows* — the very endpoints a client-path
+mismatch would most plausibly involve — and the second read the same table properly. A comparison whose pattern
+silently drops rows reports agreement it has not established.
+
+**Why no check was built.** The server dispatches through a `switch` over path heads with string comparisons
+rather than a route table, so a static check would need its list of routes fed by hand — which is the thing it
+would be guarding against. A real check is an integration test that drives the server with the paths the client
+builds, which is a new harness and a new kind of test in this repository (every existing editor spec mocks HTTP).
+Recorded as the option, with today's consistency as its baseline, rather than taken unprompted.
+
 
 
