@@ -4541,5 +4541,24 @@ without saying so. Each was checked with a script, and the result is recorded so
 exist; they say nothing about whether the work behind each label was done. That distinction is why §11 exists and
 why §11.123 measured decision coverage by hand rather than by citation.
 
+### 11.158 The commit history a reviewer reads — **Checked, two cosmetic slips left alone**
+
+The branch is 295 commits, and a reviewer reads subjects before diffs. Checked mechanically: **no debris** —
+nothing named `wip`, `tmp`, `fixup!`, `squash!` or a bare `fix`/`update`/`changes` — and **293 of 295 subjects**
+carry a conventional prefix with a scope and an imperative summary. The longest is 115 characters, long but
+unambiguous.
+
+**Two exceptions, both from the work's first two days**: `docs,feat(server): close M0 (version endpoint, B7/B8,
+evidence)`, a comma-joined pair of types where one belongs, and `Specs for the script editor from the design process
+and initial plan`, which carries no prefix at all.
+
+**Left alone deliberately.** Correcting them means rewriting history that is already pushed and that the pull
+request's runs are attached to — a force-push and invalidated CI for a cosmetic difference. The repository allows
+squash, rebase and merge commits, so the maintainer's merge choice settles the final shape anyway, and a squash
+erases both.
+
+What the check ruled out is worth as much as what it found: the debris that would embarrass a 295-commit branch —
+fixup commits, `wip`, bare `fix` — is not there, which is the state a reviewer assumes and rarely verifies.
+
 
 
