@@ -509,6 +509,11 @@ Properties:
  * itemcode: string: In the scope of the script unique identifier of an recording item
  * mediaitems: array: List of media items for this prompt. Currently only a single mediaitem element in the array is supported.
 
+A prompt item can also draw its entries from an **item bank** instead of a list — `prefill.bank`, with a filter, a
+count, an order and what the draw is keyed to. The receiver resolves it when the session is created and writes the
+drawn items into the session's script, so the library needs no change for it; the repository README documents the
+JSON under *Drawing items from a bank*.
+
 ### Embedded entity Media item
 
 Properties (supported properties only):

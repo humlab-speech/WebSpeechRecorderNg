@@ -423,6 +423,48 @@ and `sti-sentencelists.json`):
 If the source cannot be fetched, or holds no lists, the script load fails with
 `spr.status.scriptPrefillError` instead of presenting a half-filled session.
 
+### Drawing items from a bank
+
+A **bank** is the second source type of the same mechanism: instead of listing entries, a placeholder item asks for
+`count` items from an item bank. Like a list source it sits on a placeholder prompt item, and a placeholder carries
+exactly one of `source` (a list) or `bank`. It is resolved **server-side when the session is created**, because the
+draw needs project state — what the speaker has already recorded — and must be reproducible across reloads.
+
+```json
+{
+  "itemcode": "D",
+  "prefill": {
+    "bank": {
+      "bank": "std-passages",
+      "bankSource": "BUILTIN",
+      "filter": {"hasAudio": true, "q": "vowel"},
+      "count": 2,
+      "itemcodePrefix": "D",
+      "order": "RANDOM",
+      "fixedBy": "SESSION",
+      "playBankAudio": true
+    }
+  }
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `bank`, `bankSource` | the bank's id, and whether it belongs to the project (`PROJECT`) or ships with the application (`BUILTIN`) |
+| `filter`, `filterVersion` | which items are eligible: `category`, an inclusive word-count range `words`, `hasAudio` (only items with, or only those without, a model recording), a case-insensitive substring `q`, and `tags` (all must be present). The semantics are pinned by `filterVersion`, absent meaning version 1 |
+| `count` | how many items are drawn, 1–999 |
+| `itemcodePrefix` | the drawn items are numbered `PREFIX001`, zero-padded to three digits |
+| `order` | `RANDOM` (default: shuffled once, at resolution) or `SEQUENTIAL` |
+| `fixedBy` | what a draw is keyed to. `SESSION` (default): every session draws its own items. `SPEAKER`: a returning speaker gets the same items again, which suits repeated measurements. `SCRIPT`: one draw per script version, so everyone recorded with it gets the same items |
+| `skipRecordedBySpeaker` | leave out what this speaker has already recorded, refilling from it when the draw runs short |
+| `playBankAudio` | play each drawn item's own model recording (`BankItem.audioSrc`) |
+| `playback`, `itemDefaults` | applied to every drawn item — a `playback` plan, and the timing fields (`prerecdelay`, `recduration`, `postrecdelay`, `recinstructions`) |
+
+The receiver writes the drawn items into the session's script, so the recorder reads an ordinary script and needed no
+change for any of this; it also keeps the draw in the session record, which the draws screen and the CSV export read.
+Banks are edited in the editor's bank browser, or written as JSON under `project/{p}/bank`; a `BUILTIN` bank ships
+with the application and the server resolves its `audioSrc` for the client.
+
 ### Embedded entity Media item
 
 Properties (supported properties only):
