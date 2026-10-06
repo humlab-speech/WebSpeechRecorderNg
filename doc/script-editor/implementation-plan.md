@@ -403,7 +403,7 @@ R1–R4 must land before 14–16; R5–R8 before 17. PRs 1, 4 and 5 wait on **D-
 | 1. Server ownership (upstream vs local) | M0 | **Answered**: the receiver is in this repo (`server/`, `npm run serve:api`) and is the draft of the production server; changes transfer (D-Q). |
 | 2. Script `name` ownership (entity vs index) | M0/M3 | `Script.name?` on the entity (D-I); fixtures already carry it. |
 | 3. Shipped-bank delivery | M0/M4 | Server resolves `audioSrc` for `BUILTIN`; client uses what it is given (rest-api §3.4). |
-| 4. Speaker pseudonymity in the draw record | M4 | Show what the API returns; keep speaker rendering isolated so a pseudonym mapping is a one-file change. |
+| 4. Speaker pseudonymity in the draw record | M4 | Show what the API returns; keep speaker rendering isolated so a pseudonym mapping is a one-file change. **The capability has since landed (§11.4)**: `--pseudonymise-speakers` on the receiver, off by default, keeps a stable `sp-<12 hex>` label in the store so the draw record, the CSV, the session record and `skipRecordedBySpeaker` agree by construction. **The policy question has not been answered** — that is §11.4's first paragraph, and it is the owner's. |
 | 5. Multi-project banks | M0/M4 | Project-local per D3; no cross-project bank ids until answered. |
 | New: strong ETag semantics | M0 | Plan assumes a strong validator (D-C). |
 | New: feature→version map ownership | M0/M1 | **Done (L4).** The library owns it (`script/feature-versions.ts`) and the receiver keeps a mirror (`server/feature-versions.mjs`), because it cannot import TypeScript; both copies are held to the same cases by `feature-versions.spec.ts` and `server/feature-versions.test.mjs`, and a detector⊆table test fails if a new feature is added without a floor. The served version is `--recorder-version` (default `RECORDER_VERSION`). |
@@ -422,6 +422,14 @@ R1–R4 must land before 14–16; R5–R8 before 17. PRs 1, 4 and 5 wait on **D-
 | New: draft store layout and revision retention | M0 | Per-script directory `script/<id>/{meta,published,draft,versions,revisions}` with a legacy read (§10.1, R2). |
 | New: error-envelope extension | M0 | Additive `{error, message, details}`; `error` stays a string for the recorder (D-R, R1). |
 | New: server-side check scope | M0 | E01–E11 plus the data-model §4 invariants; warnings stay client-side (D-T, R4). |
+
+**These rows are defaults, not statuses.** The pair a reader most needs are the two that answering does not
+finish: row 4's *capability* has landed (§11.4) while its *policy question* has not, and the feature→version row is
+marked done for the same reason it was asked — the map exists twice with a test holding the copies together
+(§11.143). Two further decisions belong outside this plan altogether and are recorded where they arose: §11.34, the
+recorder's pause control, which `git blame` puts in the upstream stub of 2021, and §11.58, a dependency advisory
+whose reach is none but whose peer range admits it. All three are listed in the pull request's description, which is
+where a maintainer will read them first.
 
 ## 9. Review findings index
 
@@ -4367,6 +4375,26 @@ on them.
 `grep -oE "^### 11\.[0-9]+ .*\*\*[^*]+\*\*" | grep -viE "Done|Fixed|Verified|Built|Checked"` — worth re-running before
 any summary of what is outstanding, which is the lesson §11.146 drew five times about sweeps and this entry draws
 once about status.
+
+### 11.152 The plan's own "open questions" section, read as a newcomer — **Done**
+
+§8 is the section a reviewer reads to learn what is undecided, and its rows are headed "Plan default until
+answered". Read as a newcomer, most of them look settled — several carry "**Answered**" or "**Done**" inline — and
+**row 4, speaker pseudonymity, carried no status at all**, so the one row whose *capability* has since landed while
+its *policy question* has not read exactly like the others. That is the worst possible row for a reader to
+misjudge, since it is one of the three decisions waiting on somebody.
+
+**Row 4 now carries both halves**: `--pseudonymise-speakers` on the receiver, off by default, stable `sp-<12 hex>`
+labels in the store with the draw record, the CSV, the session record and `skipRecordedBySpeaker` agreeing by
+construction — and the policy question, which is §11.4's first paragraph and the owner's.
+
+**And the table says what it is.** A line after it records that these rows are defaults rather than statuses, names
+the two that answering does not finish (row 4, and the feature→version row, whose map exists twice with §11.143's
+test holding the copies together), and points at the two decisions outside the plan's scope — §11.34 and §11.58 —
+noting that all three are in the pull request's description, which is where a maintainer reads first.
+
+Verified: the table is still three columns with a uniform four pipes per row, and the plan's eight relative links
+all resolve.
 
 
 
