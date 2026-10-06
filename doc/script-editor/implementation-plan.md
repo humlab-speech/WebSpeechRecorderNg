@@ -118,6 +118,11 @@ inventory (§4 M2).
 
 ## 4. Milestones, tasks, gates
 
+**The suite counts inside these rows are the numbers at the moment each row landed**, not at the tip: the library's
+44, 105, 132 and 136 as the L-tasks closed, then 146 at M1's gate; the editor's 229, 398 and 480. The tip's counts —
+library **148**, editor **488**, server **65** tests — are in §11.144 and in `doc/script-editor/README.md` §Testing,
+which is where the commands live too (§5). Rows that quote a build size say "at this revision" for the same reason.
+
 ### M0 — API agreement (documents, no application code)
 
 - [x] Close open Q1: the receiver is in-repo and is the draft of the production server, so changes
@@ -4483,6 +4488,12 @@ thrown away the milestone's own record; leaving them would have read as current.
 **Two numbers in those rows were left alone**, because they already say what they are: the M2 build size "500.16 kB
 raw / ~136 kB estimated **at this revision**", and the 561 flattened rows the 500-item script produces, which is a
 property of the fixture rather than a count of the suite.
+
+**And four more counts in M1's rows — 44, 105, 132, 136 — were left as they are**, because they are per-row
+verifications ("Verified: library suite **136 pass**" at the moment that row landed) rather than gate claims. Seven
+parenthetical annotations would have been the noisy way to say that; one paragraph at §4's head says it for the
+whole section: the counts inside these rows are the numbers at the moment each row landed, and the tip's counts are
+in §11.144 and the README's §Testing.
 
 
 
