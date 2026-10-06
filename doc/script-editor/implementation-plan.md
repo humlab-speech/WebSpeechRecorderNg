@@ -4575,7 +4575,7 @@ three, which is what the README means and is worth saying precisely because the 
 catalogue's size (**30 rows: E11, W13, N06**) against the code `editor_lint` rule 6 compares it with, and the lint's
 own rule list (**8** documented, 8 implemented).
 
-**So the outstanding work is three decisions, none of them this work's to take**, each recorded with its evidence
+**So the outstanding work is four decisions, none of them this work's to take**, each recorded with its evidence
 and each listed in the pull request's description:
 
 | Entry | Decision |
@@ -4583,6 +4583,7 @@ and each listed in the pull request's description:
 | §11.58 | One **high** advisory (`@angular/router >=20.0.0 <20.3.32`, SSR DoS). Reach here is none, but the tree's `~20.3.31` and the shipped peer range `~20.3.30` both admit the vulnerable patches — an Angular version *alignment* `ng update` performs, with no `--dry-run`. Narrowing a published peer range decides what consumers may install. |
 | §11.4 | The **pseudonym policy**: may the editor show which speaker recorded which item, and must pseudonyms replace speaker ids in the UI *and* the CSV? The capability landed (`--pseudonymise-speakers`, off by default, stable labels); the policy question is unanswered. |
 | §11.34 | The **recorder's pause control**, disabled in shipped code since the upstream stub of 2021 (`git blame`), which is why the dry run's pause-during-playback check cannot be met here. |
+| §11.161 | **A field that does nothing**: `Script.virtualViewBox` is carried, defaulted, edited and validated by E11 — and applied by no renderer, upstream included. The editor exposes it because the shared model has it; keep offering it, or hide it until a recorder honours it? |
 
 **And everything else in the register is a completion.** The six CI jobs run green on GitHub for the pull request
 (§11.150); every gate under `bin/` is proved to bite with a planted fixture and a step that fails closed
@@ -4609,6 +4610,18 @@ origin and its first six headings are still theirs.
 measured as Done 112, Fixed 28, Verified 5, Checked 3, Built 2, Recorded 4 — because counts in prose are exactly what
 this pass spent eight rounds finding stale (§11.154–§11.156). A reader wanting the state has §11.159; a reader wanting
 a count can grep the headings in one line.
+
+### 11.161 `Script.virtualViewBox`, which documented a behaviour no code has — **Done, and a question raised**
+
+Verifying §1 of `data-model.md` — twelve claims about what the recorder honours — found one false: *"`Script.virtualViewBox` | scales image prompts to a fixed virtual height"*. What scales a prompt is the **mediaitem's** box: `prompting.ts` reads `mediaitems[0].defaultVirtualViewBox.height` into `prompterHeight` (and the library's own README says so). The **script-level** field is read by **nothing** — not by the library, not by the recorder application, and not by `upstream/master` either, where it is likewise only a declaration. So it is not a regression of this work; it is an upstream field that upstream never implemented, described here as though it were honoured.
+
+**My first reading of it was wrong, and that is the part worth recording.** A grep over `projects/` with comment lines filtered out returned nothing, and I was one step from writing "nothing reads a view box" — the mediaitem's box is the one that matters, its reader is in the prompt path, and the line my filter dropped was `prompting.ts:423`. It is the sweep lesson of §11.146 again, one turn later, and this time about to be recorded as a finding rather than a mistake: the pattern decided the conclusion.
+
+**What the script-level field actually does.** It is carried in eight fixture scripts, written into a new script's body by the server (`api.mjs`'s template sets `{height: 600}`), edited by the inspector (`script-height`) and validated by **E11 on both runtimes** (`errors.ts`, `validate.mjs`) — so the whole toolchain treats it as real, and no renderer applies it.
+
+**Corrected**: the §1 row now states both halves, the `Mediaitem` row names the field that *is* honoured, and the table's header no longer points every row at `sessionmanager.ts` — L2 moved the phase and delay arithmetic into `script/phases.ts`, which is where a reader of those rows should look.
+
+**And it raises a question that is not this work's to answer**: should the editor keep offering a script-level height the recorder ignores? The field is in the shared model and a recorder could honour it later, so exposing it is defensible; hiding it is a product decision. §11.159's summary and the pull request's open list carry it as the fourth such item.
 
 
 

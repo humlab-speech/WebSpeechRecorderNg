@@ -11,7 +11,7 @@ own copy.
 Read this before designing anything: several fields in the current model are not what their names
 suggest.
 
-| Field | Reality in [sessionmanager.ts](../../projects/speechrecorderng/src/lib/speechrecorder/session/sessionmanager.ts) |
+| Field | Reality in the library — `session/sessionmanager.ts` and `session/prompting.ts`, with the phase and delay arithmetic extracted into `script/phases.ts` by L2 |
 |---|---|
 | `Section.mode` | `MANUAL`, `AUTOPROGRESS`, `AUTORECORDING` — all three implemented |
 | `Section.promptphase` | `IDLE`, `PRERECORDING`, `RECORDING`, `PRERECORDINGONLY` — decides when the prompt becomes visible |
@@ -23,8 +23,8 @@ suggest.
 | `PromptItem.type` | `'nonrecording'` shows the item without recording; anything else (including unset) records |
 | `PromptItem.duration` | only used for `type: 'nonrecording'`, and only in `AUTORECORDING` sections |
 | `PromptItem.mediaitems` | an array, but **only the first entry is used** |
-| `Mediaitem` | `text`, `promptDoc` (formatted text), `src` + `mimetype` (image, audio, video), `alt`, `defaultVirtualViewBox` |
-| `Script.virtualViewBox` | scales image prompts to a fixed virtual height |
+| `Mediaitem` | `text`, `promptDoc` (formatted text), `src` + `mimetype` (image, audio, video), `alt`, `defaultVirtualViewBox` (the height the prompt is scaled against: `prompting.ts` reads `mediaitems[0].defaultVirtualViewBox.height` into `prompterHeight`) |
+| `Script.virtualViewBox` | **read by nothing.** The recorder scales a prompt by its *mediaitem's* `defaultVirtualViewBox`; the script-level box is carried in real fixtures, written into a new script's body by the server (`virtualViewBox: {height: 600}`), edited in the inspector and validated by E11 on both runtimes — but no renderer applies it. §11.161 records the measurement and the question it raises. |
 
 Consequences for the editor: offer only `SEQUENTIAL` and `RANDOM`; show one delay field per side
 and treat the legacy name as an alias to be fixed on request (D7); edit `mediaitems[0]` only. A
