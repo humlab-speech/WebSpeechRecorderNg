@@ -4050,8 +4050,10 @@ which no fixture matches, since none is a spec and none is a declaration file.
 ### 11.139 The one fixture nothing runs — **Recorded, with the measurement**
 
 Checking every `bin/` script and fixture for a reference turned up exactly one that nothing in CI, `package.json`
-or the other scripts names: `bin/audit/use-locale-sv.js`. (`bin/serve_deploy.mjs` also has no code reference and
-is fine — it is a human tool, invoked directly and documented in the README.)
+or the other scripts names: `bin/audit/use-locale-sv.js`. (This paragraph first added "`bin/serve_deploy.mjs` also
+has no reference and is fine — a human tool", which was wrong: `server/deploy.test.mjs` **spawns** it, and the
+sweep that produced the claim left `server/*.test.mjs` out of its file list. §11.146 records the correction and why
+the list was short.)
 
 **It works, measured.** Against a development build of the recorder, served with the `playback` fixture,
 `node bin/theme_audit.mjs --url http://127.0.0.1:8391/spr/session/1 --prepare bin/audit/use-locale-sv.js` exits 0
@@ -4207,6 +4209,35 @@ drawn group — the features the editor writes, which is the claim the sentence 
 
 The link check that found no broken links before (§11.144) still finds none after: 85 relative links across the
 eight documents, all resolving.
+
+### 11.146 The reference sweep that left out a directory — **Fixed, and a fourth measurement error named**
+
+Re-measuring two claims from earlier entries rather than trusting them turned up one wrong entry, mine.
+
+**§11.139 said `bin/serve_deploy.mjs` has no reference and is a human tool only.** It has one: `server/deploy.test.mjs`
+**spawns** it (`spawn(process.execPath, ['bin/serve_deploy.mjs', '--port', …])`) and asserts the layout it serves —
+the two mounts behind their prefixes, the SPA fallback and the API proxy, which is README §4.5. So the deployment
+harness is exercised in CI on every push; only `bin/audit/use-locale-sv.js` is referenced by nothing, and that
+finding stands.
+
+**Why the sweep missed it**: its file list was `.github/workflows/tests.yml package.json bin/*.mjs bin/audit/*.js
+doc/script-editor/*.md` — it never looked in `server/`, where the reference lives. The claim was not wrong because
+the file is referenced obscurely; it was wrong because I did not search everything I said I had.
+
+**That is the fourth error of this kind in the register, all in the same direction.** §11.128's extraction stopped
+early and missed the token-layer assertions; §11.137's terminator missed a last-in-job step; §11.140's pattern
+matched only single-method rows and hid the draft endpoints; this one omitted a directory. Every one was a *narrow*
+search reporting a *wide* conclusion — "nothing references it", "the step ran", "the tables agree" — and every one
+was caught only by re-running it a different way. The habit that catches them is the one this register keeps
+paying for: make the sweep's input a measurement in its own right, as §11.141's test does with its own extraction
+and §11.143's was proved by planting drift rather than by reading the test.
+
+**The second claim re-measured was right, and is now on record as deliberate.** §11.106 recorded that the shared
+check corpus covered eight of ten error ids; it now covers ten of eleven, and the eleventh — **E08** — is absent on
+purpose. Its catalogue row says so (retired by D-W: a group can no longer hold both a rule and a fixed list, so the
+condition is unrepresentable), `checkE08()` returns `[]` by design, `errors.spec.ts` asserts exactly that under the
+name "E08 retired", and the *migration* decision it encodes is covered by `normalise.spec.ts`. A corpus case would
+have nothing to pin, since there is no draft that can express the condition.
 
 
 
