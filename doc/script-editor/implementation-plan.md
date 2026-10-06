@@ -3736,5 +3736,28 @@ page, and the `itemCount` a bank list would have supplied falls back to the rule
 Editor suite **488 pass**, 487 before. So the branch renders what §11.124 said nothing checked, and D-J's third
 property — that the example is *labelled* — now has an assertion rather than a record.
 
+### 11.126 The work was unpushed, and the first PR proposed the fork's other work — **Done**
+
+With no open code item left — §11.58 is the maintainer's advisory, §11.99/§11.100 the thirty-three strings
+kept deliberately — the remaining question was where the work *is*. It was nowhere but this worktree:
+`claude/speech-recorder-script-editor-5ec5ba`, 261 commits, 335 files, +57,952/-188, no remote ref containing
+it, no PR.
+
+**An earlier reading of mine was wrong, and worth naming.** `git log origin/main..HEAD | wc -l` printed `0`,
+which reads as "nothing to push". `origin/main` does not exist — the remotes are `origin` (humlab-speech, the
+fork) and `upstream` (IPS-LMU, canonical), both on `master` — so the command errored and the zero was the
+error's, not the count's. `git branch -r --contains HEAD` is the check that answers the question.
+
+**Pushed** to `origin` as `claude/speech-recorder-script-editor-5ec5ba` at `cd96425b`.
+
+**The first PR was wrong in a way that mattered.** `gh pr create` on a fork defaults the base to the *parent*:
+it opened IPS-LMU#39 with `isCrossRepository: true` and a diff of 461 files / +86,465, because the fork's
+`master` carries 56 commits of its own — CodeQL, an OSV scanner, `bin/ensure_env.mjs`, `bin/validate_i18n.mjs`,
+126 files — that `upstream/master` does not. A reviewer would have read the fork's unrelated work as part of
+the editor.
+
+**Corrected**: #39 closed with that reason, and reopened against the fork's own `master` as humlab-speech#1 —
+`isCrossRepository: false`, 335 files, +57,952/-188, draft. Draft because §11.58 is still a maintainer decision.
+
 
 
