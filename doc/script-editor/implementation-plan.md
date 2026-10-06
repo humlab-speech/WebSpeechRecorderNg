@@ -331,6 +331,23 @@ node bin/theme_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script/bank-d
 Manual, per milestone: dry-run a recorded session in the recorder after every model change —
 the editor's output is only useful if another application interprets it (README §7).
 
+**These are the commands for the two suites and the audits by hand; the complete set is the six jobs in
+`.github/workflows/tests.yml`, which is what runs on the pull request.** Fifteen scripts live under `bin/` now —
+`a11y_audit`, `apply_version.js`, `build_i18n`, `dead_exports`, `editor_lint`, `ensure_env`, `layout_probe`,
+`mv_tgz_pkgs.js`, `orphan_check`, `package_check`, `route_check`, `serve_deploy`, `theme_audit`, `validate_i18n` and
+`workflow_check`, with `bin/audit/` holding the driver and the page fixtures. Nine of the fifteen are gates with a
+planted fixture they must fail on and a step that requires the specific message — `editor_lint`, `theme_audit` and
+`a11y_audit`, `layout_probe`, `route_check`, `dead_exports`, `workflow_check`, `package_check` and `orphan_check`
+(§11.132–§11.147).
+
+The other six are tools rather than gates, and five of them are still reached by CI: `apply_version.js` through
+`build_module`, `validate_i18n.mjs` and `build_i18n.mjs` through the i18n step, `ensure_env.mjs` through the
+`prebuild` hook that `npm run build` fires, and `serve_deploy.mjs` through `server/deploy.test.mjs`, which spawns
+it. **`mv_tgz_pkgs.js` is the one nothing in CI runs** — it is the last line of `npm run pack_pi_module`, on the
+release path, and §11.70 drove its three paths by hand for that reason.
+`doc/script-editor/README.md` §Testing lists them with what each one checks, and `npm run test_editor`,
+`build_editor`, `validate:i18n` and `build_module` are the scripts CI calls by name.
+
 ## 6. PR slicing (suggested order)
 
 1. `feat(lib): script model additions (playback, draw, banks, script metadata, exported utils)` — L1.
@@ -4395,6 +4412,28 @@ noting that all three are in the pull request's description, which is where a ma
 
 Verified: the table is still three columns with a uniform four pipes per row, and the plan's eight relative links
 all resolve.
+
+### 11.153 §5's verification commands, and the tools they do not name — **Done**
+
+§5 is titled "Verification commands" and holds seven lines written near the start of the work. **Every one still
+runs** — measured, not assumed — but the list names **two of the fifteen scripts under `bin/`**, so a person
+following it would verify a fraction of what CI verifies: the nine gated scripts and their sensitivity steps were
+all added later (§11.132–§11.147).
+
+**Extended with a pointer rather than a longer list**, because a list ages and the jobs do not: the section now
+says the complete set is the six jobs in `.github/workflows/tests.yml`, names all fifteen scripts, and identifies
+the **nine** that are gates with a planted fixture.
+
+**And it now says which of the six tools CI reaches**: `apply_version.js` through `build_module`, the i18n pair
+through the i18n step, `ensure_env.mjs` through the `prebuild` hook that `npm run build` fires, and
+`serve_deploy.mjs` through `server/deploy.test.mjs`, which spawns it. **`mv_tgz_pkgs.js` is reached by nothing in
+CI** — the last line of `npm run pack_pi_module`, on the release path — which is §11.70's recorded state rather than
+a new finding.
+
+**Claimed nothing before measuring it, and the first two drafts were wrong.** One said "thirteen gates" where there
+are fifteen scripts and nine gated ones; the next said of the remaining six "whose CI steps run them", which is
+false for one. Both were caught by checking the sentence against `ls bin/`, `package.json` and the workflow — the
+sweep lesson of §11.146 turned on my own prose, which is where it keeps being needed.
 
 
 
