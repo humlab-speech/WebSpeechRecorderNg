@@ -4095,5 +4095,31 @@ would be guarding against. A real check is an integration test that drives the s
 builds, which is a new harness and a new kind of test in this repository (every existing editor spec mocks HTTP).
 Recorded as the option, with today's consistency as its baseline, rather than taken unprompted.
 
+### 11.141 The client's paths against the real server — **Built**
+
+§11.140 recorded the gap and declined the check; this is the check. `server/client-paths.test.mjs` reads the paths
+the editor's services build — through `projectPath` and `apiPath` — and probes each against the receiver, so a
+client path that drifts from the server fails here rather than as a 404 nobody sees. It runs in the server job
+with **no workflow change**, because that job already runs `node --test server/*.test.mjs`.
+
+**The design rests on two measurements.** The probe is a plain `GET`, because the server names a path it does not
+know (`unknown API resource "…"`, `unsupported script route …`) while a path it knows but cannot satisfy answers
+something else (`script probe does not exist`, `GET is not supported on …`). Probing all fourteen client paths
+with GET was measured first and produced no false positives — which is why no method table is needed: a write-only
+path answers 405, and 405 is *routed*.
+
+**The test guards its own input.** Its first assertion is about the extraction: at least fourteen paths, each
+plausible, none still containing `this.base`. That is §11.140's lesson turned on itself — an extraction that
+silently matches fewer calls reports agreement it has not established, and this file's remaining tests would all
+pass while checking nothing.
+
+**The control is a test, not a comment.** A bogus subpath must still produce one of the two not-routed messages,
+so this file cannot pass because the server stopped distinguishing.
+
+**Verified**: the three tests pass, and the receiver's suite is **65 pass, 0 fail**. The README said "60 tests
+today", which was already two behind before these three; it now says 65 and describes this test in the server
+bullet. `dead_exports`, `editor_lint` and `workflow_check` are unaffected — the new file is a spec by name, so the
+first skips it.
+
 
 

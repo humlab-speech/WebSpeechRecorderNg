@@ -515,7 +515,10 @@ rule).
   ETag/428/412, the shared check fixtures, bank filter semantics, draw determinism, the draw
   record and its CSV, media in use, multipart and WAV duration, the version gate, CORS, and that a
   `TEST` session cannot upload, and the deployment harness's mounts, SPA fallback and API proxy —
-  `server/deploy.test.mjs` spawns it once against fixture directories. 60 tests today. Development runs it with
+  `server/deploy.test.mjs` spawns it once against fixture directories. `server/client-paths.test.mjs` reads the
+  paths the editor's own services build and probes each against this server, which is the only place the two
+  meet: the editor's specs mock HTTP, so a wrong path in a service passes every one of them. 65 tests today.
+  Development runs it with
   `npm run serve:api -- --data /tmp/… --seed src/test`; `server/data` is gitignored.
 - **Route coverage.** `node bin/route_check.mjs` reads the router and the audited URLs in
   `.github/workflows/tests.yml` and compares them both ways: every screen the router exposes must be
