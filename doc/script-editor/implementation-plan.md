@@ -4690,5 +4690,30 @@ and the placement helpers, each usable on its own without a session.
 the status key the component uses. A doc naming a symbol the package does not export is the exact failure §11.161
 was, and it is cheap to rule out.
 
+### 11.165 Bank sources, which neither README described — **Done**
+
+The root README documents prefill — the upstream *list* source — in a section of its own, and `itemcodeFormat`
+twice. The **bank source**, D-W's second source type of the same mechanism, was in **neither** README:
+`PrefillBankSource`, `fixedBy`, `skipRecordedBySpeaker`, `BankItem` and `DrawFilter` measured **zero** mentions in
+both, while `data-model.md` documents them for the editor's designers. Someone hand-writing a script would not learn
+that a group can draw from a bank — the feature this work's editor exists to author.
+
+**Added to the root README**, beside the prefill section it is the sibling of: the placeholder's `bank` declaration,
+a worked JSON example, and a row per field with meanings taken from the type's own comments — `bank`/`bankSource`,
+`filter` with `filterVersion`, `count`, `itemcodePrefix`, `order`, `fixedBy` (SESSION: every session draws its own;
+SPEAKER: a returning speaker gets the same items again; SCRIPT: one draw per script version),
+`skipRecordedBySpeaker`, `playBankAudio`, and the `playback` and `itemDefaults` a drawn item inherits. Then the
+resolution rule: server-side at session creation, the drawn items written into the session's script — the recorder
+needs no change for any of it — and the draw kept in the session record the draws screen and the CSV read.
+
+**The library README got a pointer, not a copy**, because the draw is server-side and that README documents what the
+library itself does. That is the opposite of §11.163's case, where the undocumented feature was the library's own,
+and it is the reason both files are not simply kept in step.
+
+**Checked rather than assumed**: the example parses and all eight of its fields are `PrefillBankSource` fields; the
+section names all **twelve** fields of that type and all **five** of `DrawFilter`. My first version omitted
+**`filterVersion`** — which is what the check was for, and the second time in two rounds that writing documentation
+produced a claim I then had to correct.
+
 
 
