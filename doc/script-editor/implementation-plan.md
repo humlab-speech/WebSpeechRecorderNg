@@ -4563,9 +4563,11 @@ fixup commits, `wip`, bare `fix` — is not there, which is the state a reviewer
 ### 11.159 What is still missing, at the end of this register — **Summary**
 
 Three checks ran and found nothing to fix, so they close the section rather than adding to it: the counts stated in
-the design docs' prose (the only one is the README's "**three screens** are measured at 390×844", and the dry-run job
-runs exactly three at that width), the catalogue's size (**30 rows: E11, W13, N06**) against the code `editor_lint`
-rule 6 compares it with, and the lint's own rule list (**8** documented, 8 implemented).
+the design docs' prose (the only one is the README's "**three screens** are measured at 390×844", and the dry-run
+job runs exactly three *screens* at that width — three theme audits and three accessibility audits over the same
+three, which is what the README means and is worth saying precisely because the raw count of runs is six), the
+catalogue's size (**30 rows: E11, W13, N06**) against the code `editor_lint` rule 6 compares it with, and the lint's
+own rule list (**8** documented, 8 implemented).
 
 **So the outstanding work is three decisions, none of them this work's to take**, each recorded with its evidence
 and each listed in the pull request's description:
