@@ -4047,5 +4047,27 @@ suites that compile through their own spec configs were re-run against the fixtu
 library **148**, both exit 0, and those includes are `**/*.spec.ts` and `**/*.d.ts` relative to each project —
 which no fixture matches, since none is a spec and none is a declaration file.
 
+### 11.139 The one fixture nothing runs — **Recorded, with the measurement**
+
+Checking every `bin/` script and fixture for a reference turned up exactly one that nothing in CI, `package.json`
+or the other scripts names: `bin/audit/use-locale-sv.js`. (`bin/serve_deploy.mjs` also has no code reference and
+is fine — it is a human tool, invoked directly and documented in the README.)
+
+**It works, measured.** Against a development build of the recorder, served with the `playback` fixture,
+`node bin/theme_audit.mjs --url http://127.0.0.1:8391/spr/session/1 --prepare bin/audit/use-locale-sv.js` exits 0
+and reports `locale sv, sample: "Cavox"`. So it is not broken and not stale — it has simply never been wired into
+a job, which is also why the register once found it silently switching nothing while reporting success.
+
+**Two things the measurement shows, and they are why it stays unwired.** The sample it returns is the *brand*
+element — its selector `.spr-start-title, app-sprprogress th, .spr-brand-text` falls through to the last — so what
+it proves is that a language switch exists and something re-rendered, not that any string was translated; and the
+recorder is Swedish by default (its own header says so), so the screens it would audit are already audited in
+Swedish by the dry-run job at 1366x768, at 390x844 and in dark. Wiring it in would add a state that duplicates
+those — and would need a dark twin as well, which `bin/route_check.mjs` enforces for every light pass.
+
+**Left as it is, deliberately**: the fixture is documented in the README as the exception in *where* it applies
+rather than in what it does, it throws when it cannot reach its state (§11.40), and it remains a legitimate tool
+for a person auditing the demo app's language switch. What it should not be read as is coverage: no job runs it.
+
 
 
