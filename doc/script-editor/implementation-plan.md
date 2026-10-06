@@ -4784,5 +4784,26 @@ directory because the workflow names it, the two checks agreeing without either 
 
 The README's gate list gained the bullet, placed so "every gate above is proved to bite" covers it.
 
+### 11.169 ui-spec's route table against the router — **Checked, and deliberately not a gate**
+
+The same shape as §11.168 — a documented list against the code's list — and the obvious next one, since `ui-spec.md`
+§1 lists the editor's routes and `app.routes.ts` declares them. Measured: **ten rows each, and the sets are equal** —
+no route in the document that the router does not declare, none the other way, redirects and the wildcard handled on
+both sides.
+
+**It stays unchecked, on purpose**, and the reasoning is worth more than the check would be. The load-bearing
+direction is already gated: `route_check` fails when a screen the router exposes has no audit, and when an audited
+URL renders nothing, so a new screen cannot ship unaudited or an audit point at a dead URL. What drift would remain
+here is a *design document* listing a route that no longer exists — a reader's nuisance, not a broken deployment, and
+the kind of defect §11.161's case was about but with a far smaller blast radius.
+
+**And gate sprawl is a real cost.** There are ten gated checks under `bin/`, each with a fixture and a workflow step;
+a reviewer already has to hold that surface in mind. A gate earns its place by the *consequence* of the regression
+it prevents, not by the tidiness of the property it asserts, and this one's consequence is a stale table.
+
+**What would change the answer**: if the editor ever renders its navigation from these documents rather than from the
+router — the direction ui-spec's prose hints at nowhere today — the table becomes load-bearing and the check becomes
+worth its fixture. That condition is recorded here so the decision can be revisited rather than re-derived.
+
 
 
