@@ -4805,5 +4805,23 @@ it prevents, not by the tidiness of the property it asserts, and this one's cons
 router — the direction ui-spec's prose hints at nowhere today — the table becomes load-bearing and the check becomes
 worth its fixture. That condition is recorded here so the decision can be revisited rather than re-derived.
 
+### 11.170 Marked ready for review, and the counts taken out of the description — **Done**
+
+The pull request was opened as a draft (§11.126) because the advisory and two red checks made mergeability a decision
+rather than a default. That reasoning has aged the way everything else in this pass has: the branch's six jobs are
+green (§11.150), the four decisions are recorded and listed in the description, and the two red checks come from the
+fork's own security workflows — now explained **on the pull request** as well as in the body, so a reviewer meets the
+explanation where the checks are. A draft says "not ready for review", which had stopped being true. **Marked
+ready**; the comment says what changed and that closing it again is one click.
+
+**And the description's counts came out.** Three times now — §11.149, §11.151, and this round — its "N commits, N
+files, +N" line has gone stale within a round, because every round commits: it said 336 files when the branch had
+355, then 355 when it had 358. That is precisely the defect this pass spent eight rounds finding in other documents'
+prose, and the fix is the same one: say what does not drift. The line now states one branch, one pull request, with
+§11 as the record — and the diff's own tab is the count.
+
+**Verified**: `isDraft` is false and the state is `OPEN`; the six jobs of the run at the tip are green and the
+ready-for-review event started them again; `scan-pr` is red, as §11.150 records and the comment explains.
+
 
 
