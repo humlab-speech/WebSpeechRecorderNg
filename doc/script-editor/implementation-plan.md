@@ -4186,5 +4186,27 @@ The workflow is **491 lines**, up from 412 when the first sensitivity step lande
 reports six jobs. With §11.137's verbatim run of the audit step in its current form, and dry-run and detail-view
 never edited in this pass, all six jobs are now verified as they stand rather than as they stood.
 
+### 11.145 The repository's own README did not know the editor exists — **Done**
+
+The root README opens `# Cavox` and documents the library, the recorder, its themes, languages, deployment,
+configuration and REST API — and mentioned the editor **zero times**: no `projects/spr-script-editor`, no pointer to
+`doc/script-editor/`. The one thing this work adds was therefore invisible to anyone arriving at the repository,
+while CI builds, lints and audits it on every push, and the deliverable's own documents are all one directory
+deep.
+
+**Added as a top-level section**: what the application is for, that it shares the library's script model rather
+than copying it, the three npm scripts (`start_editor`, `build_editor`, `test_editor`), the development caveat
+that it reads the fixture tree by the `ApiType.FILES` path where writes are unavailable and a draft therefore
+shows as locally modified, and links to the five design documents.
+
+**Every claim verified rather than written from memory** — this is a section whose whole value is being right:
+the scripts exist as quoted from `package.json`; `ng serve` carries no `--port`, so 4200 is the default and not a
+guess; the editor's build assets include `src/test`, which is what "served as assets" rests on; `ApiType.FILES` is
+the mode `rest-api.md` describes; and the dry-run job drives `--script playback`, which uses `playback` **and** a
+drawn group — the features the editor writes, which is the claim the sentence about CI makes.
+
+The link check that found no broken links before (§11.144) still finds none after: 85 relative links across the
+eight documents, all resolving.
+
 
 

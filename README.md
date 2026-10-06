@@ -737,3 +737,26 @@ Run `npm run build_module` to build the module. The build artifacts will be stor
 ### Clean dist
 
 Remove folder `dist`.
+
+## Script editor (a second application in this repository)
+
+`projects/spr-script-editor` is an application for authoring the *scripts* the recorder runs: sections, groups and
+prompt items, the media played to a speaker, item banks and the draw rules that pick items from them, and the
+resolved draw of each session. It talks to the same REST API the recorder does and shares the library's script
+model rather than keeping a copy of it, so what it writes is what `SpeechrecorderngComponent` runs.
+
+```bash
+npm run start_editor    # ng serve, development configuration, http://127.0.0.1:4200
+npm run build_editor    # production bundle in dist/spr-script-editor
+npm run test_editor     # its karma suite
+```
+
+In the development configuration the editor reads the fixture tree by the `ApiType.FILES` path — the `seed` data
+under `src/test`, served as assets — where the write endpoints are unavailable and a draft therefore shows as
+locally modified. The design set is [doc/script-editor/](doc/script-editor/README.md): the [data
+model](doc/script-editor/data-model.md), the [REST API](doc/script-editor/rest-api.md) it needs, the [UI
+specification](doc/script-editor/ui-spec.md), the [check catalogue](doc/script-editor/validation.md), and an
+[implementation plan](doc/script-editor/implementation-plan.md) whose §11 register records every change and the
+evidence for it. `.github/workflows/tests.yml` builds and lints it, audits its routes for theme and accessibility,
+and drives the recorder end to end on the `playback` script, which uses the features the editor writes.
+
