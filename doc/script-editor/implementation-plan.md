@@ -4623,5 +4623,19 @@ Verifying §1 of `data-model.md` — twelve claims about what the recorder honou
 
 **And it raises a question that is not this work's to answer**: should the editor keep offering a script-level height the recorder ignores? The field is in the shared model and a recorder could honour it later, so exposing it is defensible; hiding it is a product decision. §11.159's summary and the pull request's open list carry it as the fourth such item.
 
+### 11.162 Behaviour claims in the docs, after §11.161 — **Six checked, five hold, one was §11.161's**
+
+§11.161 found a false *behaviour* claim, which makes the rest of that class worth sampling rather than trusting: a document that says what reality is can promise something no code delivers, and only the code settles it.
+
+**Checked and holding:**
+
+- **FILES mode.** `rest-api.md`'s "`ApiType.FILES` appends `.json?requestUUID=…` to GETs" is implemented in the editor's `api-base.ts` and across the library's services, and the editor's `environment.ts` says the same thing.
+- **The media list's `usedBy`.** `GET project/{p}/media` returns it (`api.mjs`), `DELETE` refuses a referenced file with `details.usedBy`, the client types both shapes, and the document names both — `{scriptId, version: n}` for a published version and `{scriptId, draft: true}`.
+- **W13's trigger.** The catalogue says "`playback` is set together with `Mediaitem.autoplay` or `Mediaitem.replay`"; `checkW13` fires on exactly that pair, per mediaitem.
+- **N05's trigger.** "a drawn group's `fixedBy: 'SPEAKER'` while `skipRecordedBySpeaker` is also set" — `checkN05`'s condition is that pair and nothing else.
+- **W08 and N06** exist with the wording the catalogue gives them, and W08's consequence ("the others are ignored") is the same fact §1 records as "only the first entry is used" — which `prompting.ts` implements, not `sessionmanager.ts`'s commented-out lines.
+
+**The sample's value is the ratio**: one false claim in the behaviour tables (§11.161), five true, and the true ones are true because something *runs* — a service, a check, a validation on two runtimes. What the false one lacked was exactly that, and §11.161's fix was to say so in the place a designer reads first.
+
 
 
