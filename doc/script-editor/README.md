@@ -580,7 +580,10 @@ rule).
   and an `Arial` link — and for nine of the accessibility rules below (a nameless button, a duplicated
   id, an image without `alt`, a page without `lang`, a second `h1`, a second `main`, a positive
   `tabindex`, a control inside a control and a 17 px target). The audit job requires both audits to fail
-  and to name each one, so an audit that stops biting fails the job rather than passing quietly.
+  and to name each one, so an audit that stops biting fails the job rather than passing quietly. The
+  console rule's two halves are checked the same way: `bin/audit/plant-angular-hint.js` plants Angular's
+  own development-build hint beside a genuine warning, and the job requires the audit to fail naming the
+  warning and without naming the hint.
   The theme audit also measures a phone width (390×844) on the screens that reflow — the editor stacks
   its columns below 820 px, the bank below 1100 px — which is how the editor's overlapping columns and
   the bank's document-level scrollbar were found (§11.14). Each run leaves whatever Chrome profile its
@@ -593,7 +596,9 @@ rule).
   target is at least 44 px high (a control inside a `<label>` is measured as that label; a link
   flowing inline in text is exempt), plus the document rules: a `lang`, exactly one `h1` and
   one `main`, heading levels that do not skip, no positive `tabindex`, and no control inside another
-  control, and without console errors or uncaught exceptions. `--rules universal` leaves out the
+  control, and without console errors or uncaught exceptions — Angular's own development-build
+  performance hints are excluded, since they arrive asynchronously and say nothing about those faults
+  (`IGNORED_CONSOLE` in `bin/a11y_audit.mjs`; §11.127). `--rules universal` leaves out the
   editor’s own house rules (44 px targets, one `h1`, one `main`) so the recorder’s screens — which
   predate them — are checked by the dry-run job for the rules that hold anywhere. `doc/script-editor/a11y.md`
   lists each rule and what it caught;

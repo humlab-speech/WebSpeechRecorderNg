@@ -3843,5 +3843,15 @@ regenerating identically, `package_check.mjs`, i18n. Editor: the suite (488), `e
 **The one step not run is `npm ci`.** It re-installs `node_modules`, and the tree already has a working install;
 every step that depends on it was run against that install.
 
+### 11.130 The rule's description in the docs, after §11.127 — **Done**
+
+§11.127 changed what rule 16 judges and left three descriptions of it saying otherwise: `a11y.md`'s rule list
+("the route loads without console errors, warnings or uncaught exceptions"), the README's paragraph on the
+accessibility audit, and the README's sensitivity claim, which named only `plant-violations.js` as the proof that
+the audits bite. All three now state the exclusion, name it (`IGNORED_CONSOLE`), and record that
+`bin/audit/plant-angular-hint.js` holds both halves of the rule: the audit must report the planted warning and
+must not report the hint. The docs are the gate's contract, so a gate that changed under them was the one
+description of this work a reader could still be misled by.
+
 
 
