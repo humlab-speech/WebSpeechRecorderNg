@@ -422,6 +422,10 @@ All library log output goes through a level gated logger. The level is configure
 
 ## Cavox REST API description
 
+The entities below are the model. The repository's `doc/script-editor/rest-api.md` is the complete endpoint
+reference — drafts, publishing and versions, banks and draws, media and the preview session — for a backend that
+implements more than the entities.
+
 ### Entity Project
 
 REST Path: GET {apiEndPoint}project/{projectId}

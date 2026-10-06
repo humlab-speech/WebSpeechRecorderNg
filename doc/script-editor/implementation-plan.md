@@ -4715,7 +4715,7 @@ section names all **twelve** fields of that type and all **five** of `DrawFilter
 **`filterVersion`** — which is what the check was for, and the second time in two rounds that writing documentation
 produced a claim I then had to correct.
 
-### 11.166 The receiver's twenty flags, four of them this work's and none documented — **Done**
+### 11.166 The receiver's twenty flags, five of them this work's and none documented — **Done**
 
 The root README's receiver section shows `npm run build` and `npm run serve:api` and **never lists a flag**, while
 `server/server.mjs` takes **twenty**. Five of them are this work's — `--recorder-version`,
@@ -4741,6 +4741,24 @@ absence is exactly the kind that needs its "before" state named.
 This is the fifth round of one class — what this work shipped that nobody documented — and the largest in
 operational terms: a deployment following the README could not pseudonymise speakers, migrate a legacy tree, prune
 retention, or set the version its recorder reports.
+
+### 11.167 The API reference nobody was pointed at — **Done**
+
+The root README's API description is an *entity* reference — one path per entity, upstream's shape — and the
+endpoints this work added appear there **zero** times each: drafts, publishing and versions, banks and draws, media
+list/upload/delete and the preview session. `doc/script-editor/rest-api.md` holds all **18** rows with request and
+response shapes and the error envelope. Someone implementing a backend from the README would implement the
+recorder's original API and none of the editor's, without learning that a reference existed.
+
+**A pointer rather than a copy**: the section now names the reference first and says what it adds beyond the
+entities. The editor section at the end of the same file already linked all five design documents (§11.145), so the
+*documents* were known — but only from the last section of a 900-line file, which is not where an implementor looks.
+
+**The library README got the same sentence without a link**, deliberately: npm renders relative links as broken
+text, and that file is the package's page. Naming the repository path helps a reader there; linking it would not.
+
+**Checked**: each topic the sentence claims is in `rest-api.md` (draft 39 mentions, publish 28, version 46, bank 41,
+draw 33, media 20, preview-session 2 — counted rather than assumed), and both READMEs' links resolve.
 
 
 

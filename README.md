@@ -303,6 +303,10 @@ cp src/environments/environment.prod.sample.ts src/environments/environment.prod
 
 ## Cavox REST API description
 
+The entities below are the model, with the path each one is read at. The **complete endpoint reference** — the draft,
+publish and version routes, banks and draws, media upload/list/delete and the preview session, with request and
+response shapes and the error envelope — is [doc/script-editor/rest-api.md](doc/script-editor/rest-api.md).
+
 ### Entity Project
 
 REST Path: GET {apiEndPoint}project/{projectId}
