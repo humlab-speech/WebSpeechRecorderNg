@@ -4304,5 +4304,23 @@ the question — the two editor hits resolve against the build configuration —
 on its own, which is the reason it is not code. A gate here would need to resolve the module graph the way the
 compiler does, and its answer for the library would still be "reachable through the barrel, on purpose".
 
+### 11.149 The PR body, brought level with the branch — **Done**
+
+§11.126 wrote the pull request's description when it was opened, and the branch has moved a long way since: seven
+new fixture trees, two new tests, rule 8, the orphan check, the root README section, and the corrections recorded
+in §11.131, §11.140 and §11.146. Its counts were stale too — it said 336 files where the branch now has **355**, and
+its gate table described five fixtures where there are seven.
+
+**Rewritten around what a reviewer needs**, without claiming anything the branch cannot show: what is in the tree;
+that every gate in `bin/` has a fixture it must fail on with its status guard failing closed, and how
+over-reporting is caught; the six jobs as they were run locally *in their final form* with the numbers each
+produced; and a section listing **what the verification actually found** — the gate that failed one run in four,
+the dead-export double count that made 708 out of 411, the fixture `route_check` refused, the invariant no check
+held, the client's paths nothing compared to the server, and the two claims of mine that were wrong.
+
+That last section is the one worth having: a reviewer can see what the large test surface bought, rather than
+taking the size of the diff as evidence that it was worth it. The numbers in the body were taken from the run just
+before it was written, and match the pull request's own totals (355 files, +59,124/-188).
+
 
 
