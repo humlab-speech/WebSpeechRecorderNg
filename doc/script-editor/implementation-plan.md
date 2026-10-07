@@ -4877,7 +4877,7 @@ like `node <file>`), the other a constant string in that same file.
 **CodeQL now passes** on the run at the tip (3 s, `Analyze` 1m16s), which is the check that had been red since the
 branch was pushed.
 
-### 11.173 The OSV scanner: attempted, measured, reverted — **Recorded**
+### 11.173 The OSV scanner: attempted, measured, reverted — **Recorded** (§11.179: fixed — the pin was not the only lever, and the failure was never actually read)
 
 The other red check was `scan-pr`, and the request was to fix it. It is **not fixed**, and the file is back to the
 fork's state rather than left with an attempt in it: the check is red either way, and a broken third-party workflow
@@ -5032,6 +5032,34 @@ entry invalidates such a number by construction, the description no longer carri
 not — the line naming it had been cut at 170 characters in my own output. Read whole, all eight directories are there,
 so nothing was changed. That is the second time in two rounds that a truncated read rather than the file produced the
 apparent defect, which is a reason to read the artefact before editing it, not only the line I came for.
+
+### 11.179 `scan-pr` fixed — **Fixed**, and §11.173's conclusion corrected
+
+§11.173 recorded this as "attempted, measured, reverted" and concluded the caller's pin is not a lever. Re-opened
+with the request to fix it, and this time the failure was *read* rather than reasoned about — which is what §11.173
+had not done, and why it stopped one measurement short. Three causes, each read off a run in turn:
+
+1. **The pinned chain uses an action GitHub now refuses.** The run dies at "Prepare all required actions":
+   `##[error]This request has been automatically failed because it uses a deprecated version of
+   actions/upload-artifact: a8a3f3ad30e3…`. That SHA is v3.1.3, and it is line 87 of `osv-scanner-reusable-pr.yml`
+   at the pinned `1f124291` (v1.7.1). GitHub fails the whole workflow for it, before any step runs.
+2. **v2 declares a permission the caller does not grant.** Repointing both jobs to v2.6.0
+   (`a345acffa64b0eaede81a3d9aae6141214d9c8fc`) cleared the deprecation and the run then failed as
+   `startup_failure` — "This run likely failed because of a workflow file issue". v2.6.0's reusable workflow
+   declares, at job level, `actions: read` beside `contents: read` and `security-events: write`; the first is new,
+   and its own comment says it is required to upload the SARIF. A called workflow cannot request more than its
+   caller grants, and GitHub reports that as a startup refusal rather than a job failure. The caller grants it now.
+3. **An argument the v2 scanner does not have.** With that granted the job starts and reaches "Run scanner on
+   existing code", then: `Incorrect Usage: flag provided but not defined: -skip-git`. `--skip-git` was copied from
+   upstream's v1.7.1 sample; osv-scanner v2 dropped it. The override is gone — the workflow's default, `-r ./`, is
+   what this repository wants.
+
+**What §11.173 got right is kept**: v1.7.3 *does* clear the deprecation (its pins are v4.3.3) and its scan step then
+errors, so one minor version was not enough. What it got wrong was calling the pin no lever and stopping there. It
+also called the file "the fork's"; the head repository *is* `humlab-speech`, so `osv-scanner.yml` is `master`'s own,
+which is what §11.178 corrected in the pull request's description.
+
+**Verified**: `scan-pr` **passes** at the tip — the check that had been red on every head of this branch.
 
 
 
