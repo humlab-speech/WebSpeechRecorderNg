@@ -5061,6 +5061,14 @@ which is what §11.178 corrected in the pull request's description.
 
 **Verified**: `scan-pr` **passes** at the tip — the check that had been red on every head of this branch.
 
+**And the half that cannot run yet.** `scan-scheduled` fires on pushes to `master`, and the workflow has no
+`workflow_dispatch`, so its repointed job cannot be exercised before this merges. Its callee was therefore checked
+statically against the three causes above: v2.6.0's `osv-scanner-reusable.yml` declares job-level permissions of
+`actions: read`, `contents: read` and `security-events: write` — exactly the set the caller now grants, so cause 2
+does not apply to it — its default `scan-args` is `-r ./`, so cause 3 does not either, and no input it declares is
+required without a default. Cause 1 is v2-wide: every action it calls (checkout v7.0.1, upload-artifact v7.0.1,
+upload-sarif v4.37.6) is current.
+
 
 
 
