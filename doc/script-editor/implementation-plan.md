@@ -4920,6 +4920,32 @@ transient asset-server failure into an assertion about an object that was never 
 fixture and the assets to check — so the suite means what it says, and the next occurrence of this flake names its own
 cause instead of costing a re-run to characterise.
 
+### 11.175 A security-property check that flaked, and what its message was hiding — **Hardened, in the spec**
+
+The run that pushed §11.173's revert reported `Server (node --test)` failing on one test: *"with the switch the same
+speaker is one stable label everywhere"* — `the real id must not be written (session s1)`, the assertion guarding
+pseudonymity: with the switch on, the real speaker id must never reach disk. **A re-run of the same commit passed**
+(attempt 2, `completed/success`), so it flaked — and a flaky check on a security property is worse than a flaky test,
+because the failure it describes is a data leak.
+
+It does not reproduce locally: 30 runs of the file and 6 runs of the whole suite, every one green. The code path
+cannot produce that record either — `normaliseSpeaker` hashes whenever `pseudonymiseSpeakers` is set, the constructor
+stores that flag verbatim, and nothing overrides it. The CI log narrows it further: **lines 35-37 passed** in that
+run, so `first.speaker` *was* a label, and whatever carried `sp-13` was some *other* field of the persisted record.
+The old message could not say which — `JSON.stringify(record).includes(...)` reported "session s1" and nothing else.
+
+The assertion now localises and dumps:
+
+```js
+assert.match(record.speaker, /^sp-[0-9a-f]{12}$/, `session ${id} must keep a label in its speaker field`);
+…
+`the real id must not be written (session ${id}); found ${leaked.join(', ')} in ${written}`
+```
+
+Both messages were exercised: the field check fails first when the label itself is wrong, and the dump names the
+leaked value and the offending record when another field echoes it. The next occurrence costs no re-run to
+characterise, and `Server (node --test)` is green again at this head.
+
 
 
 

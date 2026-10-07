@@ -36,9 +36,17 @@ test('with the switch the same speaker is one stable label everywhere', () => {
   assert.equal(second.speaker, first.speaker, 'the label must be stable for a speaker');
   assert.notEqual(other.speaker, first.speaker, 'different speakers must differ');
   for (const id of ['s1', 's2', 's3']) {
-    assert.ok(
-      !JSON.stringify(store.session(id)).includes('sp-13') && !JSON.stringify(store.session(id)).includes('sp-14'),
-      `the real id must not be written (session ${id})`,
+    // The field itself, then the whole record. On CI this check flaked (11.175): re-running passed, and
+    // lines 35-37 above had already proved `first.speaker` was a label, so whatever carried `sp-13` was
+    // some *other* field of the record - which the old message ("session s1") could not name.
+    const record = store.session(id);
+    assert.match(record.speaker, /^sp-[0-9a-f]{12}$/, `session ${id} must keep a label in its speaker field`);
+    const written = JSON.stringify(record);
+    const leaked = ['sp-13', 'sp-14'].filter((real) => written.includes(real));
+    assert.deepEqual(
+      leaked,
+      [],
+      `the real id must not be written (session ${id}); found ${leaked.join(', ')} in ${written}`,
     );
   }
 });
