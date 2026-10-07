@@ -22,6 +22,10 @@ on:
     branches: [ "master" ]
 
 permissions:
+  # v2's reusable workflow declares `actions: read` for itself (it reads the scan artifacts back to
+  # build the SARIF), and a called workflow cannot exceed what the caller grants - without this the
+  # run is refused at startup rather than in a job.
+  actions: read
   # Require writing security events to upload SARIF file to security tab
   security-events: write
   # Read commit contents
