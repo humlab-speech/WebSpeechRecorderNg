@@ -41,11 +41,23 @@ test('the preflight allows every header the write protocol sends', () => {
   assert.equal(res.headers['Access-Control-Max-Age'], '600');
 });
 
-test('credentials echo the origin instead of the wildcard', () => {
+test('credentials answer an origin the operator named', () => {
   const res = fakeRes();
-  applyCors({headers: {origin: 'https://example.test'}}, res, {cors: true, credentials: true});
+  applyCors({headers: {origin: 'https://example.test'}}, res, {cors: true, credentials: true, corsOrigins: ['https://example.test']});
   assert.equal(res.headers['Access-Control-Allow-Origin'], 'https://example.test');
   assert.equal(res.headers['Access-Control-Allow-Credentials'], 'true');
+});
+
+test('credentials refuse an origin that was not named', () => {
+  // The reason the allowed list exists: reflecting the request's origin while allowing credentials
+  // lets any site make credentialed requests and read the answers — CodeQL's
+  // js/cors-misconfiguration-for-credentials, which this module used to be. `Vary` stays, so a
+  // cache cannot serve a rejected response to an origin that is allowed.
+  const res = fakeRes();
+  applyCors({headers: {origin: 'https://attacker.test'}}, res, {cors: true, credentials: true, corsOrigins: ['https://example.test']});
+  assert.equal(res.headers['Access-Control-Allow-Origin'], undefined);
+  assert.equal(res.headers['Access-Control-Allow-Credentials'], undefined);
+  assert.equal(res.headers['Vary'], 'Origin');
 });
 
 test('cors can be switched off', () => {

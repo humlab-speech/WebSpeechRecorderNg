@@ -8,6 +8,13 @@
  * - `ETag` and `Location` are response headers, so they belong in `Expose-Headers` or the client
  *   cannot read the validator it must send back (and cannot find a created draft).
  * - The error envelope's own header and the idempotency key were already there.
+ *
+ * **With credentials the origin is never the request's.** Reflecting `Origin` while sending
+ * `Access-Control-Allow-Credentials: true` lets any site make credentialed requests and read the
+ * answers — CodeQL reports it as `js/cors-misconfiguration-for-credentials`, and the rule is right.
+ * The operator names the origins it trusts with `--cors-origin`; an origin that is not one of them
+ * gets no CORS headers at all — `Vary: Origin` stays, so a cache cannot hand a rejected origin a
+ * response that was built for an allowed one.
  */
 export const CORS_ALLOW_METHODS = 'GET, POST, PATCH, PUT, DELETE, OPTIONS';
 export const CORS_ALLOW_HEADERS = 'Content-Type, Accept, Idempotency-Key, X-Requested-With, Authorization, If-Match, If-None-Match, X-Filename';
@@ -21,10 +28,16 @@ export function applyCors(req, res, opts) {
   if (origin === undefined) {
     return;
   }
-  res.setHeader('Access-Control-Allow-Origin', opts.credentials ? origin : '*');
   res.setHeader('Vary', 'Origin');
   if (opts.credentials) {
+    const allowed = opts.corsOrigins ?? [];
+    if (!allowed.includes(origin)) {
+      return;
+    }
+    res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', '*');
   }
   res.setHeader('Access-Control-Allow-Methods', CORS_ALLOW_METHODS);
   res.setHeader('Access-Control-Allow-Headers', CORS_ALLOW_HEADERS);

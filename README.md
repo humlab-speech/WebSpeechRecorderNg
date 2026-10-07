@@ -277,6 +277,7 @@ answers 504 — sessions, scripts and uploads all come from the API.
 | `--project`, `--script` | project and script of sessions created on demand |
 | `--no-auto-create` | answer `404` for sessions that do not exist instead of creating them |
 | `--no-cors`, `--credentials` | cross-origin behaviour, for a development server on another port |
+| `--cors-origin <origin>` | an origin allowed to send credentials (repeatable). With `--credentials` the request's origin is **never reflected**: an origin not named here gets no CORS headers at all, because reflecting it while allowing credentials lets any site make credentialed requests and read the answers |
 | `--max-body <bytes>`, `--concat-wait-ms <n>` | upload size limit, and how long a concat request waits for chunks still in flight |
 | `--quiet`, `--verbose` | log uploads and errors only, or every request |
 | `--recorder-version <v>` | **the version this receiver reports.** A script whose `minRecorderVersion` is above it is refused when a session is created, so it must match the recorder build the deployment actually serves — otherwise the guard against a script running with a feature silently missing compares against the wrong number |

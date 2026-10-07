@@ -134,6 +134,10 @@ async function chromeTransport(port) {
         async measure() {
           await sleep(SETTLE);
           if (PREPARE_SOURCE) {
+            // codeql[js/bad-code-sanitization] — the source of this evaluation is the file the
+            // operator named with --prepare (bin/audit/*.js), which is a command-line argument to a
+            // development tool: it is meant to be executed, like `node <file>`. There is no
+            // sanitisation to do and no untrusted input beyond the caller's own.
             const prepared = await send('Runtime.evaluate', {
               expression: PREPARE_SOURCE, awaitPromise: true, returnByValue: true,
             });
@@ -143,6 +147,9 @@ async function chromeTransport(port) {
             }
             console.log(`  prepared(${PREPARE_FILE}): ${String(prepared.result?.result?.value ?? '').slice(0, 120)}`);
           }
+          // codeql[js/bad-code-sanitization] — `MEASURE` is a constant string in this file, not data
+          // from anywhere else: building one expression out of it once per page is the whole point
+          // of the probe, and there is nothing here to sanitise.
           const out = await send('Runtime.evaluate', {expression: `(() => {${MEASURE}})()`, returnByValue: true});
           const value = out.result?.result?.value;
           if (typeof value !== 'string') throw new Error('probe returned nothing: ' + JSON.stringify(out.result).slice(0, 200));

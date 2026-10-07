@@ -176,6 +176,7 @@ function parseArgs(argv) {
     autoCreate: true,
     cors: true,
     credentials: false,
+    corsOrigins: [],
     maxBody: 256 * 1024 * 1024,
     concatWaitMs: 1500,
     quiet: false,
@@ -201,6 +202,7 @@ function parseArgs(argv) {
       case '--no-auto-create': opts.autoCreate = false; break;
       case '--no-cors': opts.cors = false; break;
       case '--credentials': opts.credentials = true; break;
+      case '--cors-origin': opts.corsOrigins.push(value); i++; break;
       case '--max-body': opts.maxBody = Number(value); i++; break;
       case '--concat-wait-ms': opts.concatWaitMs = Number(value); i++; break;
       case '--quiet': opts.quiet = true; break;
@@ -250,6 +252,10 @@ function usage() {
   --no-auto-create     answer 404 for sessions that do not exist
   --no-cors            do not answer cross origin requests (ng serve on another port)
   --credentials        allow credentials in cross origin requests
+  --cors-origin <origin>
+                       an origin allowed to send them (repeatable). With
+                       --credentials the request's origin is never reflected: an
+                       origin not named here gets no CORS headers at all
   --max-body <bytes>   maximum request body size (default ${256 * 1024 * 1024})
   --concat-wait-ms <n> how long a concat request waits for chunks that are
                        still in flight before it defers to them (default 1500;
