@@ -5020,6 +5020,18 @@ v1.7.1 internally. And the file is not a "fork's" — this branch's head reposit
 tests, 42 orphan-check files, 411 exports, 148 library, 486 editor — and a scan for adjacent duplicate lines now
 finds none.
 
+Reading it as a whole rather than only in the sections I had edited turned up two more things. Its list of the gates
+under `bin/` named nine plus `serve_deploy` and "the release-path tools", but omitted **`docs_check`**, which has
+`docs_fixtures` and its own CI step — so a reader counting the gates came up one short of what the job runs. And it
+called the register "**now 148 entries**": it is 178, and had already been stale before this round. Because every new
+entry invalidates such a number by construction, the description no longer carries one, which is the same reason
+§11.154–§11.156 exist. The gate list now names `docs_check`.
+
+**One thing that only looked wrong.** The same paragraph's fixture list appeared to omit `package_fixtures`. It does
+not — the line naming it had been cut at 170 characters in my own output. Read whole, all eight directories are there,
+so nothing was changed. That is the second time in two rounds that a truncated read rather than the file produced the
+apparent defect, which is a reason to read the artefact before editing it, not only the line I came for.
+
 
 
 
