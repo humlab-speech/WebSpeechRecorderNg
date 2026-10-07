@@ -4821,10 +4821,10 @@ worth its fixture. That condition is recorded here so the decision can be revisi
 
 The pull request was opened as a draft (§11.126) because the advisory and two red checks made mergeability a decision
 rather than a default. That reasoning has aged the way everything else in this pass has: the branch's six jobs are
-green (§11.150), the four decisions are recorded and listed in the description, and the two red checks come from the
-fork's own security workflows — now explained **on the pull request** as well as in the body, so a reviewer meets the
-explanation where the checks are. A draft says "not ready for review", which had stopped being true. **Marked
-ready**; the comment says what changed and that closing it again is one click.
+green (§11.150), the decisions that remain are recorded and listed in the description, and the two red checks come
+from the fork's own security workflows — now explained **on the pull request** as well as in the body, so a reviewer
+meets the explanation where the checks are. A draft says "not ready for review", which had stopped being true.
+**Marked ready**; the comment says what changed and that closing it again is one click.
 
 **And the description's counts came out.** Three times now — §11.149, §11.151, and this round — its "N commits, N
 files, +N" line has gone stale within a round, because every round commits: it said 336 files when the branch had
@@ -4834,6 +4834,84 @@ prose, and the fix is the same one: say what does not drift. The line now states
 
 **Verified**: `isDraft` is false and the state is `OPEN`; the six jobs of the run at the tip are green and the
 ready-for-review event started them again; `scan-pr` is red, as §11.150 records and the comment explains.
+
+### 11.171 The advisory aligned — **Done**
+
+§11.58's decision was taken: `ng update @angular/cli@20 @angular/core@20` moved the framework set 20.3.31 → 20.3.33
+and the tooling 20.3.36/37 → 20.3.39. **No source was migrated** — the diff is `package.json` and the lockfile — and
+`npm audit --omit=dev` went from one **high** advisory to **zero vulnerabilities**. The shipped peer range moved
+`~20.3.30` → `~20.3.33`, which is the consumer-visible half of the fix and the reason the entry called it a decision:
+a consumer following the peers can no longer install the patches the advisory covers.
+
+Verified on the new dependencies before committing: server **65** pass, library **148**, editor **488**, the library
+build regenerating `spr.module.version.ts` identically, the editor build at 500.35 kB initial (was 499.79),
+`package_check` clean.
+
+### 11.172 A security defect in the receiver's CORS, and two wrong guesses about why CodeQL was red — **Fixed**
+
+`server/cors.mjs` sent `Access-Control-Allow-Origin: <the request's origin>` whenever `--credentials` was set, next to
+`Access-Control-Allow-Credentials: true` — CodeQL's `js/cors-misconfiguration-for-credentials`, the misconfiguration
+that lets **any** site make credentialed requests to the receiver and read the answers.
+
+**It is the "1 new high severity" behind a check that had been red for the whole pass, and I had explained it away
+twice** — first as the pull request exceeding GitHub's 300-file diff limit, then as a deprecated action in the fork's
+workflow. Both were plausible; neither was checked against the check's own output. The annotation said what is was:
+`server/cors.mjs:24`, "Credential leak vulnerability due to a misconfigured CORS header value". **The lesson is the
+same one §11.146 and §11.161 keep teaching: read the artefact, not the inference.**
+
+**Fixed with an allow-list**: `--cors-origin <origin>` (repeatable) names the origins a deployment trusts, and the
+request's origin is never reflected — an origin that is not named gets no CORS headers, so the browser blocks the
+read. Without `--credentials` nothing changes (a wildcard cannot combine with credentials, and is still correct
+there). `Vary: Origin` stays on rejections so a cache cannot hand a rejected origin a response built for an allowed
+one. The flag is in the server's usage text and the README's receiver table, which the §11.168 gate requires.
+
+The test that pinned the old behaviour — *"credentials echo the origin instead of the wildcard"* — is replaced by two:
+an origin the operator named is answered, and one that was not named is refused. That is a deliberate change of a
+contract, not a re-pin: the old assertion *was* the defect. Server suite **66** pass (was 65: the new case).
+
+Two `js/bad-code-sanitization` alerts in `bin/layout_probe.mjs` are suppressed with their reasons instead: one
+evaluates the page script the operator named with `--prepare` (a development tool running the file it was told to,
+like `node <file>`), the other a constant string in that same file.
+
+**CodeQL now passes** on the run at the tip (3 s, `Analyze` 1m16s), which is the check that had been red since the
+branch was pushed.
+
+### 11.173 The OSV scanner: attempted, measured, reverted — **Recorded**
+
+The other red check was `scan-pr`, and the request was to fix it. It is **not fixed**, and the file is back to the
+fork's state rather than left with an attempt in it: the check is red either way, and a broken third-party workflow
+edit is worse in the diff than the fork's own.
+
+What was measured, because each attempt costs a CI round: the reusable workflow **exists at every ref tried** (v1.7.1's
+blob `938caae4`, v1.9.2's and v2.6.0's `8bf60cb1`); every candidate commit is an **ancestor of the action's default
+branch**; v2.6.0's `workflow_call` inputs are **all optional with defaults**, so the caller's shape — which is the one
+that worked at v1.7.1 — is not the cause; and the local file **parses as YAML** with the expected jobs, permissions
+and `on:` keys. Yet v1.7.1 **starts** (and fails inside, on the deprecated `actions/upload-artifact@a8a3f3ad…` that
+GitHub rejects outright) while v1.9.2 and v2.6.0 **fail before any job starts**, with nothing in the run, the
+check-run or the API saying why. The one version that starts is the one whose innards are deprecated.
+
+So the red `scan-pr` is the fork's own condition, unchanged and unexplained, and the maintainer's to pursue with
+upstream.
+
+### 11.174 Two specs that failed once and passed on a re-run — **Fixed, in the spec**
+
+The first CI run after §11.171's alignment reported `Editor (karma + build)` failing: `TOTAL: 2 FAILED, 486 SUCCESS`,
+both in `round-trip.spec.ts` — *"writes every fixture back without losing a key"* (`Expected object to have
+properties`) and *"keeps a legacy promptUnits section free of a fabricated groups key"* (`Cannot read properties of
+undefined (reading 'groups')`). **A re-run of the same commit passed**: flaky, not caused by the alignment, and the
+failure messages pointed at nothing.
+
+The cause was in the spec's own helper. `fixtures()` **skipped** a fixture whose fetch returned nothing:
+
+```js
+if (text === null) { continue; }   // the list names it, the assets did not serve it, the suite moves on
+```
+
+which quietly weakened *"every fixture round-trips"* into *"every fixture that happened to load"*, and turned a
+transient asset-server failure into an assertion about an object that was never loaded. It now throws, naming the
+fixture and the assets to check — so the suite means what it says, and the next occurrence of this flake names its own
+cause instead of costing a re-run to characterise.
+
 
 
 

@@ -50,7 +50,11 @@ async function fixtures(): Promise<Array<Fixture>> {
     const id = String(row['scriptId']);
     const text = await fetchText(`${BASE}/script/${id}.json`);
     if (text === null) {
-      continue;
+      // A fixture the list names but the assets do not serve used to be skipped, which quietly weakened
+      // "every fixture round-trips" into "every fixture that loaded". It also turned a transient
+      // asset-server failure into an inscrutable assertion later on — measured on CI: two of these specs
+      // failed once and passed on a re-run of the same commit, with nothing pointing at the cause.
+      throw new Error(`the fixture ${BASE}/script/${id}.json is not served — check the karma assets`);
     }
     out.push({id, text, value: JSON.parse(text) as Record<string, unknown>});
   }
