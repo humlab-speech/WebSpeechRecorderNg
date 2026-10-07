@@ -2216,7 +2216,13 @@ file; the sample's values confirmed equal to the export's.
 as the demo does; the two it adds are named rather than enumerated, because they belong to the
 application.
 
-### 11.58 A high advisory in the dependency surface — **Recorded, left for the maintainer**
+### 11.58 A high advisory in the dependency surface — **Fixed, after being recorded for the maintainer**
+
+**Resolved — §11.171 records the work.** The alignment this entry left to the maintainer has been taken:
+`ng update @angular/cli@20 @angular/core@20` moves the framework set 20.3.31 → 20.3.33 and the tooling to 20.3.39,
+`npm audit --omit=dev` now reports **zero** vulnerabilities, and the shipped peer range is `~20.3.33`, so a consumer
+following the peers can no longer install the patches the advisory covers. The paragraphs below are the entry as it
+stood while the decision was open.
 
 `npm audit --omit=dev` on this branch reports one **high** advisory: `@angular/router`
 `>=20.0.0 <20.3.32` — *Angular Server-Side Rendering (SSR): Denial of Service via Numeric URL Matrix
@@ -4575,12 +4581,11 @@ three, which is what the README means and is worth saying precisely because the 
 catalogue's size (**30 rows: E11, W13, N06**) against the code `editor_lint` rule 6 compares it with, and the lint's
 own rule list (**8** documented, 8 implemented).
 
-**So the outstanding work is four decisions, none of them this work's to take**, each recorded with its evidence
+**So the outstanding work is three decisions, none of them this work's to take**, each recorded with its evidence
 and each listed in the pull request's description:
 
 | Entry | Decision |
 |---|---|
-| §11.58 | One **high** advisory (`@angular/router >=20.0.0 <20.3.32`, SSR DoS). Reach here is none, but the tree's `~20.3.31` and the shipped peer range `~20.3.30` both admit the vulnerable patches — an Angular version *alignment* `ng update` performs, with no `--dry-run`. Narrowing a published peer range decides what consumers may install. |
 | §11.4 | The **pseudonym policy**: may the editor show which speaker recorded which item, and must pseudonyms replace speaker ids in the UI *and* the CSV? The capability landed (`--pseudonymise-speakers`, off by default, stable labels); the policy question is unanswered. |
 | §11.34 | The **recorder's pause control**, disabled in shipped code since the upstream stub of 2021 (`git blame`), which is why the dry run's pause-during-playback check cannot be met here. |
 | §11.161 | **A field that does nothing**: `Script.virtualViewBox` is carried, defaulted, edited and validated by E11 — and applied by no renderer, upstream included. The editor exposes it because the shared model has it; keep offering it, or hide it until a recorder honours it? |
