@@ -4893,6 +4893,14 @@ check-run or the API saying why. The one version that starts is the one whose in
 So the red `scan-pr` is the fork's own condition, unchanged and unexplained, and the maintainer's to pursue with
 upstream.
 
+**And one more measurement closed the loop.** A run at v1.7.3 — one patch from the version that starts — *did* start,
+and its log shows why the version in this file cannot matter: the reusable workflow downloads and runs
+`google/osv-scanner-action/osv-scanner-action@v1.7.1` and pulls `ghcr.io/google/osv-scanner-action:v1.7.1`. **The
+inner reference is hardcoded in the reusable workflow**, so v1.7.3 behaves exactly like v1.7.1 — scan exits 1, the
+SARIF upload then hits the deprecated action — and only v2 changes the inner pins, which is the version that fails
+before any job starts. The pin in the caller is therefore not a lever at all, which is worth knowing before anyone
+else spends a CI round on it.
+
 ### 11.174 Two specs that failed once and passed on a re-run — **Fixed, in the spec**
 
 The first CI run after §11.171's alignment reported `Editor (karma + build)` failing: `TOTAL: 2 FAILED, 486 SUCCESS`,
