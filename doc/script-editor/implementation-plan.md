@@ -442,7 +442,7 @@ R1–R4 must land before 14–16; R5–R8 before 17. PRs 1, 4 and 5 wait on **D-
 | 1. Server ownership (upstream vs local) | M0 | **Answered**: the receiver is in this repo (`server/`, `npm run serve:api`) and is the draft of the production server; changes transfer (D-Q). |
 | 2. Script `name` ownership (entity vs index) | M0/M3 | `Script.name?` on the entity (D-I); fixtures already carry it. |
 | 3. Shipped-bank delivery | M0/M4 | Server resolves `audioSrc` for `BUILTIN`; client uses what it is given (rest-api §3.4). |
-| 4. Speaker pseudonymity in the draw record | M4 | Show what the API returns; keep speaker rendering isolated so a pseudonym mapping is a one-file change. **The capability has since landed (§11.4)**: `--pseudonymise-speakers` on the receiver, off by default, keeps a stable `sp-<12 hex>` label in the store so the draw record, the CSV, the session record and `skipRecordedBySpeaker` agree by construction. **The policy question has not been answered** — that is §11.4's first paragraph, and it is the owner's. |
+| 4. Speaker pseudonymity in the draw record | M4 | Show what the API returns; keep speaker rendering isolated so a pseudonym mapping is a one-file change. **The capability has since landed (§11.4)**: `--pseudonymise-speakers` on the receiver, off by default, keeps a stable `sp-<12 hex>` label in the store so the draw record, the CSV, the session record and `skipRecordedBySpeaker` agree by construction. **The policy question has since been answered** — labels only, everywhere (§11.176): the editor and every export carry the label, and a deployment needing the mapping keeps it in its own records. |
 | 5. Multi-project banks | M0/M4 | Project-local per D3; no cross-project bank ids until answered. |
 | New: strong ETag semantics | M0 | Plan assumes a strong validator (D-C). |
 | New: feature→version map ownership | M0/M1 | **Done (L4).** The library owns it (`script/feature-versions.ts`) and the receiver keeps a mirror (`server/feature-versions.mjs`), because it cannot import TypeScript; both copies are held to the same cases by `feature-versions.spec.ts` and `server/feature-versions.test.mjs`, and a detector⊆table test fails if a new feature is added without a floor. The served version is `--recorder-version` (default `RECORDER_VERSION`). |
@@ -462,13 +462,14 @@ R1–R4 must land before 14–16; R5–R8 before 17. PRs 1, 4 and 5 wait on **D-
 | New: error-envelope extension | M0 | Additive `{error, message, details}`; `error` stays a string for the recorder (D-R, R1). |
 | New: server-side check scope | M0 | E01–E11 plus the data-model §4 invariants; warnings stay client-side (D-T, R4). |
 
-**These rows are defaults, not statuses.** The pair a reader most needs are the two that answering does not
-finish: row 4's *capability* has landed (§11.4) while its *policy question* has not, and the feature→version row is
-marked done for the same reason it was asked — the map exists twice with a test holding the copies together
-(§11.143). Two further decisions belong outside this plan altogether and are recorded where they arose: §11.34, the
-recorder's pause control, which `git blame` puts in the upstream stub of 2021, and §11.58, a dependency advisory
-whose reach is none but whose peer range admits it. All three are listed in the pull request's description, which is
-where a maintainer will read them first.
+**These rows are defaults, not statuses, and the three that were left open are now taken.** The pair a reader most
+needs are the two that answering does not finish: row 4's *capability* has landed (§11.4) and its *policy question*
+is now answered — labels only, everywhere (§11.176) — and the feature→version row is marked done for the same reason
+it was asked, the map existing twice with a test holding the copies together (§11.143). Two further decisions sit
+outside this section's table and are recorded where they arose: §11.34, the recorder's pause control, which
+`git blame` puts in the upstream stub of 2021 and which stays disabled, and §11.58, the dependency advisory since
+fixed (§11.171). The pull request's description is where a maintainer reads them first, and it records all three as
+taken.
 
 ## 9. Review findings index
 
@@ -5076,6 +5077,24 @@ before this change: the checker models step-based jobs rather than reusable-work
 never runs it against this file: its two steps point at the default (`tests.yml`) and at
 `bin/workflow_fixtures/broken.yml` for the sensitivity proof. Anyone editing this workflow will reach for the
 checker, and this is why the answer is already "no".
+
+### 11.180 §8's open questions, now that three of them are answered — **Corrected**
+
+`### 8. Open questions and the gate that must close them` was the last section this session had not read, and reading
+it is the same job §11.154–§11.156 did for the milestone counts. Two of its statements had stopped being true: its row
+4 said in bold that the pseudonym **policy** question "has not been answered … and it is the owner's", and the
+paragraph under the table repeated it — the capability had landed, the question had not. Both now say what §11.176
+records: labels only, everywhere.
+
+That paragraph also said "all three are listed in the pull request's description, which is where a maintainer will
+read them first", and counted §11.58 among the pending items. The description now records them as taken rather than
+open, and §11.58's own status is "Fixed, after being recorded for the maintainer" — it was the dependency advisory
+§11.171 aligned. Both corrected, as was "belong outside this plan altogether": §11.34 and §11.58 are in this plan's
+§11, just not in §8's table.
+
+**Verified**: §8's rows otherwise stand — they are defaults, as the section says, not statuses — and it names no other
+question left open. §9's review-findings index was checked for the same staleness and names none of this work's
+subjects.
 
 
 
