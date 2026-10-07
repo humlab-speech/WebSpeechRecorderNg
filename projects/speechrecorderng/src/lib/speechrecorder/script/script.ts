@@ -248,7 +248,6 @@ export interface Script {
   name?: string;
   /** Lowest recorder version that understands every feature used here, e.g. "3.12". */
   minRecorderVersion?: string;
-  virtualViewBox?:VirtualViewBox;
   sections: Array<Section>;
 }
 

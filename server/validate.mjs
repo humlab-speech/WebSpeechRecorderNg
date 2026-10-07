@@ -122,11 +122,6 @@ export function validateScript(script, {lookupBank = null} = {}) {
     });
   });
 
-  const scriptHeight = script?.virtualViewBox?.height;
-  if (scriptHeight !== undefined && !(typeof scriptHeight === 'number' && scriptHeight > 0)) {
-    add('E11', 'virtualViewBox.height', 'The virtual view box height must be greater than zero.');
-  }
-
   // E05 — the reserved ranges must not collide with fixed codes or with each other.
   const byPrefix = new Map();
   for (const range of reservedRanges) {

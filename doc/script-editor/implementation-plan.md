@@ -4946,6 +4946,43 @@ Both messages were exercised: the field check fails first when the label itself 
 leaked value and the offending record when another field echoes it. The next occurrence costs no re-run to
 characterise, and `Server (node --test)` is green again at this head.
 
+### 11.176 The three decisions the register left open, and what came of them — **Two recorded, one actioned**
+
+§11.159 closed this section by naming the three decisions that were not this work's to take. All three are now
+answered, and only one of them changed code.
+
+**§11.4, the pseudonym policy: labels only, everywhere.** The editor and every export carry `sp-<12hex>` labels; a
+deployment that must know which speaker recorded which item keeps that mapping in its own records. That is what the
+capability already implements — the session record, the draw record, the CSV and the "already recorded by this
+speaker" check all key on the label — so the decision closes the question rather than reopening the work. The
+alternative (labels in the UI, real ids in the CSV) was rejected because it turns an export into personal data with
+its own handling and retention obligations.
+
+**§11.34, the recorder's pause control: it stays disabled.** The limit is recorded, not lifted: the control has been a
+stub since 2021 (`git blame`), enabling it is the recorder's call rather than the editor's, and doing it here would
+have meant its own tests and a recorder-version floor. The dry run's stated limit therefore stands as written.
+
+**§11.161, `Script.virtualViewBox`: removed.** The field was carried, defaulted, edited and validated while no
+renderer applied it. The removal took it out of the library model (`script/script.ts`), the editor's model, the
+inspector's control and its label, E11's clause in the editor and in the server's publish gate, the string that
+labelled it, and the server's new-script template (`api.mjs`'s `virtualViewBox: {height: 600}`). The docs follow:
+`data-model.md`'s §1 row, `ui-spec.md`'s inspector field list and `validation.md`'s E11 row.
+
+**What it did not touch, deliberately.**
+
+- **The mediaitem's box.** `Mediaitem.defaultVirtualViewBox` is the one `prompting.ts` reads. It keeps its field, its
+  own inspector label (`virtualHeight` for the mediaitem, `errors.ts`'s second use of the string) and its E11 clause
+  on both runtimes — so the catalogue row now *names* it rather than saying "a virtual view box height", which is
+  what it had been validating all along. E11 survives as a check and the catalogue still counts 30 rows.
+- **Documents that carry the key.** The editor's model preserves keys it does not model (`script.model.ts`'s
+  `[key: string]: unknown`), so the eight fixtures carrying `virtualViewBox` keep it and the round-trip gate —
+  "writes every fixture back without losing a key" — still holds. Nothing was deleted from a script a deployment
+  already has.
+- **`S.e11Height`.** The string stays: the mediaitem's box still needs it.
+
+**Verified**: `Server (node --test)` 66/66, `editor_lint` passed (30 catalogued checks, 145 own declarations), the
+editor karma suite 486/486 including the round-trip gate over every fixture, and the editor builds.
+
 
 
 

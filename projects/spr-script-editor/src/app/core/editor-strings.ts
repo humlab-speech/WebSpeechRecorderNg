@@ -246,7 +246,6 @@ export const EDITOR_STRINGS = {
       title: 'Script',
       id: 'Id',
       name: 'Name',
-      virtualHeight: 'Image height (px)',
       counts: 'Counts',
       countsValue: '{sections} sections · {fixed} fixed items · {drawn} drawn per session',
       versionNote: 'Sessions stay on the version they were created with; a new publish does not move them.',

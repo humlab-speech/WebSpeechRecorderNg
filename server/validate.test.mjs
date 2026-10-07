@@ -77,7 +77,7 @@ test('E10 needs a section and a section needs a group', () => {
   assert.deepEqual(paths(validateScript({sections: [{groups: []}]}), 'E10'), ['sections[0].groups']);
 });
 
-test('E11 bounds for playback numbers and view boxes', () => {
+test('E11 bounds for playback numbers', () => {
   const findings = validateScript(script([
     item({playback: {repeats: 0, gap: -5}, defaultVirtualViewBox: undefined,
       mediaitems: [{mimetype: 'text/plain', text: 'x', defaultVirtualViewBox: {height: 0}}]}),
@@ -87,5 +87,5 @@ test('E11 bounds for playback numbers and view boxes', () => {
     'sections[0].groups[0].promptItems[0].playback.gap',
     'sections[0].groups[0].promptItems[0].playback.repeats',
   ]);
-  assert.deepEqual(paths(validateScript({sections: [], virtualViewBox: {height: -1}}), 'E11'), ['virtualViewBox.height']);
+  assert.deepEqual(paths(validateScript({sections: []}), 'E11'), []);
 });

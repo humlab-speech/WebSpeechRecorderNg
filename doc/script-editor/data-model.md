@@ -24,7 +24,7 @@ suggest.
 | `PromptItem.duration` | only used for `type: 'nonrecording'`, and only in `AUTORECORDING` sections |
 | `PromptItem.mediaitems` | an array, but **only the first entry is used** |
 | `Mediaitem` | `text`, `promptDoc` (formatted text), `src` + `mimetype` (image, audio, video), `alt`, `defaultVirtualViewBox` (the height the prompt is scaled against: `prompting.ts` reads `mediaitems[0].defaultVirtualViewBox.height` into `prompterHeight`) |
-| `Script.virtualViewBox` | **read by nothing.** The recorder scales a prompt by its *mediaitem's* `defaultVirtualViewBox`; the script-level box is carried in real fixtures, written into a new script's body by the server (`virtualViewBox: {height: 600}`), edited in the inspector and validated by E11 on both runtimes — but no renderer applies it. §11.161 records the measurement and the question it raises. |
+| `Script.virtualViewBox` | **removed** (§11.176). The recorder scales a prompt by its *mediaitem's* `defaultVirtualViewBox` and never read the script-level box; the model no longer declares it, the server's template no longer writes it, the inspector no longer offers it and E11 no longer validates it. Documents that still carry the key keep it — the editor preserves keys it does not model, and the round-trip gate holds that. §11.161 measured it and raised the question the removal answered. |
 
 Consequences for the editor: offer only `SEQUENTIAL` and `RANDOM`; show one delay field per side
 and treat the legacy name as an alias to be fixed on request (D7); edit `mediaitems[0]` only. A
@@ -280,7 +280,6 @@ export interface Script {
   scriptId?: string | number;
   /** Human label for the library list. Server-side decision, see README §8.2. */
   name?: string;
-  virtualViewBox?: VirtualViewBox;
   /** Lowest recorder version that understands every feature used here, e.g. "3.12". */
   minRecorderVersion?: string;
   sections: Array<Section>;

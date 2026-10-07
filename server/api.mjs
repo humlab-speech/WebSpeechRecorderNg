@@ -1436,7 +1436,6 @@ function stripJsonSuffix(segment) {
 function seedScript(name) {
   const script = {
     type: 'script',
-    virtualViewBox: {height: 600},
     sections: [{
       mode: 'MANUAL',
       promptphase: 'IDLE',

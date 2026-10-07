@@ -269,10 +269,6 @@ export function checkE10(draft: Draft): Finding[] {
 /** E11 — counters and view boxes out of range. */
 export function checkE11(draft: Draft): Finding[] {
   const findings: Finding[] = [];
-  const scriptHeight = draft?.virtualViewBox?.height;
-  if (scriptHeight !== undefined && !(typeof scriptHeight === 'number' && scriptHeight > 0)) {
-    findings.push(error('E11', 'virtualViewBox.height', S.e11Height));
-  }
   for (const ref of eachBankSource(draft)) {
     const count = Number(ref.bank['count']);
     if (Number.isInteger(count) && count > 999) {

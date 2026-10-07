@@ -94,7 +94,6 @@ export interface EditorScript {
   scriptId?: string | number;
   name?: string;
   minRecorderVersion?: string;
-  virtualViewBox?: VirtualViewBox;
   sections?: EditorSection[];
   [key: string]: unknown;
 }

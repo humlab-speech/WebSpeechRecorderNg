@@ -536,16 +536,6 @@ export class EditorInspector {
     this.write('name', ['name'], value);
   }
 
-  setScriptHeight(raw: string): void {
-    const height = this.numberValue(raw);
-    const box = this.script()?.virtualViewBox;
-    if (box === undefined) {
-      this.draft.setValue(this.focusFor('virtualViewBox.height'), ['virtualViewBox'], {height});
-      return;
-    }
-    this.draft.setValue(this.focusFor('virtualViewBox.height'), ['virtualViewBox', 'height'], height);
-  }
-
   // Section variant.
 
   setSectionName(value: string): void {

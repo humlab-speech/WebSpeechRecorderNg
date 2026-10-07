@@ -118,30 +118,14 @@ afterEach(() => {
 });
 
 describe('EditorInspector writes — script variant', () => {
-  it('maps the name and writes a fresh view box when one is absent', () => {
+  it('maps the name', () => {
     const {component, draft} = mount({script: scriptOf([promptItem()]), selection: {kind: 'script'}});
 
     component.setScriptName('Renamed');
-    component.setScriptHeight('420');
 
     expect(draft.calls).toEqual([
       {method: 'setValue', focus: 'script.name', path: ['name'], value: 'Renamed'},
-      {method: 'setValue', focus: 'script.virtualViewBox.height', path: ['virtualViewBox'], value: {height: 420}},
     ]);
-  });
-
-  it('writes only the height when the view box exists', () => {
-    const script = {...scriptOf([promptItem()]), virtualViewBox: {height: 100, 'data-x': 1}} as EditorScript;
-    const {component, draft} = mount({script, selection: {kind: 'script'}});
-
-    component.setScriptHeight('300');
-
-    expect(draft.calls[0]).toEqual({
-      method: 'setValue',
-      focus: 'script.virtualViewBox.height',
-      path: ['virtualViewBox', 'height'],
-      value: 300,
-    });
   });
 
   it('asks before replacing the draft, then emits the restored version', () => {

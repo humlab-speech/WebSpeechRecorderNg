@@ -30,7 +30,7 @@ Unit-test one spec per id, including the clean case.
 | E08 | retired by D-W: a group can no longer hold both a rule and a fixed list, so the condition is unrepresentable | — | — |
 | E09 | `draw.count` < 1 or not a whole number, or a timing field is negative or not a number | `count` must be a positive whole number; a timing field must be a positive number of milliseconds. | — |
 | E10 | script has no section, or a section has no group | A script needs at least one section with one group. | add one |
-| E11 | `repeats` < 1, `gap` or `maxReplays` negative, a virtual view box height ≤ 0, or `draw.count` > 999 | `repeats` must be at least 1; `gap` and `maxReplays` must not be negative; view box heights must be > 0; a draw holds at most 999 items. | — |
+| E11 | `repeats` < 1, `gap` or `maxReplays` negative, a mediaitem's `defaultVirtualViewBox.height` ≤ 0, or `draw.count` > 999 | `repeats` must be at least 1; `gap` and `maxReplays` must not be negative; a default view box height must be greater than zero; a draw holds at most 999 items. | — |
 
 E04 is suspended, not passed, when the bank cannot be reached (ui-spec §9). The same applies to
 W05 on a drawn group when the bank's clip durations are unknown, and to W11 when the media index

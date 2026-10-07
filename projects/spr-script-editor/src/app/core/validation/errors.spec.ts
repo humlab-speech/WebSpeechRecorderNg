@@ -147,17 +147,14 @@ describe('E10 sections and groups', () => {
   });
 });
 
-describe('E11 playback and view-box bounds', () => {
+describe('E11 playback bounds', () => {
   it('is clean for sane numbers', () => {
-    const draft = script({virtualViewBox: {height: 720}, sections: [section({groups: [group({promptItems: [item({playback: {repeats: 1, gap: 0, maxReplays: 0}})]})]})]});
+    const draft = script({sections: [section({groups: [group({promptItems: [item({playback: {repeats: 1, gap: 0, maxReplays: 0}})]})]})]});
     expect(checkE11(draft)).toEqual([]);
   });
   it('flags repeats below one and a negative gap', () => {
     const draft = script({sections: [section({groups: [group({promptItems: [item({playback: {repeats: 0, gap: -5}})]})]})]});
     expect(paths(checkE11(draft))).toEqual([`${ITEM0}.playback.repeats`, `${ITEM0}.playback.gap`]);
-  });
-  it('flags a non-positive view box height', () => {
-    expect(paths(checkE11(script({virtualViewBox: {height: 0}})))).toEqual(['virtualViewBox.height']);
   });
   it('flags a draw count above 999', () => {
     const draft = script({sections: [section({groups: [group({promptItems: [item({prefill: {bank: {bank: 'small', bankSource: 'PROJECT', count: 1000, itemcodePrefix: 'RB'}}})]})]})]});

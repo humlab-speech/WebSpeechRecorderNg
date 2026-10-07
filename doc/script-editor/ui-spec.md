@@ -99,8 +99,8 @@ name as an `h1`) and then one block per group:
 Four variants. Fields map to the model one to one
 ([data-model.md](data-model.md)); the table below is the contract.
 
-**Script**: id (read-only), name, `virtualViewBox.height`, counts (sections, fixed items, drawn
-per session), a note about which versions sessions use, a **version history panel** (list, note
+**Script**: id (read-only), name, counts (sections, fixed items, drawn per session), a note about
+which versions sessions use, a **version history panel** (list, note
 and session count per version, restore into the draft), and a link to §7. The name is a draft
 field like the rest, so the library list adopts it when the version is published (rest-api §2.4);
 `PATCH` renames the entity directly.

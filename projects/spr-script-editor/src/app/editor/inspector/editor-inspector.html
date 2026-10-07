@@ -116,11 +116,6 @@
           <input id="script-name" type="text" [value]="script()?.name ?? ''" [disabled]="writesDisabled()"
                  (input)="setScriptName($any($event.target).value)">
         </dd>
-        <dt><label for="script-height">{{ strings.inspector.script.virtualHeight }}</label></dt>
-        <dd>
-          <input id="script-height" type="number" [value]="script()?.virtualViewBox?.height ?? ''"
-                 [disabled]="writesDisabled()" (input)="setScriptHeight($any($event.target).value)">
-        </dd>
       </dl>
 
       <h3>{{ strings.inspector.script.counts }}</h3>
