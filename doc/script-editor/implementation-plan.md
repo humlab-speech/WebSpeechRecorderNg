@@ -832,7 +832,7 @@ sample now ships `/api/v1` with the reason, and the mounted recorder's item tabl
 
 **Rejected alternative** — teaching the receiver to route prefixes: that belongs to the web server.
 
-### 11.4 Pseudonyms in the draw record — **Capability done; the policy answer is the owner's**
+### 11.4 Pseudonyms in the draw record — **Capability done; the policy answer is the owner's** (§11.176: answered — labels only, everywhere)
 
 **Open question** — README §8.4: may the editor show which speaker recorded which item, and must
 pseudonyms replace speaker ids in the UI *and* the CSV? The plan's M0 default is "show what the API
@@ -947,8 +947,9 @@ had already been wrong once. Each area and its result:
   all** was `POST …/bank/{b}/_import` → §11.7's sibling gap, now wired.
 - **Model fields.** Every field of data-model §2.5 and the playback/timing blocks has a control
   (`itemcode`, `type`, `mediaitems`, `recinstructions`, `prerecdelay`/`recduration`/`postrecdelay`,
-  `duration`, the playback set incl. `gap`/`maxReplays`, `virtualViewBox`, `defaultVirtualViewBox`,
-  `promptDoc`), so the inspector is not missing a field the model has.
+  `duration`, the playback set incl. `gap`/`maxReplays`, `defaultVirtualViewBox`, `promptDoc`), so the
+  inspector is not missing a field the model has. `virtualViewBox` left both sides in §11.176, which
+  is what keeps that sentence true.
 - **States.** ui-spec §9's six rows each have a branch and a spec; the two the plan had listed as
   last (library, editor) were already covered, and §11.3/§11.7 fixed the editor's third case.
 - **Orphan modules.** Every `.ts` under the editor is imported by something (only `corpus.ts` and
@@ -1496,7 +1497,7 @@ recording file attached to the item satisfies `recordingFileDone()`, i.e.
 through `this.items.getItem(this.promptIndex)` (`sessionmanager.ts`). Nothing in the recorder reads
 `bankItemId` at runtime.
 
-### 11.34 The pause control the recorder never enables — **Recorded; enabling it is the recorder's call**
+### 11.34 The pause control the recorder never enables — **Recorded; enabling it is the recorder's call** (§11.176: answered — it stays disabled)
 
 The dry run ends with a note that the pause never landed inside a playing clip, and the driver's own
 comment blamed its timing. Measured, it is not the driver: the recorder leaves the control disabled.
@@ -4582,7 +4583,7 @@ catalogue's size (**30 rows: E11, W13, N06**) against the code `editor_lint` rul
 own rule list (**8** documented, 8 implemented).
 
 **So the outstanding work is three decisions, none of them this work's to take**, each recorded with its evidence
-and each listed in the pull request's description:
+and each listed in the pull request's description — **all three were answered in §11.176**:
 
 | Entry | Decision |
 |---|---|
@@ -4616,7 +4617,7 @@ measured as Done 112, Fixed 28, Verified 5, Checked 3, Built 2, Recorded 4 — b
 this pass spent eight rounds finding stale (§11.154–§11.156). A reader wanting the state has §11.159; a reader wanting
 a count can grep the headings in one line.
 
-### 11.161 `Script.virtualViewBox`, which documented a behaviour no code has — **Done, and a question raised**
+### 11.161 `Script.virtualViewBox`, which documented a behaviour no code has — **Done, and a question raised** (§11.176: answered — the field is removed)
 
 Verifying §1 of `data-model.md` — twelve claims about what the recorder honours — found one false: *"`Script.virtualViewBox` | scales image prompts to a fixed virtual height"*. What scales a prompt is the **mediaitem's** box: `prompting.ts` reads `mediaitems[0].defaultVirtualViewBox.height` into `prompterHeight` (and the library's own README says so). The **script-level** field is read by **nothing** — not by the library, not by the recorder application, and not by `upstream/master` either, where it is likewise only a declaration. So it is not a regression of this work; it is an upstream field that upstream never implemented, described here as though it were honoured.
 

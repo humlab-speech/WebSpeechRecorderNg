@@ -222,7 +222,8 @@ drift from the recorder (README §5).
   when disabled.
 - The paragraph explaining that the draw is fixed at session creation stays on the page. It is the
   answer to the question this screen exists to answer.
-- Speaker identifiers may need to be pseudonyms here (README §8.4).
+- Speaker identifiers are the pseudonyms the API returns when the deployment enables
+  `--pseudonymise-speakers` (README §8.4); the screen never needs the real id (§11.176).
 
 ## 8. Accessibility and keyboard
 
