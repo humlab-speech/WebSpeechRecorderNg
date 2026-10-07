@@ -4967,7 +4967,8 @@ have meant its own tests and a recorder-version floor. The dry run's stated limi
 renderer applied it. The removal took it out of the library model (`script/script.ts`), the editor's model, the
 inspector's control and its label, E11's clause in the editor and in the server's publish gate, the string that
 labelled it, and the server's new-script template (`api.mjs`'s `virtualViewBox: {height: 600}`). The docs follow:
-`data-model.md`'s §1 row, `ui-spec.md`'s inspector field list and `validation.md`'s E11 row.
+`data-model.md`'s §1 row, `ui-spec.md`'s inspector field list and `validation.md`'s E11 row. The README's §8 item 4
+needed rejoining afterwards: that edit had left a ragged wrap mid-sentence, which reading the section whole caught.
 
 **What it did not touch, deliberately.**
 

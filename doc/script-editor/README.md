@@ -692,13 +692,12 @@ Answered during M0–M4; the deciding document is named, and the plan's §8 tabl
    come from and hands the client the paths to use ([rest-api.md](rest-api.md) §3.4); the receiver
    seeds them from `src/test/bank`. How production packages them stays a deployment decision.
 4. **Speaker pseudonymity.** The capability is implemented and the policy decided — labels only,
-   everywhere (§11.176): the
-   receiver's `--pseudonymise-speakers` stores and returns a stable per-deployment label
-   (`sp-<12 hex>`, salted from a file in the data directory) instead of the caller's id, so the draw
-   record, the CSV, the session record and the "already recorded by this speaker" check agree and
-   the real id is never written. Off by default, as the receiver's other privacy-relevant switches
-   are. What remains is the data-protection answer: whether a deployment must turn it on. The
-   editor needs no change either way — its speaker rendering stays isolated in
+   everywhere (§11.176): the receiver's `--pseudonymise-speakers` stores and returns a stable
+   per-deployment label (`sp-<12 hex>`, salted from a file in the data directory) instead of the
+   caller's id, so the draw record, the CSV, the session record and the "already recorded by this
+   speaker" check agree and the real id is never written. Off by default, as the receiver's other
+   privacy-relevant switches are. What remains is the data-protection answer: whether a deployment
+   must turn it on. The editor needs no change either way — its speaker rendering stays isolated in
    `app/draws/draws-speaker.ts`.
 5. **Multi-project banks.** Project-local (D3); sharing one between projects would need a scope
    beyond the project id.
