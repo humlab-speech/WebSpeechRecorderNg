@@ -5069,6 +5069,14 @@ does not apply to it — its default `scan-args` is `-r ./`, so cause 3 does not
 required without a default. Cause 1 is v2-wide: every action it calls (checkout v7.0.1, upload-artifact v7.0.1,
 upload-sarif v4.37.6) is current.
 
+**One thing not to trip over.** `bin/workflow_check.mjs --path .github/workflows/osv-scanner.yml` fails, and did
+before this change: the checker models step-based jobs rather than reusable-workflow calls, so job-level `uses:` and
+`with:` read to it as indentation mistakes, and it then reports no steps and no `runs-on:`. Measured against
+`origin/master`'s copy, the error set is identical — only the line numbers moved with the comments added here. CI
+never runs it against this file: its two steps point at the default (`tests.yml`) and at
+`bin/workflow_fixtures/broken.yml` for the sensitivity proof. Anyone editing this workflow will reach for the
+checker, and this is why the answer is already "no".
+
 
 
 
