@@ -35,18 +35,12 @@ jobs:
   scan-scheduled:
     if: ${{ github.event_name == 'push' || github.event_name == 'schedule' }}
     uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@a345acffa64b0eaede81a3d9aae6141214d9c8fc" # v2.6.0
-    with:
-      # Example of specifying custom arguments
-      scan-args: |-
-        -r
-        --skip-git
-        ./
+    # No `scan-args` override: the default is `-r ./`, and the `--skip-git` this used to pass (copied
+    # from upstream's v1.7.1 sample) is not a flag in the v2 scanner - it fails the scan with
+    # "Incorrect Usage: flag provided but not defined: -skip-git" and no results file is written.
   scan-pr:
     if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
     uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@a345acffa64b0eaede81a3d9aae6141214d9c8fc" # v2.6.0
-    with:
-      # Example of specifying custom arguments
-      scan-args: |-
-        -r
-        --skip-git
-        ./
+    # No `scan-args` override: the default is `-r ./`, and the `--skip-git` this used to pass (copied
+    # from upstream's v1.7.1 sample) is not a flag in the v2 scanner - it fails the scan with
+    # "Incorrect Usage: flag provided but not defined: -skip-git" and no results file is written.
