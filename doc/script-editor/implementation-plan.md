@@ -5365,6 +5365,29 @@ collects, in a directory the backup story copies.
 **Left alone deliberately.** Bounding it — by age, or by keeping the newest N the way draft revisions are kept — is a
 policy the store does not currently state, so it is recorded for the owner to set rather than invented here.
 
+### 11.195 Abandoned chunk sessions are the third kind of state nothing collects — **Found, not changed**
+
+Following §11.194's thread: `uploads/` holds the journal *and* the chunk sessions. `addChunk` creates
+`<data>/uploads/<uuid>/`, moves each chunk in, and writes the session record to `chunkMetaPath(uuid)`; a session is
+closed **only** by a successful publish (`closeChunkSession`, which deletes the chunk files and keeps the publication).
+An upload started and never finished — the operator closes the browser mid-recording, or the concat never arrives —
+leaves both the chunk files and the session record behind, and `gc` mentions neither: its subjects are draft
+revisions, expired previews and orphaned media.
+
+That makes **three kinds of runtime state under `<data>` that nothing collects**, all in directories the documented
+backup story copies:
+
+| state | entry | how it accumulates |
+|---|---|---|
+| `*.tmp-<pid>` beside any written file | §11.191 | a write that fails, or a kill between `writeFileSync` and `renameSync` |
+| `uploads/journal.json` | §11.194 | one entry per idempotent write, the whole file rewritten each time |
+| `uploads/<uuid>/` chunk files and session record | here | an upload that is never published |
+
+The runbook lists all three as "runtime state" and excludes only `uploads/tmp` from the copy, so each of them
+accumulates in production. Whether the store owns collecting them — by age, by a `--gc` sweep, or by leaving it to the
+deployment — is a policy it does not currently state, so this entry completes the inventory rather than changing any
+of it.
+
 
 
 
