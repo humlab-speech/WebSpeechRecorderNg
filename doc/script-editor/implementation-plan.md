@@ -346,13 +346,13 @@ Manual, per milestone: dry-run a recorded session in the recorder after every mo
 the editor's output is only useful if another application interprets it (README §7).
 
 **These are the commands for the two suites and the audits by hand; the complete set is the six jobs in
-`.github/workflows/tests.yml`, which is what runs on the pull request.** Fifteen scripts live under `bin/` now —
-`a11y_audit`, `apply_version.js`, `build_i18n`, `dead_exports`, `editor_lint`, `ensure_env`, `layout_probe`,
-`mv_tgz_pkgs.js`, `orphan_check`, `package_check`, `route_check`, `serve_deploy`, `theme_audit`, `validate_i18n` and
-`workflow_check`, with `bin/audit/` holding the driver and the page fixtures. Nine of the fifteen are gates with a
-planted fixture they must fail on and a step that requires the specific message — `editor_lint`, `theme_audit` and
-`a11y_audit`, `layout_probe`, `route_check`, `dead_exports`, `workflow_check`, `package_check` and `orphan_check`
-(§11.132–§11.147).
+`.github/workflows/tests.yml`, which is what runs on the pull request.** Sixteen scripts live under `bin/` now —
+`a11y_audit`, `apply_version.js`, `build_i18n`, `dead_exports`, `docs_check`, `editor_lint`, `ensure_env`,
+`layout_probe`, `mv_tgz_pkgs.js`, `orphan_check`, `package_check`, `route_check`, `serve_deploy`, `theme_audit`,
+`validate_i18n` and `workflow_check`, with `bin/audit/` holding the driver and the page fixtures. Ten of the sixteen
+are gates with a planted fixture they must fail on and a step that requires the specific message — `editor_lint`,
+`theme_audit` and `a11y_audit`, `layout_probe`, `route_check`, `dead_exports`, `docs_check`, `workflow_check`,
+`package_check` and `orphan_check` (§11.132–§11.147).
 
 The other six are tools rather than gates, and five of them are still reached by CI: `apply_version.js` through
 `build_module`, `validate_i18n.mjs` and `build_i18n.mjs` through the i18n step, `ensure_env.mjs` through the
@@ -5095,6 +5095,23 @@ open, and §11.58's own status is "Fixed, after being recorded for the maintaine
 **Verified**: §8's rows otherwise stand — they are defaults, as the section says, not statuses — and it names no other
 question left open. §9's review-findings index was checked for the same staleness and names none of this work's
 subjects.
+
+### 11.181 §5's script census, read against `bin/` — **Corrected**
+
+Reading the plan's remaining sections the way §11.180 read §8 turned up a second instance of the omission §11.178
+found in the pull request's description. §5's paragraph on verification commands said "**Fifteen scripts live under
+`bin/` now**" and listed fifteen — but `bin/` holds **sixteen**, and the one missing from the list is **`docs_check`**,
+the same gate the description had left out. The gate count was wrong with it: "**Nine of the fifteen** are gates"
+should be ten of the sixteen, since `docs_check` has `docs_fixtures` and its own CI step like the rest.
+
+Both corrected, with `docs_check` inserted into the list and into the gate list. The paragraph's "other six are tools"
+needed nothing — sixteen minus ten is still the six it names, and its claims about which of them CI reaches were
+checked earlier in this session and hold: `apply_version.js` through `build_module`, the two i18n scripts through the
+i18n step, `ensure_env.mjs` through the `prebuild` hook, `serve_deploy.mjs` through `server/deploy.test.mjs`, with
+`mv_tgz_pkgs.js` the one nothing runs.
+
+**Verified**: `ls bin/*.mjs bin/*.js` is sixteen files, `docs_check` is invoked in `.github/workflows/tests.yml` and
+owns `bin/docs_fixtures`.
 
 
 
