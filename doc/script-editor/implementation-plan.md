@@ -5313,6 +5313,18 @@ flight, is exercised only by the recorder being run against it.
 **Left alone deliberately.** Writing it means driving the multipart upload, the chunk `PUT`s and a WAVE probe — a new
 piece of the suite rather than a correction to one, so it is recorded for the owner to place.
 
+**And one more untested path, in the same spirit:** `ScriptDraftService.resolveConflict` has no spec — `grep -rn
+resolveConflict script-draft.service.spec.ts` returns nothing — yet it is the one place the operator's decision about a
+conflict is carried out. Reading it shows the logic is **correct**: `'remote'` adopts the server's model, sets
+`ackedTextSignal` to the new text so `dirty()` clears, sets the remote ETag, clears the intent, and then clears the
+backup. The risk is not the logic but that nothing would fail if a later edit broke it.
+
+**Recorded because it cost a false alarm, the third of its kind.** My first reading of that block came from an `awk`
+window that omitted the `ackedTextSignal.set` line, and I concluded the backup survived — that an operator's discarded
+text would return on reload and could overwrite the server's newer version. Reading lines 495–512 directly showed the
+line. Eleven times now a tool's output rather than the artefact has decided a conclusion in this session; three of
+those were truncation. The remedy that keeps working is the same one: read the narrow range, whole.
+
 
 
 
