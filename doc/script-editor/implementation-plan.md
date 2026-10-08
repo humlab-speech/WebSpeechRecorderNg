@@ -120,7 +120,7 @@ inventory (§4 M2).
 
 **The suite counts inside these rows are the numbers at the moment each row landed**, not at the tip: the library's
 44, 105, 132 and 136 as the L-tasks closed, then 146 at M1's gate; the editor's 229, 398 and 480. The tip's counts —
-library **148**, editor **486**, server **66** tests — are in §11.144 and in `doc/script-editor/README.md` §Testing,
+library **148**, editor **486**, server **67** tests — are in §11.144 and in `doc/script-editor/README.md` §Testing,
 which is where the commands live too (§5). Rows that quote a build size say "at this revision" for the same reason.
 
 ### M0 — API agreement (documents, no application code)
