@@ -5147,6 +5147,18 @@ the 999 cap, the playback counters and the mediaitem's box, which is what the se
 defines `DRAFT_KEEP = 50` and `DRAFT_MAX_AGE_DAYS = 30`, and both `pruneDraftRevisions` and `gc` default to them.
 §10.3 and §10.4 are design reasoning ending in the owners' dated decisions, and name no count that has moved.
 
+### 11.184 `data-model.md` §4's invariant 8, which still covered the removed box — **Corrected**
+
+§11.176 listed the documents it touched and missed one, which only turned up now that the sections are being read
+rather than grepped: `data-model.md`'s §4 ("Invariants") is the list the server must re-check on publish, and its
+eighth item read "… and **every** virtual view box height is > 0". "Every" took in the script-level box that left the
+model in §11.176 *and* the mediaitem's, which is the one `server/validate.mjs` checks and the one `validation.md`'s E11
+row now names. The invariant names the mediaitem's field and records that the script-level one is gone.
+
+**Verified**: `server/validate.mjs` validates `defaultVirtualViewBox.height` as its E11 clause, and §4's other nine
+invariants match the implemented checks. §5, read for the same reason, is accurate — the feature table holds
+`prefill` and `playback`, `playback` maps to the version the build reports, and `draw` needs no recorder floor.
+
 
 
 

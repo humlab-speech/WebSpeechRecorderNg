@@ -366,8 +366,9 @@ The editor enforces these; the server must re-check them, because a client canno
    want the bleed).
 6. `type: 'nonrecording'` items never carry `recduration`; `duration` is meaningless elsewhere.
 7. `mediaitems` holds at most one entry, because the recorder reads only the first.
-8. Playback numbers are sane: `repeats` ≥ 1, `gap` ≥ 0, `maxReplays` ≥ 0, and every virtual view
-   box height is > 0.
+8. Playback numbers are sane: `repeats` ≥ 1, `gap` ≥ 0, `maxReplays` ≥ 0, and a mediaitem's
+   `defaultVirtualViewBox.height` is > 0. (The script-level `virtualViewBox` this once also covered
+   is gone from the model — §11.176 — and no renderer ever read it.)
 9. `playback.when` on a `type: 'nonrecording'` item is only `BEFORE` or `ONDEMAND`.
 10. A section with legacy `promptUnits` and no `groups` is never written back with an added
     `groups: []`; it migrates explicitly (N06) or stays read-only.
