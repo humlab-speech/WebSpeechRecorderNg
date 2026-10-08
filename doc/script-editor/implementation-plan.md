@@ -5212,6 +5212,24 @@ runbook documents, so the pair is the cross-check that matters most there. The d
 **Verified**: `node --test server/*.test.mjs` reports 66; the only other count in the file is the retention pair,
 which matches the constants exactly.
 
+### 11.188 A guarantee the draw's refill does not provide — **Corrected**
+
+Found by reading the code against the documents rather than the documents against each other. `rest-api.md` §4.1
+step 1 said the refill from the skipped set takes items "**newest-recorded last**". No such ordering exists.
+`resolveBankSources` passes `excluded: recordedBankItemIds` — a `Set` of ids carrying no timestamps — and
+`chooseItems` refills with `matching.filter((item) => excluded.has(String(item.bankItemId)))`, which is the **bank's**
+order, or a shuffle of it. `draw.test.mjs` pins exactly that: from `excluded = new Set(['b2','b3','b4','b5'])` with
+`order: 'SEQUENTIAL'` it expects `['b1','b2','b3']`, so the spec asserts the implemented behaviour, not the
+documented one.
+
+The sentence now says what happens, including why the guarantee is unavailable to the code as it stands. Whether the
+guarantee *should* exist is a product question — it would mean threading recording times into the refill — and this
+entry records that it does not, rather than changing the draw's behaviour unasked.
+
+**Verified**: "newest-recorded" occurs only in that sentence; `server/draw.mjs` has no recency input on the refill
+path (`grep` for recordedAt/newest/sort finds only the unrelated item-index sort when splices are applied); and
+`server/draw.test.mjs` fixes the bank order.
+
 
 
 

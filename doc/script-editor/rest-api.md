@@ -313,7 +313,8 @@ When a session is created against a script version, the server, for each group t
 
 1. Applies `filter` to the bank, and removes items this speaker already recorded in this project
    when `skipRecordedBySpeaker` is set. When that leaves fewer than `count`, it refills from the
-   skipped set, newest-recorded last, and records in the session trace that it had to.
+   skipped set in the bank's order — the recorded ids arrive as a set, so no recording-recency
+   ordering is available to it — and records in the session trace that it had to.
 2. Picks `count` items without repeats, keyed by `fixedBy`: a session-specific seed, a
    speaker-stable seed, or a script-version-stable seed. Seeds come from a documented,
    deterministic PRNG the server implements (the editor never resolves a session draw), so the same
