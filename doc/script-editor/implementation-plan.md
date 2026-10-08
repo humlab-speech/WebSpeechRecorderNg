@@ -5187,6 +5187,21 @@ separate larger limits for the editor; `ls src/test/project/` shows `Demo1` and 
 `project/Demo1/script`. §4.1's other claims check out — the project entry's `root`, `sourceRoot` and `prefix`, both
 the `src/test` and `*.checks.json` asset entries, and the corrected `tsconfig.spec.json` path.
 
+### 11.187 `server/README.md`'s spec count — **Corrected**
+
+The runbook is the last file read, and its one count was stale: the tests section said `node --test server/*.test.mjs`
+covers "**60 specs**", where the suite runs **66** (65 without the shared-corpus file). The number is gone rather than
+updated, for the reason §11.154–§11.156 give.
+
+Everything else in it was checked against the code and holds. Draft revisions "**50 deep and 30 days**" matches
+`DRAFT_KEEP = 50` and `DRAFT_MAX_AGE_DAYS = 30` in `server/store.mjs` — which `store.mjs`'s own comment says the
+runbook documents, so the pair is the cross-check that matters most there. The data layout matches `data-model.md`
+§10.1 including the `layoutVersion` that `--migrate` reads, the maintenance commands match the receiver's flags, and
+"CI runs this and the other five jobs" is right, since `tests.yml` has six.
+
+**Verified**: `node --test server/*.test.mjs` reports 66; the only other count in the file is the retention pair,
+which matches the constants exactly.
+
 
 
 

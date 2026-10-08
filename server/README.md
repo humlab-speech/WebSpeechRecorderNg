@@ -20,8 +20,8 @@ is seeded from `--seed` (`src/test` by default) on first run; `server/data` is g
 ## Tests
 
 ```bash
-node --test server/*.test.mjs   # 60 specs: drafts, publish, validation corpus, banks, media,
-                                # draw resolution, previews, maintenance
+node --test server/*.test.mjs   # drafts, publish, validation corpus, banks, media, draw
+                                # resolution, previews, maintenance
 ```
 
 The explicit file list, not `server/`: Node 22's runner treats a directory argument as an entry
