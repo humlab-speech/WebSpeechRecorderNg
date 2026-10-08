@@ -5034,6 +5034,11 @@ not — the line naming it had been cut at 170 characters in my own output. Read
 so nothing was changed. That is the second time in two rounds that a truncated read rather than the file produced the
 apparent defect, which is a reason to read the artefact before editing it, not only the line I came for.
 
+**A fourth site, found on a deliberate final read of the whole description:** its opening said "the **four** decisions that
+are not this work's to take", while the closing line already said "the **three** decisions above are taken" — the
+description contradicted itself. The fourth was §11.58, the dependency advisory, counted among them when it was still
+pending; it is fixed (§11.171), so the count is three, and the opening now says three.
+
 ### 11.179 `scan-pr` fixed — **Fixed**, and §11.173's conclusion corrected
 
 §11.173 recorded this as "attempted, measured, reverted" and concluded the caller's pin is not a lever. Re-opened
