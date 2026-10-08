@@ -5277,6 +5277,24 @@ second where truncation was the cause rather than the pattern.
 **Verified**: the untruncated `grep -n intent` lists only 204 (declaration), 415 (`setText`), 504 (conflict
 resolution), 538 (the per-edit push) and 578 (`applyServerRead`).
 
+### 11.191 Temp files from an interrupted write are never collected — **Found, not changed**
+
+Reading `server/store.mjs`'s write path. `writeText` and `writeJson` each write `${path}.tmp-${process.pid}` and
+`renameSync` it into place — atomic per file, in the same directory, and the ETag is the hash of the bytes *received*
+rather than a re-serialisation, so D-S holds and a crash between the draft, revision and meta writes costs only a
+stale `draftVersion`, which the doc already says is display-only. A write that fails, or a process killed between
+`writeFileSync` and `renameSync`, leaves that temp file behind — and **nothing collects it**: the suffix occurs only
+at those two write sites, and `gc` prunes draft revisions, expired previews and orphaned media, not temp files.
+
+It is inert for the application: every reader names an exact path or globs `*.json`, and `X.json.tmp-123` does not
+end in `.json`. But the documented backup and transfer story is "copy the tree (rsync, tar)", so the litter travels to
+production and accumulates one file per interrupted write, per pid. `uploads/tmp` is the one temp location the runbook
+says not to copy; these are not under it.
+
+**Left alone deliberately.** Unlike §11.189 this is a missing capability rather than code contradicting its own
+contract — a sweep in `gc` needs a recursive walk the store does not have — so it is recorded for the owner to place
+rather than added unasked.
+
 
 
 
