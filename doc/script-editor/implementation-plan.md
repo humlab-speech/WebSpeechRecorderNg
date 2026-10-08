@@ -5347,6 +5347,24 @@ it.
 **Verified**: `grep -n "idempotent(req" server/api.mjs` lists 1007, 1099 and 1148 only; the router calls
 `publishScript` directly at 199–201.
 
+### 11.194 The idempotency journal grows without bound, and every write rewrites it — **Found, not changed**
+
+The mechanism behind §11.193's three wrapped routes. `Store.idempotencyRemember` puts the entry into a lazily-read
+in-memory object and calls `writeJson`, so **the whole journal is rewritten on every remembered write**, and nothing
+collects it: `JOURNAL = 'journal.json'` appears only at that write and at the lazy read, `gc` prunes draft revisions,
+expired previews and orphaned media, and neither the runbook nor the plan states a retention rule for it. The runbook
+lists it as "runtime state", and the transfer story is "copy the tree".
+
+Measured against the real store: 1,000 entries make a 175 kB file and cost ~0.8 ms per write; 5,000 entries make
+879 kB and cost ~2.2 ms per write. The per-entry cost tracks the file, so the bytes written over a deployment's life
+are quadratic in the number of remembered requests — one that records thousands of files pays it on every upload.
+
+It is a scaling cliff rather than a correctness defect, and the same class as §11.191: runtime state nothing
+collects, in a directory the backup story copies.
+
+**Left alone deliberately.** Bounding it — by age, or by keeping the newest N the way draft revisions are kept — is a
+policy the store does not currently state, so it is recorded for the owner to set rather than invented here.
+
 
 
 
