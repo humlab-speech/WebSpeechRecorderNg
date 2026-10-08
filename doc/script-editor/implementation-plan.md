@@ -5295,6 +5295,24 @@ says not to copy; these are not under it.
 contract — a sweep in `gc` needs a recursive walk the store does not have — so it is recorded for the owner to place
 rather than added unasked.
 
+### 11.192 The chunked-upload concat path has no test — **Found, not changed**
+
+Last of the adversarial read: `server/api.mjs`'s request handling. The response envelope (`error`/`message` plus
+`code`/`details` only when present), `sendJson`/`sendBytes` (`no-store`, ETag only when given), `waitForChunks`'s
+comparison and the async error path all hold up — `chunkIndices` maps its keys with `Number(key)`, so
+`indices.includes(idx)` compares like with like, and a chunk still in flight makes the caller **defer** rather than
+fail.
+
+What the read turned up is a coverage gap rather than a defect: the concat path — `prepareChunksRequest`, the chunk
+`PUT`s, `concatChunksRequest`, and the deferral machinery around it (`waitForChunks`, `upsertChunkSession`,
+`schedulePendingWarning`, `pendingConcat`) — has no test at all. The only chunk test in the suite is
+`preview.test.mjs`'s, and it asserts the opposite: that a chunk into a `TEST` session is refused with `409`. So the
+code that assembles a recording from its chunks, including the one place the receiver waits for an upload still in
+flight, is exercised only by the recorder being run against it.
+
+**Left alone deliberately.** Writing it means driving the multipart upload, the chunk `PUT`s and a WAVE probe — a new
+piece of the suite rather than a correction to one, so it is recorded for the owner to place.
+
 
 
 
