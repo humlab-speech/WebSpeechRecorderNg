@@ -5325,6 +5325,28 @@ text would return on reload and could overwrite the server's newer version. Read
 line. Eleven times now a tool's output rather than the artefact has decided a conclusion in this session; three of
 those were truncation. The remedy that keeps working is the same one: read the narrow range, whole.
 
+### 11.193 `publish` is the one write route without an idempotency key — **Found, not changed**
+
+Reading `server/store.mjs`'s `publish` against data-model §10.1. The order it documents holds — the version file, then
+the recorder-facing `published.json` (atomic rename), then the version index, deduped by version number and sorted
+newest-first, then `meta.json` — so a crash between the steps is repaired by publishing again with the same draft,
+which reuses that version number. The nameless-draft rule holds too: a document without a name leaves the entity's name
+alone.
+
+What is missing is the retry story. `idempotent(req, res, note, produce)`, which replays a remembered response for an
+`Idempotency-Key`, wraps three routes — the recording upload (api.mjs:1007), the chunk upload (1099) and the concat
+(1148) — and **not** `publishScript`, which the router calls directly at 199. So a publish whose response is lost, or
+a double submit, publishes a **second version carrying the same text**: `requireDraftPrecondition` passes because the
+draft's ETag has not changed, and versions are immutable and never pruned. The recorder is unaffected — it reads
+`published.json`, which is rewritten identically — so the cost is a duplicate row in the version history.
+
+`rest-api.md` promises idempotence only for the draft `PUT` (§2.3), so nothing here contradicts a documented contract.
+It is an inconsistency in the write surface, and wrapping the route in the same helper the other three use would close
+it.
+
+**Verified**: `grep -n "idempotent(req" server/api.mjs` lists 1007, 1099 and 1148 only; the router calls
+`publishScript` directly at 199–201.
+
 
 
 
