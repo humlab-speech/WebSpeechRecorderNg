@@ -5174,6 +5174,19 @@ regenerated `bankDraws` keyed `session:<id>#<n>`. All three sentences now say wh
 **Verified**: no source file mentions `ResolvedDraw`; `data-model.md` §2.2 and §2.4 record the type as dropped; the
 redraw's response shape is asserted in `server/draws.test.mjs`.
 
+### 11.186 `README.md`'s budget figure and its example audit URL — **Corrected**
+
+The last unread subsections, §4.1–§4.4, are config and path prose, and two of their facts were wrong. §4.1 said to
+"keep the recorder's existing **500 kB / 1 MB** budget untouched"; measured, that budget is **1.5 MB / 2 MB**, and it
+is identical on `origin/master` and here — so the instruction holds and its figure did not. §4.4's example audit URL
+pointed at `project/test/script/1245/edit`, a project that does not exist: `src/test/project/` holds `Demo1`, and
+every audit invocation in `tests.yml` requests `project/Demo1/script`. Both corrected.
+
+**Verified**: `angular.json` carries `1.5mb`/`2mb` for the recorder on both `origin/master` and this branch, and
+separate larger limits for the editor; `ls src/test/project/` shows `Demo1` and no `test`; the CI audits use
+`project/Demo1/script`. §4.1's other claims check out — the project entry's `root`, `sourceRoot` and `prefix`, both
+the `src/test` and `*.checks.json` asset entries, and the corrected `tsconfig.spec.json` path.
+
 
 
 

@@ -212,7 +212,7 @@ Three additions beyond the sketch, all of them load-bearing:
   so the editor's specs and the receiver's `server/checks-corpus.test.mjs` run the same files.
 
 The editor's budget is deliberately larger than the recorder's: it is a desktop tool for
-researchers, not a field application. Keep the recorder's existing 500 kB / 1 MB budget
+researchers, not a field application. Keep the recorder's existing 1.5 MB / 2 MB budget
 untouched — that is the point of D1.
 
 Scripts in [package.json](../../package.json):
@@ -315,7 +315,7 @@ Material theme from the brand ramps, then emit the tokens and the role pins at t
 The audit script takes a URL, so it covers the editor too:
 
 ```bash
-node bin/theme_audit.mjs --url http://127.0.0.1:4300/project/test/script/1245/edit \
+node bin/theme_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script/1245/edit \
   --viewports 1366x768,1920x1080
 ```
 
