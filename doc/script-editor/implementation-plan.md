@@ -4922,6 +4922,15 @@ transient asset-server failure into an assertion about an object that was never 
 fixture and the assets to check — so the suite means what it says, and the next occurrence of this flake names its own
 cause instead of costing a re-run to characterise.
 
+**It recurred (§11.190's round), with a different cause, and this is what the log showed.** The same two specs failed
+together on `fa3a59d3` — "writes every fixture back without losing a key" with *Expected object to have properties*,
+and "keeps a legacy `promptUnits` section free of a fabricated groups key" with *Cannot read properties of undefined
+(reading 'groups')*. Neither names a fixture, so the helper's own "is not served" message did **not** fire: the
+fixtures loaded, and the round-tripped document came back **shorter** than the file it came from — missing keys in one
+spec, a missing `sections[index]` in the other. Locally the same file passes 486/486, repeatedly, and the two
+neighbouring heads both passed the job, so the trigger is still unidentified. What is now recorded is the shape: a
+short round-trip, not a missing asset, which is a different thing to look for next time.
+
 ### 11.175 A security-property check that flaked, and what its message was hiding — **Hardened, in the spec**
 
 The run that pushed §11.173's revert reported `Server (node --test)` failing on one test: *"with the switch the same
@@ -5248,6 +5257,25 @@ content-type extension. Run against the old order, the new spec fails on both pa
 count, so `durationMsOf({frames: -16000, sampleRate: 16000})` returns `-1000`. `probeWav` reads `dataBytes` with
 `readUInt32LE` and throws when the data chunk is missing, so nothing reaches it with a negative count — a robustness
 gap rather than a live defect, recorded here instead of changing the signature unasked.
+
+### 11.190 The edit intent's real lifetime, and a finding of mine that a truncated grep corrupted — **Corrected**
+
+Reading the draft service against its own comments. Two docstrings called this "the per-save-window edit intent" and
+"one structural or textual edit made in a save window", and the code does not scope it to a window: `this.intent` is
+appended per structural edit, cleared by `applyServerRead` (every load and reload) and by resolving a conflict the
+operator's way, and **never at a save boundary**. So it spans every save since the last server read. Both comments now
+say that, and the op docstring adds that an op whose guard no longer holds fails the whole reapply rather than being
+skipped — which is what makes spanning saves safe.
+
+**A finding of mine that the tooling corrupted, recorded because it nearly became a wrong "fix".** My first pass read
+`grep -n intent` and concluded that nothing but `setText` cleared the intent, so I rewrote both comments to say "it
+outlives a save window — only the source view replaces it". That output had been **truncated**: 25 of 45 lines, with
+504 and 578 missing. A second, untruncated run showed both resets, so that clause was wrong and is corrected here.
+That is the ninth time this session that a tool's *output* rather than the artefact decided a conclusion, and the
+second where truncation was the cause rather than the pattern.
+
+**Verified**: the untruncated `grep -n intent` lists only 204 (declaration), 415 (`setText`), 504 (conflict
+resolution), 538 (the per-edit push) and 578 (`applyServerRead`).
 
 
 

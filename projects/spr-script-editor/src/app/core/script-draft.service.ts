@@ -3,7 +3,9 @@
  * D2 in implementation-plan.md §2, protocol in rest-api.md §2.3).
  *
  * The service owns the operator's draft: the parsed model the screens edit, whole-draft undo/redo
- * snapshots (D-C), the per-save-window edit intent used to re-apply a structural edit after a 412,
+ * snapshots (D-C), the edit intent kept for re-applying a structural edit after a 412 — it spans saves
+ * rather than one window, cleared by every server read and by resolving a conflict, and every op is
+ * guarded —
  * the 2 s debounce / blur flush / single-flight save, the local backup of unacked changes (D-N) and
  * the rule that invalid JSON text is never PUT (D2). It talks to the receiver through the
  * `readDraft`/`writeDraft` methods on `ScriptApiService`; this service makes no HTTP calls itself.
@@ -66,8 +68,10 @@ interface ValueGuard {
 }
 
 /**
- * One structural or textual edit made in a save window. Re-applied in order over `details.current`
- * after a 412; each op carries the index/identity guard that says whether that is still safe (D-C).
+ * One structural or textual edit, kept until the next server read or a conflict resolution clears it —
+ * a save does not, so the set can span several. Re-applied in order over `details.current` after a
+ * 412; each op carries the index/identity guard that says whether that is still safe (D-C), and an op
+ * whose guard no longer holds fails the whole reapply rather than being skipped.
  */
 type IntentOp =
   | {op: 'add'; path: DraftPath; index: number; value: unknown; guard: ArrayGuard}
