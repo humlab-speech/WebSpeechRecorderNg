@@ -577,7 +577,7 @@ path in a way an older process could misread.
 What must be shared is smaller than "the catalogue": `details.checks` carries `{id, path,
 severity}` and the editor renders its own message text by id (rest-api §2.4, validation.md). The
 server must reproduce **which** checks fire and **where**, not their prose. E01–E11 and the
-[data-model.md](data-model.md) §4 invariants block a publish; W01–W12 and N01–N06 stay client-side
+[data-model.md](data-model.md) §4 invariants block a publish; W01–W13 and N01–N06 stay client-side
 except where the owner wants a warning visible to the publisher too.
 
 Split by data needed: script-local (E01–E03, E05–E11), bank-dependent (E04); W11 is client-side and
@@ -596,15 +596,15 @@ touching TypeScript, and the fixture corpus as the cross-runtime test that fails
 changes alone. The generation step is the only new build piece and it shows up in the diff.
 
 **What shipped is A + the corpus** (§11.19): `server/validate.mjs` and the editor's `validation/`
-remained separate implementations, and the nine `doc/script-editor/checks/*.checks.json` cases are what
-hold them together — each side asserts the file set, and the editor's `CORPUS_FILES` is named in the
+remained separate implementations, and the shared `doc/script-editor/checks/*.checks.json` corpus is what
+holds them together — each side asserts the file set, and the editor's `CORPUS_FILES` is named in the
 server's test. C's generated artifact was never built, so this table is the design reasoning, not a
 description of the tree.
 
-**Corpus scope (minimum):** per E id, one positive and one negative draft; E05 boundaries (reserved
-ranges across sections, two draws sharing a prefix); E11 boundaries (cap 999, zero/negative);
-E04 against a bank fixture; every `path` asserted byte-for-byte, because the editor deep-links by
-it.
+**Corpus scope (minimum):** per E id, one positive and one negative draft; E05 boundaries (reserved ranges
+across sections, two draws sharing a prefix); E11 boundaries (the 999 cap, the playback counters, the
+mediaitem's box); E04 against a bank fixture; every `path` asserted byte-for-byte, because the editor deep-links
+by it.
 
 **Production concerns beyond drift:** the server validates hostile input, so it caps the body
 (`--max-body` already), bounds array walks, and never mutates the draft it validates. A publish
@@ -5132,6 +5132,20 @@ rather than trusted:
 
 **Verified**: the figures above come from `git rev-list --count origin/master..HEAD`, `ls bin/*.mjs bin/*.js`,
 `ls -d bin/*fixtures* bin/audit` and `git diff --name-only origin/master...HEAD`.
+
+### 11.183 §10.2's check range, corpus count and E11 boundaries — **Corrected**
+
+§10.2 ("Check ownership") was the last section read, and three of its statements had gone stale: it put the
+client-side warnings at "**W01–W12**" where the catalogue runs to **W13** (`validation.md` carries the row and
+`warnings.ts` the check); it called the cross-runtime corpus "the **nine** `doc/script-editor/checks/*.checks.json`
+cases" where there are thirteen files, so the number is gone rather than updated; and it listed "E11 boundaries
+(**cap 999, zero/negative**)" — "zero/negative" being the *view-box* clause §11.176 removed. E11's boundaries are now
+the 999 cap, the playback counters and the mediaitem's box, which is what the sentence says.
+
+**Verified**: the catalogue's warnings are W01…W13 and `ls doc/script-editor/checks/*.checks.json` is thirteen files.
+§10.1's retention numbers were checked against the code for the same reason and hold exactly — `server/store.mjs`
+defines `DRAFT_KEEP = 50` and `DRAFT_MAX_AGE_DAYS = 30`, and both `pruneDraftRevisions` and `gc` default to them.
+§10.3 and §10.4 are design reasoning ending in the owners' dated decisions, and name no count that has moved.
 
 
 
