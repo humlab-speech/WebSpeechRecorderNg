@@ -313,7 +313,7 @@ When a session is created against a script version, the server, for each group t
 
 1. Applies `filter` to the bank, and removes items this speaker already recorded in this project
    when `skipRecordedBySpeaker` is set. When that leaves fewer than `count`, it refills from the
-   skipped set, newest-recorded last, and records in the `ResolvedDraw` that it had to.
+   skipped set, newest-recorded last, and records in the session trace that it had to.
 2. Picks `count` items without repeats, keyed by `fixedBy`: a session-specific seed, a
    speaker-stable seed, or a script-version-stable seed. Seeds come from a documented,
    deterministic PRNG the server implements (the editor never resolves a session draw), so the same
@@ -328,7 +328,7 @@ When a session is created against a script version, the server, for each group t
    `GET script/{sess.script}` therefore returns plain items and needs no call-site change.
    Materialised scripts are internal: the library list and the draw record exclude them from their
    default listings.
-5. Stores a `ResolvedDraw`-style record per drawn source in the session trace — the shipped
+5. Stores a record per drawn source in the session trace — the shipped
    `Session.prefills` for list sources plus `Session.bankDraws` for bank sources (data-model §2.4).
    Materialised scripts are internal: the library list and the script-scope record exclude them.
    `GET …/draws` merges the trace for the record view; `POST …/draws/_redraw` re-resolves from the
@@ -380,7 +380,8 @@ caller's speaker id (`sp-<12 hex>`, salted per installation from a file in the d
 POST project/{projectId}/session/{sessionId}/draws/_redraw
 ```
 
-`200` with the new `ResolvedDraw[]` when the session status is `CREATED`. Any other status returns
+`200` with the session's trace — its incremented `redraw` counter and the regenerated `bankDraws` —
+when the session status is `CREATED`. Any other status returns
 `409` with `error: "SESSION_ALREADY_STARTED"`. The editor shows this as a disabled action with the
 reason, rather than letting the request fail.
 

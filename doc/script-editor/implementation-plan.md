@@ -5159,6 +5159,21 @@ row now names. The invariant names the mediaitem's field and records that the sc
 invariants match the implemented checks. §5, read for the same reason, is accurate — the feature table holds
 `prefill` and `playback`, `playback` maps to the version the build reports, and `draw` needs no recorder floor.
 
+### 11.185 `rest-api.md`'s dropped type, named in three places — **Corrected**
+
+`rest-api.md`'s prose was the last block read, and it named `ResolvedDraw` three times as though the type existed:
+"records in the `ResolvedDraw`" (§4.1 step 1), "a `ResolvedDraw`-style record" (step 5), and "`200` with the new
+`ResolvedDraw[]`" (§4.3). `data-model.md` records it as gone in two places — "the former `ResolvedDraw` type is
+dropped. The exact shape is frozen in M0" — and no file in the tree carries the name: searching `projects/`,
+`server/` and `src/` returns prose only.
+
+The third mention was wrong about the shape as well as the name. `server/draws.test.mjs` shows what `_redraw`
+returns: the session's trace, with an incremented `redraw` counter (`redrawn.redraw === 1`, then `#2`) and the
+regenerated `bankDraws` keyed `session:<id>#<n>`. All three sentences now say what exists.
+
+**Verified**: no source file mentions `ResolvedDraw`; `data-model.md` §2.2 and §2.4 record the type as dropped; the
+redraw's response shape is asserted in `server/draws.test.mjs`.
+
 
 
 
