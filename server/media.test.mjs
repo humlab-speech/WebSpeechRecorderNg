@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {existsSync} from 'node:fs';
 import {join} from 'node:path';
 import {buildWavHeader} from './wav.mjs';
+import {sanitiseMediaName} from './media.mjs';
 import {withServer, jsonRequest} from './api-harness.mjs';
 
 const SAMPLE_RATE = 16000;
@@ -20,6 +21,19 @@ const uploadRaw = (base, project, name, bytes, contentType = 'audio/wav') =>
   });
 
 const listMedia = async (base, project = 'demo') => (await fetch(`${base}/project/${project}/media`)).json();
+
+// The upload name is the one string a client controls that becomes a path, so it is worth pinning on
+// its own: it had no spec at all until this one, and the ordering of trim and dot-stripping matters.
+test('an upload name is a basename, with controls, padding and leading dots gone', () => {
+  assert.equal(sanitiseMediaName('../../etc/passwd'), 'passwd', 'the basename is what is kept');
+  assert.equal(sanitiseMediaName('..hidden'), 'hidden');
+  assert.equal(sanitiseMediaName(' .evil'), 'evil', 'padding must not shield a leading dot');
+  assert.equal(sanitiseMediaName('  ..hidden'), 'hidden');
+  assert.equal(sanitiseMediaName('clean.wav'), 'clean.wav');
+  assert.equal(sanitiseMediaName('.'), 'upload', 'a name that empties falls back');
+  assert.equal(sanitiseMediaName('\u0000bad'), 'bad');
+  assert.equal(sanitiseMediaName('', 'audio/wav'), 'upload.wav', 'the content type supplies the extension');
+});
 
 test('media: upload with duration, list with usage, in-use protection', async () => {
   await withServer(async ({base, dataDir}) => {

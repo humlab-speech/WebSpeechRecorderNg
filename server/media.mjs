@@ -47,8 +47,8 @@ export function mimeTypeFor(name) {
  */
 export function sanitiseMediaName(rawName, contentType = '') {
   const basename = String(rawName ?? '').split(/[\\/]/).pop() ?? '';
-  const cleaned = basename.replace(/[\u0000-\u001f\u007f]/g, '').replace(/^\.+/, '').trim();
-  if (cleaned !== '' && cleaned !== '.') {
+  const cleaned = basename.replace(/[\u0000-\u001f\u007f]/g, '').trim().replace(/^\.+/, '');
+  if (cleaned !== '') {
     return cleaned;
   }
   const mime = String(contentType ?? '').split(';')[0].trim().toLowerCase();

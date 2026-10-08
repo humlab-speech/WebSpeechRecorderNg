@@ -5230,6 +5230,25 @@ entry records that it does not, rather than changing the draw's behaviour unaske
 path (`grep` for recordedAt/newest/sort finds only the unrelated item-index sort when splices are applied); and
 `server/draw.test.mjs` fixes the bank order.
 
+### 11.189 The upload name's leading dots, and the ordering that shielded them — **Fixed**
+
+Reading the code against the documents turned up a defect the other way round: not a document that overstates the
+code, but code that does not do what its own comment says. `server/media.mjs`'s `sanitiseMediaName` promised "leading
+dots dropped" and stripped them with `replace(/^\.+/, '')` **before** `trim()`, so a name with padding in front of
+the dot kept it — `" .evil"` returned `".evil"` where `".evil"` returned `"evil"`, and `"  ..hidden"` kept both dots.
+Both call sites in `server/api.mjs` pass a client-controlled name (`file.filename`, `requested`), so an upload could
+put a dotfile in a project's media directory.
+
+Traversal was never at risk — the basename split runs first — but the contract was, and the function had **no spec at
+all**, which is how the ordering survived. `trim()` now runs before the dot strip, `"."` still falls through to the
+`upload` fallback, and `media.test.mjs` pins the basename rule, both padding cases, the controls, the fallback and the
+content-type extension. Run against the old order, the new spec fails on both padding cases.
+
+**Also found, and deliberately left alone:** `durationMsOf` guards `Number.isFinite` but not a non-negative frame
+count, so `durationMsOf({frames: -16000, sampleRate: 16000})` returns `-1000`. `probeWav` reads `dataBytes` with
+`readUInt32LE` and throws when the data chunk is missing, so nothing reaches it with a negative count — a robustness
+gap rather than a live defect, recorded here instead of changing the signature unasked.
+
 
 
 
