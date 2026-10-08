@@ -364,13 +364,13 @@ release path, and §11.70 drove its three paths by hand for that reason.
 
 ## 6. PR slicing (suggested order)
 
-**How it actually landed: one branch, one pull request** — 295 commits — with §11 as its record. The slices below
+**How it actually landed: one branch, one pull request** — with §11 as its record. The slices below
 are therefore a way to read the product half of the diff in parts rather than a list of commits that were made
 separately. They were also written before the verification layer existed, and **none of it appears among them**: the
 twenty slices cover the library, the recorder, the editor and the server, while slices 18 and 20 are the closest.
-A twenty-first belongs to that layer — the fifteen scripts under `bin/`, the six fixture trees that prove nine of
-them bite (§11.132–§11.147), `server/client-paths.test.mjs`, and this plan with its register — which is 40 of the
-diff's 355 files under `bin/` and 20 under `doc/`.
+A twenty-first belongs to that layer — the scripts under `bin/` with the fixture trees that prove the gates bite
+(§11.132–§11.147), `server/client-paths.test.mjs`, and this plan with its register. §5 carries the current census of
+them and §11.181 the count it was checked against; a number here would be stale within a commit, as these were.
 
 1. `feat(lib): script model additions (playback, draw, banks, script metadata, exported utils)` — L1.
 2. `test(lib): characterisation tests for timing, prompt visibility and playback sequencing` — L2 part 1.
@@ -5112,6 +5112,26 @@ i18n step, `ensure_env.mjs` through the `prebuild` hook, `serve_deploy.mjs` thro
 
 **Verified**: `ls bin/*.mjs bin/*.js` is sixteen files, `docs_check` is invoked in `.github/workflows/tests.yml` and
 owns `bin/docs_fixtures`.
+
+### 11.182 §6's counts, and §7's two checkable mitigations — **Corrected, and verified**
+
+Continuing the read: §6 ("PR slicing") said the branch landed as "one branch, one pull request — **295 commits**", and
+its twenty-first-slice paragraph counted "the fifteen scripts under `bin/`, the six fixture trees that prove nine of
+them bite … 40 of the diff's 355 files under `bin/` and 20 under `doc/`". Measured: 339 commits, 16 scripts, 8 fixture
+trees, 10 gates, and 43 files under `bin/` of 360 — only the 20 under `doc/` was right. Rather than swap in numbers
+that rot within a commit, that paragraph now names what the layer is and points at §5's census and §11.181.
+
+§7's risk table was read for the same reason, and the two rows whose mitigations a machine can check were checked
+rather than trusted:
+
+- **"Runtime data (`server/data`) committed by accident" — mitigated.** `git check-ignore -v server/data` answers
+  `.gitignore:9:/server/data`, and no file under it is tracked.
+- **"A TEST session accepts an upload" — mitigated.** `server/api.mjs` refuses with `409` ("a preview session and
+  does not accept recordings"), and `server/preview.test.mjs` carries the test named for it: "preview sessions
+  materialise a draft and refuse recordings".
+
+**Verified**: the figures above come from `git rev-list --count origin/master..HEAD`, `ls bin/*.mjs bin/*.js`,
+`ls -d bin/*fixtures* bin/audit` and `git diff --name-only origin/master...HEAD`.
 
 
 
