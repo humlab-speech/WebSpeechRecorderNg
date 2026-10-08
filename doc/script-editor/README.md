@@ -211,9 +211,10 @@ Three additions beyond the sketch, all of them load-bearing:
 - **The `checks` asset.** The shared corpus in [checks/](checks) is served at `/checks/*.checks.json`
   so the editor's specs and the receiver's `server/checks-corpus.test.mjs` run the same files.
 
-The editor's budget is deliberately larger than the recorder's: it is a desktop tool for
-researchers, not a field application. Keep the recorder's existing 1.5 MB / 2 MB budget
-untouched — that is the point of D1.
+**The editor's budgets differ from the recorder's by kind, not by size**: its component-style
+allowance is larger (4 kB / 8 kB against 2 kB / 4 kB) and its initial bundle allowance is tighter
+(900 kB / 1.5 MB against 1.5 MB / 2 MB) — it is a desktop tool for researchers, not a field
+application. Keep the recorder's existing 1.5 MB / 2 MB budget untouched — that is the point of D1.
 
 Scripts in [package.json](../../package.json):
 

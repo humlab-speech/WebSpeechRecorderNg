@@ -5187,10 +5187,15 @@ is identical on `origin/master` and here — so the instruction holds and its fi
 pointed at `project/test/script/1245/edit`, a project that does not exist: `src/test/project/` holds `Demo1`, and
 every audit invocation in `tests.yml` requests `project/Demo1/script`. Both corrected.
 
-**Verified**: `angular.json` carries `1.5mb`/`2mb` for the recorder on both `origin/master` and this branch, and
-separate larger limits for the editor; `ls src/test/project/` shows `Demo1` and no `test`; the CI audits use
-`project/Demo1/script`. §4.1's other claims check out — the project entry's `root`, `sourceRoot` and `prefix`, both
-the `src/test` and `*.checks.json` asset entries, and the corrected `tsconfig.spec.json` path.
+**Verified**: `angular.json` carries `1.5mb`/`2mb` for the recorder's initial bundle on both `origin/master` and this
+branch, and for the editor `900kb`/`1.5mb` — tighter, not larger, with `4kb`/`8kb` against `2kb`/`4kb` for component
+styles being the only place the editor's allowance is bigger. `ls src/test/project/` shows `Demo1` and no `test`; the
+CI audits use `project/Demo1/script`. §4.1's other claims check out — the project entry's `root`, `sourceRoot` and
+`prefix`, both the `src/test` and `*.checks.json` asset entries, and the corrected `tsconfig.spec.json` path.
+
+**A correction to this entry itself**: it first said the editor had "separate larger limits", repeating §4.1's
+comparison without checking its direction. Measured, the editor's initial budget is the smaller one and only the
+component-style allowance is larger; §4.1 now says so, and this paragraph was wrong in the same way until read again.
 
 ### 11.187 `server/README.md`'s spec count — **Corrected**
 
