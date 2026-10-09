@@ -465,21 +465,23 @@ rule).
 - **Library (karma).** `npm run test_module -- --watch=false --browsers=ChromeHeadless` — the
   recorder's behaviour as the oracle: `promptVisibleAt`, `effectiveTiming`, the phase transitions
   and the placement table for every `when` (C7), the feature→version map, the prefill utility and
-  the editor's model helpers. 148 specs today.
+  the editor's model helpers.
 - **Library package.** The same job runs `npm run build_module`: ng-packagr is the pipeline the
   recorder consumes, and it fails on a bad `public-api`, an entry point or a budget — none of which
   karma compiles — while the version file it regenerates must match what is committed. The job then
   runs `node bin/package_check.mjs` over what was built: every path the manifest names exists in the
-  package, and every external import in the shipped bundle is a declared dependency or peer (plan
-  §11.44).
+  package, and every external import in the shipped code — every `.mjs`/`.js` file, wherever it sits,
+  so a secondary entry point is covered too — is a declared dependency or peer (plan §11.44, §11.237).
 - **Editor (karma).** `npm run test_editor -- --watch=false --browsers=ChromeHeadless` — the
   validation catalogue (one `describe` per id plus the shared corpus), the normaliser with
   idempotence, the JSON line tokenizer (escapes, tabs/CRLF, duplicate keys, unicode), the draft
   service (undo/redo, edit intent, 412 reapply with guards, 428, conflict, backup, invalid-JSON
   rule), the services in both API modes, the shell, and one spec per screen including a
   route-level mount through `APP_ROUTES` so an unprovided service fails here rather than at
-  runtime; the library's five actions (create, import, duplicate, archive, export) assert their
-  request shapes there too. 481 specs today.
+  runtime; the centre's own table at 500 items, which is the shape the `large-500` fixture cannot
+  produce because it spreads them over ten sections (plan §11.203); the library's five actions
+  (create, import, duplicate, archive, export) assert their
+  request shapes there too.
 - **Dead exports.** `node bin/dead_exports.mjs` scans the receiver and the editor for exported
   symbols no production file names, and fails naming them. The recorder library is deliberately not
   scanned: it is upstream code, and `public-api.ts` makes its exports reachable for consumers rather
@@ -488,7 +490,8 @@ rule).
   `checkIfMatch` unused in the receiver and three string/type exports in the editor.
 - **Workflow structure.** `node bin/workflow_check.mjs` checks the shape of
   `.github/workflows/tests.yml`: no tabs, the three top-level keys, every job at two spaces with
-  `runs-on:` and at least one step, every `run: |` block with a command in it, and no job-level key the
+  `runs-on:` and at least one step, every `run: |` block with a command in it, every path a command names
+  actually existing (wildcards expanded against their directory), and no job-level key the
   check does not know — because a job that lost two spaces is indistinguishable from one. GitHub
   refuses to run a file it cannot parse, so a hand-edited workflow would break every check at once and
   none of them could report it.
@@ -506,7 +509,7 @@ rule).
   survives load → write with no key lost, no fabricated `groups` over a legacy section and no
   persisted `_shuffled*`.
 - **Contract.** `doc/script-editor/checks/*.checks.json` is the shared **file set**: both sides pin the
-  nine cases by name, so a renamed or dropped case fails instead of quietly stopping being checked.
+  cases by name, so a renamed or dropped case fails instead of quietly stopping being checked.
   Each file is the shared corpus: the editor's specs
   and `server/checks-corpus.test.mjs` both run it. The write protocol is additionally exercised
   against the receiver over `fetch` (create → publish → 412 → reapply → restore → PATCH → media),
@@ -514,11 +517,14 @@ rule).
 - **Server (node --test).** `node --test server/*.test.mjs` — the explicit file list, because Node
   22's runner treats a directory argument as an entry module (§11.48) — covers the receiver: store atomicity and ids,
   ETag/428/412, the shared check fixtures, bank filter semantics, draw determinism, the draw
-  record and its CSV, media in use, multipart and WAV duration, the version gate, CORS, and that a
+  record and its CSV, media in use, multipart and WAV duration, the chunked upload and its concat —
+  including the deferral when a concat overtakes its last chunk — the idempotency of the four write
+  routes that accept `Idempotency-Key`, the temp files an interrupted write leaves behind, and the
+  retention the `--gc-*` flags apply, the version gate, CORS, and that a
   `TEST` session cannot upload, and the deployment harness's mounts, SPA fallback and API proxy —
   `server/deploy.test.mjs` spawns it once against fixture directories. `server/client-paths.test.mjs` reads the
   paths the editor's own services build and probes each against this server, which is the only place the two
-  meet: the editor's specs mock HTTP, so a wrong path in a service passes every one of them. 65 tests today.
+  meet: the editor's specs mock HTTP, so a wrong path in a service passes every one of them.
   Development runs it with
   `npm run serve:api -- --data /tmp/… --seed src/test`; `server/data` is gitignored.
 - **Route coverage.** `node bin/route_check.mjs` reads the router and the audited URLs in
@@ -538,8 +544,22 @@ rule).
   does not exist for its operator, and a documented flag the server does not accept is worse (§11.161). The
   section is named by `--section`, because a README talks about other programs' flags too — the audits' `--url`
   and `--viewports` are not the receiver's.
-- **Every gate above is proved to bite.** Each check in `bin/` has a planted fixture it must fail on and a CI
-  step that requires the specific message, so a gate that stopped detecting fails the job rather than passing
+- **Docs links.** `node bin/docs_links.mjs` reads every markdown file in the tree and fails on a relative link whose
+  file is gone, and on a fragment whose heading it no longer matches — both directions, because a fragment that went
+  opens the page and leaves the reader hunting. **It reads the code citations too** — a path in backticks followed by a
+  line number, the way this document points at `implementation-plan.md`'s neighbours: a file that is not there, and a
+  line number past the end of its file, both fail. Each resolves by the path as written and then by basename, a name
+  several files share is left alone rather than guessed, and the count prints on every run so a walk that examined
+  nothing cannot pass quietly (§11.269). **It reads the register's cross-references too**: when the plan is in the set,
+  every `§11.N` must name an entry that exists — 813 of them over 206 entries today, none dangling (§11.270). Headings are slugged the way GitHub slugs them, so
+  `#theme-umeå-university` keeps its `å` instead of being folded to ASCII. §11.231 found the gap while reading all six
+  CI checkers: **nothing in CI read a markdown link**, and the sweep that made the links safe (§11.216) was done by
+  hand, so it could not fail a pull request. A floor refuses a run that examined almost nothing: pointed at a
+  directory holding no markdown, the check fails rather than reporting "0 links, none broken".
+- **Every gate above is proved to bite.** Each check in `bin/` is held to failing on a fault CI plants — most with a
+  fixture of their own, and `bin/docs_links.mjs` by appending two broken links and two stale citations to a document and
+  restoring it, the way
+  the i18n guard's step edits the catalogue — so a gate that stopped detecting fails the job rather than passing
   quietly: `bin/lint_fixtures/` for the house-rule lint, `bin/workflow_fixtures/broken.yml` for the workflow
   shape, `bin/dead_export_fixtures/` for dead exports, `bin/route_fixtures/` for route coverage,
   `bin/package_fixtures/` for the packaging invariants, and `bin/audit/plant-violations.js` for the theme and
@@ -603,9 +623,10 @@ rule).
   (`/spr/respondent/1`) is measured in the same run, where that line is set at the larger caption.
   Each rule is sensitive and CI checks that it is: `bin/audit/plant-violations.js` plants a violation
   for each theme rule named here — a `lightgrey` div, 9 px text, a 2.96:1 paragraph, a `3000 px` block
-  and an `Arial` link — and for nine of the accessibility rules below (a nameless button, a duplicated
-  id, an image without `alt`, a page without `lang`, a second `h1`, a second `main`, a positive
-  `tabindex`, a control inside a control and a 17 px target). The audit job requires both audits to fail
+  and an `Arial` link — and for **fifteen of the sixteen** accessibility rules below: every one but rule 1, whose
+  nameless button the DOM name heuristic forgives and rule 9 catches instead (a duplicated id, an image without
+  `alt`, a page without `lang`, a second `h1`, a second `main`, a positive `tabindex`, a control inside a control
+  and a 17 px target among them). The audit job requires both audits to fail
   and to name each one, so an audit that stops biting fails the job rather than passing quietly. The
   console rule's two halves are checked the same way: `bin/audit/plant-violations.js` plants Angular's
   own development-build hint beside a genuine warning, and the job requires the audit to fail naming the
@@ -618,7 +639,7 @@ rule).
 - **Accessibility audit.** `bin/a11y_audit.mjs` attaches to the same running Chrome and checks the
   machine-checkable part of ui-spec §8 on the same routes: accessible names, labels and the ARIA
   relationships that carry them, unique ids, `alt`, nothing focusable inside `aria-hidden`, tree and
-  radiogroup semantics, tab order, the browser's own accessibility tree, and that every interactive
+  radiogroup semantics, a table's rows, tab order, the browser's own accessibility tree, and that every interactive
   target is at least 44 px high (a control inside a `<label>` is measured as that label; a link
   flowing inline in text is exempt), plus the document rules: a `lang`, exactly one `h1` and
   one `main`, heading levels that do not skip, no positive `tabindex`, and no control inside another

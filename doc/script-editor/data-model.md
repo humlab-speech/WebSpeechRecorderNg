@@ -128,7 +128,7 @@ export interface PrefillBankSource {
   skipRecordedBySpeaker?: boolean;
   itemcodePrefix: string;             // generated codes are `${prefix}001`, zero-padded
   playBankAudio?: boolean;
-  playback?: Omit<Playback, 'replayable' | 'maxReplays' | 'durationMs'>;
+  playback?: Playback;
   itemDefaults?: Pick<PromptItem, 'prerecdelay' | 'recduration' | 'postrecdelay' | 'recinstructions'>;
 }
 
@@ -169,7 +169,7 @@ export interface DrawFilter {
 /** The bank source descriptor. Referenced from a placeholder item's `prefill` (D-W) — the descriptor
     itself sits at `promptItems[n].prefill.bank`, which is the shape `drawnSource()` returns; M0
     freezes the exact discriminated shape. */
-export interface Draw {
+export interface PrefillBankSource {
   bank: string;
   bankSource: BankSource;
   filter?: DrawFilter;
@@ -187,7 +187,7 @@ export interface Draw {
   /** Play each drawn item's own model recording instead of one fixed file. */
   playBankAudio?: boolean;
   /** Applied to every drawn item; the sound is the bank item's own model recording. */
-  playback?: Omit<Playback, 'replayable' | 'maxReplays' | 'durationMs'>;
+  playback?: Playback;
   /** Timing applied to every drawn item. */
   itemDefaults?: Pick<PromptItem, 'prerecdelay' | 'recduration' | 'postrecdelay' | 'recinstructions'>;
 }
@@ -228,7 +228,7 @@ export interface Bank {
   source: BankSource;
   /** Set for source PROJECT. */
   project?: string;
-  itemCount: number;
+  itemCount?: number;
   /** Application release a BUILTIN bank shipped with, e.g. "3.12". */
   shippedWith?: string;
   updated?: string;
@@ -253,7 +253,9 @@ export interface BankItem {
 ```
 
 A `BankItem` becomes a `PromptItem` at resolution: `text`/`promptDoc`/`src` move into
-`mediaitems[0]`, `audioSrc` becomes `playback.src` when `playBankAudio` is set, `itemDefaults`
+`mediaitems[0]`, and `audioSrc` becomes the `src` of a **second `mediaitem`** the server pushes — `{mimetype:
+audioMimetype ?? 'audio/wav', src: audioSrc}` (`server/draw.mjs`) — when `playBankAudio` is set. There is no
+`playback.src`: `Playback` has no such field. `itemDefaults`
 supply the timing, and `bankItemId` is carried for traceability.
 
 ### 2.4 The session trace
@@ -266,7 +268,9 @@ place, no bank-source key) and points `Session.script` at its id, so the recorde
 are internal: the library list and the record view exclude them from their default listings.
 
 The trace lives on the session: the shipped `Session.prefills` (upstream's `PrefillChoices`) for
-list sources, plus **`Session.bankDraws`** for bank sources — one entry per placeholder itemcode with
+list sources. The bank draws are **not** on the shared `Session` — that interface carries only `prefills?`
+(`session.ts`) — they are the receiver's own trace on the session document, which the editor reads through the draw API:
+one entry per placeholder itemcode with
 `bank`, `bankSource`, `filter`, `count`, `fixedBy`, `key`, `itemcodePrefix`, the chosen
 `{itemcode, bankItemId}` pairs, `refilled`, `skippedRecorded`, `speakerFallback` and
 `drawnForVersion`. `GET …/draws` (session and script scope) merges both for the record view; the
@@ -276,7 +280,7 @@ former `ResolvedDraw` type is dropped. The exact shape is frozen in M0.
 
 ```ts
 export interface Script {
-  type?: 'script';
+  type?: string;
   scriptId?: string | number;
   /** Human label for the library list. Server-side decision, see README §8.2. */
   name?: string;
@@ -344,8 +348,9 @@ Older recorders must tolerate this; see §5.
       "bankItemId": "sv-0147",
       "prerecdelay": 500,
       "recduration": 8000,
-      "playback": { "src": "bank/sv-sentences-v3/sv-0147.wav", "when": "BEFORE", "headphones": true },
-      "mediaitems": [{ "text": "Hon målade köket ljusblått i somras." }]
+      "playback": { "when": "BEFORE", "headphones": true },
+      "mediaitems": [{ "text": "Hon målade köket ljusblått i somras." },
+                     { "mimetype": "audio/wav", "src": "bank/sv-sentences-v3/sv-0147.wav" }]
     }
   ]
 }
@@ -358,10 +363,12 @@ The editor enforces these; the server must re-check them, because a client canno
 1. `itemcode` is non-empty and unique across the whole script, drawn items included.
 2. A drawn group reserves `${itemcodePrefix}001` … `${itemcodePrefix}NNN` for `count` items. No
    fixed item may use a code in that range, and two draw rules may not share a prefix.
-3. A group has `draw` or a non-empty `promptItems`, never both.
+3. A group's **legacy** `draw` key and a non-empty `promptItems` are never both kept. The key left the model with D-W —
+   a bank source is now a *placeholder item's* `prefill.bank` — and the normaliser resolves the old shape by clearing one
+   side (`normalise.ts`), which is why E08 has nothing left to check.
 4. `count` ≥ 1 and ≤ the number of items the filter matches, unless repeats are explicitly
    allowed (not offered in the UI today).
-5. `playback.src` resolves to a readable project resource; `playback.when: 'DURING'` requires
+5. the drawn item's bank clip — the second `mediaitem` the server pushes — resolves to a readable project resource; `playback.when: 'DURING'` requires
    `headphones: true` to avoid recording the loudspeaker (warning, not an error — a researcher may
    want the bleed).
 6. `type: 'nonrecording'` items never carry `recduration`; `duration` is meaningless elsewhere.

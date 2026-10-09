@@ -33,8 +33,9 @@ House rules for every screen:
 ```
 
 The shell holds: project breadcrumb, script name (editable in place), save state, the warning
-count as a link to §5, Preview, Publish, and undo and redo. Save state has three visible forms —
-"all changes saved", "saving…", and a persistent error with a Retry action. Never show a silent
+count as a link to §5, Preview, Publish, and undo and redo. Save state has four visible non-error forms —
+"all changes saved", "saving…", "Unsaved changes" (a draft edited but not yet saved), and "No draft loaded" — plus
+a persistent error with a Retry action. Never show a silent
 failure: an autosave that cannot reach the server must block Publish and say why.
 
 `401` sends the user to the deployment's login and returns afterwards. `403` keeps the editor in
@@ -45,7 +46,8 @@ read-only mode: every write control disabled with one explanatory line, nothing 
 *Artboard: Library.* Entry point and the home for cross-script actions.
 
 - **Table.** Script name with its section names underneath, id, content summary ("4 sections, 11
-  items + 20 drawn"), status chip (Draft, Published vN, Archived), usage ("14 sessions (v3)"),
+  items + 20 drawn"), status chip (Draft, Published, Archived — the chip carries the status alone; the version
+  sits in the usage cell beside it), usage ("14 sessions (v3)"),
   last edited, row actions (Edit, duplicate, archive, export JSON).
 - **Filter row.** Search by name, id or itemcode; status filter (All, Drafts, Published,
   Archived).
@@ -84,9 +86,11 @@ one-line explanation, counts ("11 items + 20 drawn"), and a flag column (Trainin
 media"). Clicking a card selects that section.
 
 **Section selected** — a header (section number, mode chip, prompt-phase chip, Training chip, the
-name as an `h1`) and then one block per group:
+name as an `h2` — the screen's only `h1` is a visually hidden "Script editor", which is what `editor_lint`'s
+one-`h1` rule requires) and then one block per group:
 
-- *Fixed group*: a table with columns grip, Itemcode, Prompt, Media, Kind, Timing, warning. The
+- *Fixed group*: a grid header (aria-hidden) and then one `<button class="fixed-row">` per item, not a `<table>` —
+  the columns are grip, Itemcode, Prompt, Media, Kind, Timing, warning. The
   Media cell carries the speaker icon and reads "Text + plays first" when the item has playback.
   Rows are buttons; selecting one selects the item.
 - *Drawn group*: no table. The bank title and its origin ("project bank" or "ships with the
@@ -151,7 +155,8 @@ drift from the recorder (README §5).
 
 *Artboard: Preview.* An editor-side mock, instant, no server.
 
-- **Speaker frame** at desktop, tablet or phone width: section name, Practice and "Drawn item"
+- **Speaker frame** at the viewport's own width — two breakpoints (1100 px, 700 px), no desktop/tablet/phone
+  control: section name, Practice and "Drawn item"
   chips, progress, the prompt stage on the beige stage token, the playing state with a level
   display, a replay button when `replayable`, the traffic light plus a fourth lamp for playback,
   the status line and the transport buttons.

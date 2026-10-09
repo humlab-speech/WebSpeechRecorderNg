@@ -72,6 +72,35 @@ Scripts and drafts are ETag-protected (§2.3). Banks and media are not: a bank e
 the exception that matters — a `DELETE` refuses with `409 MEDIA_IN_USE` while a **published**
 script references the file, so a reference cannot be pulled out from under a runnable version (§5).
 
+### 1.3 Retrying a write that creates something
+
+Every write that can duplicate state on a retry honours `Idempotency-Key`: the recording upload
+(`POST session/{s}/recfile/{itemcode}` and its v2 multipart form, which share one wrapped handler),
+each chunk `POST`, the chunk concat, and `POST …/publish` (§2.4). A request whose key has already
+been answered returns the remembered answer — same status, same body — with
+`Idempotency-Replayed: true` on the response, a header the deployment exposes to browsers beside
+`ETag`.
+
+What the key promises is the **effect**: a retry cannot store a recording twice, and cannot freeze a
+second version of a script carrying the same text. It is not a promise that nothing is done — the
+body of a retry is always received, because the route streams it before the wrapper reads the key.
+Where the wrapped work sits differs by route, and so does what a replay repeats:
+
+- a recording upload wraps the **store**, so a replay stores nothing;
+- a chunk `POST` writes its chunk (in place, the same bytes) and completes a deferred concat *before*
+  the wrapper, so a replay repeats that and then returns the remembered answer;
+- `publish` does all of its work behind the key, so a replay skips it entirely.
+
+One replay needs no key at all: asking to concat a chunk session the receiver has already published
+answers from the publication with `replayed: true` in the body, since the chunks are gone and the
+answer cannot be recomputed. A key covers the case where the first answer never arrived.
+
+The header is optional and opt-in: a request without it behaves exactly as it always has, and the key
+is chosen by the client — stable for one intent, new for the next. The remembered answers live in
+`uploads/journal.json` beside the chunk sessions. Both are runtime state the receiver keeps **no
+retention policy for**: `--gc` reports their size and collects nothing, and an operator bounds them
+per invocation with `--gc-journal <keep>` and `--gc-uploads <days>` (see the receiver's README).
+
 ## 2. Scripts
 
 ### 2.1 List
@@ -131,24 +160,27 @@ POST project/{projectId}/script
 `from` is optional and duplicates an existing script into a new draft. A create with no body seeds
 a minimal valid script (one section, one group, one item) so E10 cannot block the first publish.
 Create, duplicate and Import JSON always assign a new `scriptId`; a `scriptId` in the body is
-ignored. Responds `201` with `Location: project/{projectId}/script/{newId}/draft`, the draft body
-and its `ETag`, so the editor can write without an extra GET.
+ignored. Responds `201` with `Location: project/{projectId}/script/{newId}/draft`, the `ETag` header, and
+`{scriptId, draftVersion, etag}` as the body — the draft document itself is not echoed
+(`server/api.mjs`), which is the shape `script-api.service.ts` declares.
 
 ### 2.3 Read and write the draft
 
 ```
-GET project/{projectId}/script/{scriptId}/draft      → 200, ETag: "4-17"
-PUT project/{projectId}/script/{scriptId}/draft      If-Match: "4-17"
+GET project/{projectId}/script/{scriptId}/draft      → 200, ETag: "<64 hex characters>"
+PUT project/{projectId}/script/{scriptId}/draft      If-Match: "<the same>"
 ```
 
-The validator is **strong** (`"4-17"`, not `W/"4-17"`): RFC 7232 forbids a weak validator in
+The validator is **strong** (`"…"`, not `W/"…"`; the server mints `"<sha256 of the stored bytes>"`, `server/etag.mjs`):
+RFC 7232 forbids a weak validator in
 `If-Match`. It covers the stored bytes, so the server stores the draft as received without
 canonicalising it — unknown keys and their order survive round trips. An identical `PUT` is
 idempotent and returns the same `ETag`; a changed body returns the new one.
 
 The body is a `Script` ([data-model.md](data-model.md) §2.5). `PUT` without `If-Match` is rejected
 with `428`; a stale `If-Match` returns `412` with the current draft **and its `ETag`** in
-`details.current`, which the editor uses to show a conflict and re-apply the pending edit once.
+`details.current` and `details.currentEtag` — the validator is a *sibling* of the draft in `details`, not a field inside
+it — which the editor uses to show a conflict and re-apply the pending edit once.
 
 `PUT` with `If-None-Match: *` is the **create** form: it succeeds only when the script has no draft,
 and stores the body as the first draft. A script without a draft has no validator to name, so this
@@ -193,6 +225,18 @@ a bare error.
 
 Publishing never touches running sessions: they keep the version they were created with.
 
+A publish retried with an `Idempotency-Key` (§1.3) returns the first answer — the same `version` —
+instead of freezing a second version of the same text. Without the header the route behaves as it
+always has: a second publish is a second version.
+
+**The editor derives that key from the publish intent** — this script, this draft's `ETag`, this note —
+so the retry that matters, the operator clicking Publish again after a response they never saw, lands on
+the version that was already frozen rather than freezing another. Editing the draft or changing the note
+is a different intent, so it publishes a new version as it always did. The note arrives from a free text
+area, so a note past the key's inline limit is folded to a hash rather than carried verbatim: a key is a
+**header**, and an inlined note pasted at length is refused by the transport (`431`) before any route
+runs, where the same note in the body publishes normally.
+
 ### 2.5 Versions
 
 ```
@@ -206,8 +250,8 @@ POST project/{projectId}/script/{scriptId}/draft/_restore        { "version": 3 
 ```
 
 `_restore` copies version `n` into the draft — a new draft, not a publish. It replaces the current
-draft, so it requires `If-Match`, and responds with the new draft and its `ETag`; published
-versions are untouched.
+draft, so it requires `If-Match`, and responds `200` with `{scriptId, draftVersion, etag}` and the `ETag` header — not
+the draft document (`server/api.mjs`); published versions are untouched.
 
 ### 2.6 Metadata
 
@@ -289,15 +333,17 @@ with a builtin id is how a researcher gets an editable copy, and the copy record
 Bank writes carry no validator: concurrent edits to one bank are last-write-wins, and the editor
 reloads the bank after each write. (An `ETag` per bank is an M0 option.)
 
-CSV import columns: `text,category,words,tags,audio` — `audio` naming a file in a multipart part
-or an already-uploaded project resource. Respond `200` with
+CSV import columns: `text,category,words,tags,audio` — `audio` is stored **verbatim** as the item's `audioSrc`
+(`server/bank.mjs`): the importer reads a `text/csv` body or JSON `{"csv":"…"}`, never multipart, and does not check
+that the file exists. Respond `200` with
 `{ "imported": 120, "skipped": 3, "errors": [{ "line": 44, "message": "…" }] }`.
 
 ### 3.4 Bank media
 
 A bank item's model recording is a project resource, fetched like any other
-(`projectResourceUrl` already exists in `ProjectService`). For builtin banks the server resolves
-the path into whatever it ships with; the client only ever uses the `audioSrc` it was given.
+(`projectResourceUrl` already exists in `ProjectService`). For builtin banks the server resolves **nothing** specially:
+a builtin bank's `audioSrc` is an ordinary project-relative path through the same resource route, and the client only
+ever uses the `audioSrc` it was given.
 
 ## 4. Draw resolution and the draw record
 
@@ -313,8 +359,8 @@ When a session is created against a script version, the server, for each group t
 
 1. Applies `filter` to the bank, and removes items this speaker already recorded in this project
    when `skipRecordedBySpeaker` is set. When that leaves fewer than `count`, it refills from the
-   skipped set in the bank's order — the recorded ids arrive as a set, so no recording-recency
-   ordering is available to it — and records in the session trace that it had to.
+   skipped set — in the filter's order when the source is `SEQUENTIAL`, and **shuffled** otherwise, because a `RANDOM`
+   source shuffles its refill too (`server/draw.mjs`) — and records in the session trace that it had to.
 2. Picks `count` items without repeats, keyed by `fixedBy`: a session-specific seed, a
    speaker-stable seed, or a script-version-stable seed. Seeds come from a documented,
    deterministic PRNG the server implements (the editor never resolves a session draw), so the same
@@ -408,7 +454,10 @@ GET project/{projectId}/media                                          → list
 [{"src":"media/model-01.wav","mimetype":"audio/wav","durationMs":4200,"bytes":134,
   "usedBy":[{"scriptId":"1245","version":3}]}]
 
-DELETE project/{projectId}/media/media/model-01.wav
+DELETE project/{projectId}/media/model-01.wav
+
+The route takes the **basename** of the draft's `src` — one segment — so `media/model-01.wav` there would be a
+two-segment path and answered `405` (`server/api.mjs`); the editor's media service splits `src` before calling.
 
 `GET` returns the project's media with `usedBy` — the draft and published versions referencing it —
 so the editor can offer a picker and check W11. `DELETE` is refused with `409` and
@@ -466,5 +515,5 @@ it, tier-2 preview cannot exist and only the editor-side mock remains.
 | POST | `project/{p}/session/{s}/draws/_redraw` | unstarted sessions only | M4 |
 | POST | `project/{p}/media` | upload a playback clip | M3 |
 | GET | `project/{p}/media` | media list with `usedBy` | M3 |
-| DELETE | `project/{p}/media/{src}` | refused while published versions reference it | M3 |
+| DELETE | `project/{p}/media/{name}` | refused while published versions reference it — `{name}` is the basename of `src` | M3 |
 | POST | `project/{p}/script/{id}/preview-session` | tier-2 dry run | M4 |

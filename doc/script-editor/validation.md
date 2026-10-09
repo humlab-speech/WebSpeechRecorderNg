@@ -11,7 +11,7 @@ Severities:
 - **Note** is informational, often with a one-click fix.
 
 Implementation: `core/validation/` in the editor, one pure function per check over the draft, each
-returning zero or more findings `{ id, severity, path, message, fix? }` where `path` is a JSON
+returning zero or more findings `{ id, severity, path, message, fix?, suspended?, data? }` where `path` is a JSON
 path into the script (`sections[2].groups[0].promptItems[1].itemcode`). The panel groups by
 severity, the outline marks any node whose subtree has a finding, and `path` drives the deep link.
 Unit-test one spec per id, including the clean case.
@@ -22,9 +22,9 @@ Unit-test one spec per id, including the clean case.
 |---|---|---|---|
 | E01 | `itemcode` empty or whitespace | Itemcode is required. | focus the field |
 | E02 | two items share an `itemcode` — over the items that exist, fixed and placeholder together; a collision with a bank source's **reserved** range is E05, not E02 | Another item already uses this itemcode. | offer the next free code |
-| E03 | a bank source names no bank (`prefill.bank.bank` empty), or the named bank does not exist | The item draws from a bank but no bank is chosen. | open the bank picker |
+| E03 | a bank source names no bank (`prefill.bank.bank` empty), or the named bank does not exist | The item draws from a bank but no bank is chosen. — or, when a bank *is* named, `Bank {bankId} does not exist.` | open the bank picker |
 | E04 | a bank source's `count` exceeds the filter's `matchCount`; suspended when the bank cannot be read | The filter matches only {matchCount} items. Widen the filter or draw fewer. | set `count` to `matchCount` |
-| E05 | a fixed itemcode falls inside a bank source's reserved range, two bank sources share `itemcodePrefix`, or a bank source's `itemcodePrefix` is empty | Itemcodes {prefix}001–{prefix}{n} are reserved by the bank source in {section}, item {code}. | suggest a free prefix |
+| E05 | a fixed itemcode falls inside a bank source's reserved range, two bank sources share `itemcodePrefix`, or a bank source's `itemcodePrefix` is empty | Itemcodes {prefix}001–{prefix}{n} are reserved by the bank source in {section}, item {code}. — or `Prefix {prefix} is already reserved at {path}.`, or `A drawn itemcode prefix is required.` | suggest a free prefix |
 | E06 | `playback` without an audio mediaitem (no mediaitem whose `mimetype` starts with `audio`) | The item plays media but no file is chosen. | open the file picker |
 | E07 | no mediaitem has `text`, `promptDoc` or `src`, and none is audio — the whole `mediaitems` list is considered, not only the first entry, and `playback` does not count as something to play (E06 covers that case) | The item shows nothing and plays nothing. | — |
 | E08 | retired by D-W: a group can no longer hold both a rule and a fixed list, so the condition is unrepresentable | — | — |
@@ -48,7 +48,7 @@ cannot be fetched. The server still enforces the error checks on publish.
 | W06 | `type: 'nonrecording'` carries `recduration`, or a recording item carries `duration` | {field} has no effect on this kind of item. |
 | W07 | a training section contains a drawn group | Training items are exempt from the completeness check, so a draw here consumes bank items without producing required recordings. |
 | W08 | `mediaitems` longer than one entry | Only the first media item is shown by the recorder. The others are ignored. |
-| W09 | `playback.replayable` (or `Mediaitem.replay` when no `playback` is set) with no `maxReplays` in an `AUTORECORDING` section | The speaker can replay without limit while the section advances on its own. |
+| W09 | `playback.replayable` (or `Mediaitem.replay` when no `playback` is set) with no `maxReplays` in an `AUTORECORDING` section — and also, outside that section check, a bank source's `bank.playback.replayable` | The speaker can replay without limit while the section advances on its own. |
 | W10 | `minRecorderVersion` higher than the version this deployment reports | This script needs recorder {required}; the deployment runs {actual}. Playback would be skipped silently. |
 | W11 | a playback or image file referenced by the draft is missing from the project's media; suspended when the media index cannot be fetched | {src} is not in the project's media. |
 | W12 | `playback.when` is `PRERECORDING` or `DURING` on a `type: 'nonrecording'` item | The item has no recording phase, so the clip plays at the wrong moment; use `WITH_PROMPT`, `BEFORE` or `ONDEMAND`. |
@@ -62,7 +62,7 @@ extra entries may be deliberate data a future recorder will use.
 | Id | Trigger | Message | Fix |
 |---|---|---|---|
 | N01 | `prerecording` or `postrecording` set while the modern key is unset | {legacy} is read as the {modern} because {modern} is not set. | rename to the modern key |
-| N02 | `order: 'RANDOMIZED'` | The recorder does not implement RANDOMIZED and treats it as sequential. | replace with Random or Sequential |
+| N02 | `order: 'RANDOMIZED'` — on a section, a group, or a bank source's `bank.order` | The recorder does not implement RANDOMIZED and treats it as sequential. | replace with Random or Sequential |
 | N03 | the script contains a draw rule | {drawn} items are drawn per session, on top of {fixed} fixed items, so a session runs {total} items. | — |
 | N04 | an edit lifts `minRecorderVersion` | This script now needs recorder {version} or newer, because it uses {feature}. | — |
 | N05 | a drawn group's `fixedBy: 'SPEAKER'` while `skipRecordedBySpeaker` is also set | A speaker-stable draw repeats the same items, so skipping what the speaker recorded can empty the draw. | — |
@@ -76,6 +76,8 @@ errors > 0           → blocked, the panel lists them, the button says why
 warnings > 0         → allowed; the publish dialog lists them and asks for confirmation
 ```
 
-The server repeats every error check and the invariants in
-[data-model.md](data-model.md) §4 before it freezes a version. A client-side-only check is a bug:
-the editor is not the only thing that can write a draft.
+The server repeats every **error** check before it freezes a version (E01–E07 and E09–E11; E08 is retired). The
+**invariants** in [data-model.md](data-model.md) §4 are *not* server-side: whatever of them is checked at all is checked
+here, by this catalogue's own W and N checks (W08 is rule 7's "at most one mediaitem") and by N06, so a draft written by
+another client can break them and still be published. A client-side-only **error** is a bug: the editor is not the only
+thing that can write a draft.
