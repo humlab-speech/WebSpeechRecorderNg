@@ -8321,10 +8321,14 @@ defect in the product.
 
 **The editor job: karma completed** — 496 executed, `TOTAL: 2 FAILED, 494 SUCCESS` — which kills §11.281's timing
 hypothesis outright. Both failures are in `core/round-trip.spec.ts`, the M3 gate, and both name fixture `1`: *"1 came back
-with 2 of 1 sections"* and *"1 section 0 changed promptUnits: Expected undefined to equal…"*. That spec loops over **every**
-fixture flushing one HTTP expectation per iteration, so a stale expectation landing in the next case yields exactly this — a
-fixture's body appearing under another's name. It passes 3 of 3 in isolation locally and 3 of 3 inside the whole suite, on
-Chrome 152; CI runs Chrome **154** on a slower runner.
+with 2 of 1 sections"* and *"1 section 0 changed promptUnits: Expected undefined to equal…"* — the shape of a round trip
+whose *input* was a different, modern fixture (two sections, `groups` rather than `promptUnits`). It passes 3 of 3 in
+isolation locally and 3 of 3 inside the whole suite, on Chrome 152; CI ran Chrome **154** on a slower runner.
+
+**What that is *not*, checked rather than assumed**: this entry first said "a stale HTTP expectation landing in the next
+case", which reading the helper disproves — `loadThroughDraftService` calls `TestBed.resetTestingModule()`, injects a fresh
+`HttpTestingController`, and finishes with `http.verify()`, so a pending request cannot cross a call. The cause is
+**unproven**: the evidence is the failure text, and a plausible mechanism I cannot demonstrate is not one.
 
 **The dry-run job: the runner had no audio sink.** The driver said so in its own words — *"5 check(s) not verified here:
 this browser cannot play a clip"* — the degraded branch, then failed on two console errors. The step's `pulseaudio` install
