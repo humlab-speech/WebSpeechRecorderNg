@@ -8237,6 +8237,10 @@ own paths and npm scripts gated in `workflow_check`. (**A count here is one entr
 because the sentence that states it — this one, and the correction that put 888 in place of §11.177's 855 — adds to it.
 For a number that is never stale, run the check: the summary is a reading, not a reading's replacement.**)
 
+(**Re-applied to the eight entries written after it**: none defers anything, so the set stated here is still the whole of it.
+The two limits those entries carry — §11.286's accepted endings and §11.288's unexecuted invocations — are *stated* rather
+than left, which is the difference this sweep is looking for.)
+
 **One thing worth recording, because it happened three times in the entries above**: the audits opened while writing them
 — the docs' `§` cross-references, the fixtures' reach, the root README's claims — were **already recorded**, and in two
 cases better than the probe that re-found them: §11.216 knew three conventions where my probe knew one, and §11.139 with
