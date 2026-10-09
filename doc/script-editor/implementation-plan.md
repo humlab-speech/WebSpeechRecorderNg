@@ -8534,4 +8534,32 @@ written against — on a detached HEAD, untouched.
 **And the branch's place in the remote, checked the stronger way**: `git merge-base --is-ancestor HEAD @{u}` holds, so the
 upstream contains this tip, which says more than "0 behind" does.
 
+### 11.291 What this pass changed, by area — the commit set in one place — **Summary**
+
+§11.278 states what is *left* and §11.279 states where the work *is*; this states what it *changed*, because the commits are
+the deliverable and nobody should have to walk forty-two of them to find out. Weight: **49 files, +5898/−288**, in 42 commits —
+30 `docs(plan):`, 4 `ci:`, 2 `fix(bin):`, and one each of `test(server):`, `fix(editor):`, `feat(bin):`, `docs:`,
+`docs(readme):`, `chore:`.
+
+- **A new gate**: `bin/docs_links.mjs` reads the markdown itself — relative links, heading fragments, **code citations**
+  (`path/file.ts:120`, resolved by path then by basename, failing on a missing file or a line past its end) and the register's
+  own `§11.N` references. Each prints a count per run and CI fails when one is zero, so a walk that examined nothing cannot
+  pass quietly.
+- **Checkers that read what they claim**: `workflow_check` now requires every path a step names to exist (wildcards expanded)
+  and every `npm run <script>` to be defined; `dead_exports`, `orphan_check`, `package_check` and `route_check` were brought
+  up to their own headers.
+- **Audits with a case for every rule**: `a11y_audit` gained the accessibility tree's `aria-expanded`, the outline's position
+  attributes — read in the *markup*, which is where Chrome exposes them — and the table-row check; `theme_audit`, the planted
+  fixtures and the layout probe grew with them.
+- **The dry run, made honest three times over**: its null sink is retried and then *asserted*, so a runner that cannot hold one
+  fails in seconds naming the cause rather than five minutes into a session; its silence run accepts both correct endings,
+  having previously required a *frozen* clock; and the two driver invocations that had no bound now carry five minutes each.
+- **Documents**: the register from §11.196 to §11.291, plus claim passes over the six design documents, the root README and the
+  receiver's runbook.
+- **Code under test**: the editor's screens and API clients, the receiver's store and api, `errors.ts`, and specs across all
+  three projects.
+
+**Verified at the end**: eight gates exit 0, seven fixture sensitivities exit 1, the suites at 81 pass / 0 fail, 148 and 496,
+and four consecutive CI runs green on tips carrying all of it.
+
 
