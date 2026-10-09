@@ -8314,6 +8314,26 @@ who runs one now lands on the version whose results the checks report.
 and seven fixture sensitivities are unchanged. Whether Node 22 would have been green for §11.281 is not claimed: that entry
 is diagnosed by its log, not by this one.
 
+### 11.283 The tip's two red checks, diagnosed — a missing audio sink and a spec's stale expectation — **Observed, not reproduced**
+
+§11.281 kept the evidence for the editor job; this is what it says, with the dry-run's failure beside it. Neither is a
+defect in the product.
+
+**The editor job: karma completed** — 496 executed, `TOTAL: 2 FAILED, 494 SUCCESS` — which kills §11.281's timing
+hypothesis outright. Both failures are in `core/round-trip.spec.ts`, the M3 gate, and both name fixture `1`: *"1 came back
+with 2 of 1 sections"* and *"1 section 0 changed promptUnits: Expected undefined to equal…"*. That spec loops over **every**
+fixture flushing one HTTP expectation per iteration, so a stale expectation landing in the next case yields exactly this — a
+fixture's body appearing under another's name. It passes 3 of 3 in isolation locally and 3 of 3 inside the whole suite, on
+Chrome 152; CI runs Chrome **154** on a slower runner.
+
+**The dry-run job: the runner had no audio sink.** The driver said so in its own words — *"5 check(s) not verified here:
+this browser cannot play a clip"* — the degraded branch, then failed on two console errors. The step's `pulseaudio` install
+is best-effort by design (`|| true`), and §11.245's fail-closed assertion then did exactly what it was written for: a run
+whose clip-relative claims were never checked fails the job instead of passing it green.
+
+**Both jobs were re-run on the same commit**, which is the test of both readings: a race and a missing sink pass on a second
+attempt, while a real defect does not.
+
 (**And the other half of the same class**, measured the same way when the path rule went in: **15** `npm run <name>`
 invocations across the workflows and the documents — `test_module`, `test_editor`, `build_module`, `build_editor`,
 `validate:i18n`, `serve:api`, `pack_pi_module`, `start_prod` and the rest — **every one defined** in `package.json`'s 24
