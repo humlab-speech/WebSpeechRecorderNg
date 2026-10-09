@@ -23,13 +23,13 @@ exported from `public-api.ts`, which is where the editor imports them from rathe
 
 | Fact | Verified in | Consequence for the plan |
 |---|---|---|
-| Angular 20.3.x, CLI 20.3.36, `@angular/build` builders; Material 20.2, CDK 20.2.14, forms 20.3, TS 5.9.3 | `package.json` | CDK is already a dependency: drag-drop and virtual scroll need no new package. |
+| Angular 20.3.x, CLI 20.3.39, `@angular/build` builders; Material 20.2, CDK 20.2.14, forms 20.3, TS 5.9.3 | `package.json` | CDK is already a dependency: drag-drop and virtual scroll need no new package. |
 | Two projects on this branch: `WebSpeechRecorderNg` (application), `speechrecorderng` (library); **`master` has renamed the application to `Cavox`** (`angular.json` projects `Cavox`, `speechrecorderng`; `package.json` name `cavox`) | `angular.json` in this worktree and on `origin/master` | M2's project block is a third project; re-base first (R0). |
 | `master` holds only security scans (`codeql.yml`, `osv-scanner.yml`); this branch adds `.github/workflows/tests.yml` (receiver `node --test`, library karma) — the editor jobs join at M2. `bin/theme_audit.mjs` drives an already-running Chrome over CDP (port 9333, `--url`, `--viewports`, `--prepare`) | `origin/master:.github/workflows`, `.github/workflows/tests.yml`, `bin/theme_audit.mjs` | "Add editor routes to the CI list" means the audit command list; R10 keeps the tests workflow current. |
 | Demo app imports the library by **relative source path**; root `tsconfig.json` maps `speechrecorderng` → `dist/speechrecorderng` | `src/app/app.module.ts`, `tsconfig.json:...` | `from 'speechrecorderng'` imports in the editor are ambiguous until D-A (§2) is decided. |
 | Library is one eager `NgModule` declaring every recorder component and registering `SPR_ROUTES` | `speechrecorderng.module.ts` | D1 confirmed; the editor must not import it and must not rely on its routes. |
 | Timing facts: defaults `1000`/`500` ms; `prerecdelay` falls back to `prerecording` (`sessionmanager.ts:1120-1122`), `postrecdelay` to `postrecording` (`:1127`); max timer `pre+recduration+post` (`:1133`); prompt applied at start for `PRERECORDING`/`PRERECORDINGONLY`, at pre-delay end for `RECORDING`, cleared at pre-delay end for `PRERECORDINGONLY` (`:1113-1163`) | `sessionmanager.ts` | L2 can only be correct if these exact behaviours are pinned as characterisation tests first. |
-| `RANDOMIZED` is ignored; shuffle runs in the component for `order==='RANDOM'`, writing `_shuffledGroups`/`_shuffledPromptItems`; `applyItem` reads them | `speechrecorderng.component.ts:333-345`, `sessionmanager.ts` `applyItem` | The editor must never persist `_shuffled*`; drafts strip them (D-F). |
+| `RANDOMIZED` is ignored; shuffle runs in the component for `order==='RANDOM'`, writing `_shuffledGroups`/`_shuffledPromptItems`; `applyItem` reads them | `speechrecorderng.component.ts:387`, `sessionmanager.ts` `applyItem` | The editor must never persist `_shuffled*`; drafts strip them (D-F). |
 | Library types: `Script` carries `name`/`type`/`minRecorderVersion` and `Section` carries `name` — both D-I fields landed, the last in §11.74; `1.json` still uses legacy `promptUnits` | `script.ts`, `src/test/script/*.json` | Additive type extensions (D-I); the loader must tolerate keys the types do not describe and keep them untouched (A4/N06). |
 | `Group._shuffledPromptItems` / `Section._shuffledGroups` are **required, non-optional** fields | `script.ts:67-76` | The editor's loader fills them; the serialiser strips them (never make the recorder null-check). |
 | Fixtures: `1.json` 1.8 kB (legacy), `1245.json` 26.6 kB, `3456.json` 6.5 kB, `3171…json` 16.7 kB | `src/test/script/` | Enough for M2; M1/M4 need new fixtures (playback, draw, 500-item perf). |
@@ -37,7 +37,7 @@ exported from `public-api.ts`, which is where the editor imports them from rathe
 | Design-doc defects, found in M0 and since **fixed**: README §4.1's test `tsConfig` was malformed (`"projects/spr-script-editor:tsconfig.spec.json"`); data-model §2.1 had no `Playback.durationMs` although the timeline/W05 need it; README §8.2's script-name question was open while the fixtures already carried `name` | this directory | None left. The `tsConfig` path resolves to a real file, `durationMs` is in the `Playback` interface, and §8.2 answers the name question with D-I. |
 | Design tension: README §3 forbids `AudioContext` in the editor; rest-api §5 allows client-side decode of clip duration | README §3, rest-api §5 | Use `HTMLMediaElement` metadata (no Web Audio), server `durationMs` authoritative (D-G). |
 | The recorder loads a session's script as `GET script/{sess.script}` — the published, unresolved script | `speechrecorderng.component.ts:164`, rest-api §1 | A1: a published drawn group reaches the recorder empty; a delivery mechanism must be frozen (D-K). |
-| Every library component is a `standalone: false` NgModule declaration (`SpeechrecorderngModule` declares and exports them, and registers `SPR_ROUTES`) | `audio_display.ts:53`, `speechrecorderng.module.ts` declarations | A2: the editor cannot use `AudioPlayer`/`AudioDisplay` without importing the module; audition player decided in D-L. |
+| Every library component is a `standalone: false` NgModule declaration (`SpeechrecorderngModule` declares and exports them, and registers `SPR_ROUTES`) | `audio_display.ts:62`, `speechrecorderng.module.ts` declarations | A2: the editor cannot use `AudioPlayer`/`AudioDisplay` without importing the module; audition player decided in D-L. |
 | Dev config is `apiEndPoint:'test'`, `apiType:'files'`; `src/test` is mapped to `/test` | `src/environments/environment.ts`, `angular.json:35` | A3: the editor needs its own asset mapping plus every list-endpoint fixture; S2 lists them. |
 | `promptUnits` occurs in `1.json`/`317118e4…json` but in no library `.ts`; those sections carry no `groups` | `src/test/script/*.json`, grep of `projects/speechrecorderng/src/lib` | A4: the editor must detect the legacy shape and never add `groups: []` implicitly (D-M). |
 | `public-api.ts` exports the model types but not `PromptitemUtil`/`MediaitemUtil`/`PromptDocUtil`, `Order`, `VirtualViewBox` | `public-api.ts` | L1 must export them or the editor duplicates item labels and drifts. |
@@ -119,9 +119,10 @@ inventory (§4 M2).
 ## 4. Milestones, tasks, gates
 
 **The suite counts inside these rows are the numbers at the moment each row landed**, not at the tip: the library's
-44, 105, 132 and 136 as the L-tasks closed, then 146 at M1's gate; the editor's 229, 398 and 480. The tip's counts —
-library **148**, editor **486**, server **67** tests — are in §11.144 and in `doc/script-editor/README.md` §Testing,
-which is where the commands live too (§5). Rows that quote a build size say "at this revision" for the same reason.
+44, 105, 132 and 136 as the L-tasks closed, then 146 at M1's gate; the editor's 229, 398 and 480. The counts move with
+every spec, so the tip's numbers are recorded in the **newest** §11 entry that states them, with the commands that
+produce them — §11.207 at this revision. `doc/script-editor/README.md` §7 carries the commands, not the counts.
+Rows that quote a build size say "at this revision" for the same reason.
 
 ### M0 — API agreement (documents, no application code)
 
@@ -287,6 +288,58 @@ pass, which needs a person in front of the machine.
   a stale queued run cannot overwrite newer findings; a publish attempt, a one-click fix and adding
   a section recompute immediately (`core/editor-findings.service.spec.ts` counts the runs, and the
   shell refreshes the gate before opening the publish dialog).
+- **And the table half of that requirement, measured rather than assumed.** The centre renders every
+  item of the *active section* (`editor-centre.html`, a plain `@for`) and does not virtualise, which
+  the `large-500` fixture never exposed: it spreads its 500 items over **ten sections of 50**, so the
+  table has only ever seen 50 rows. Mounting the component with the shape that would expose it — a
+  section of `5x100`, of `1x500`, of `10x50` — renders **500 rows / ~4,600 nodes / 23,908 px tall** in
+  **7.7–11.1 ms**, re-renders in **~1.3–1.7 ms** when the selection moves, and costs **29.6 ms** for one
+  full layout of that tree. So the *first* reading here, "inside a frame", was wrong about the layout:
+  showing such a section costs ~40 ms in all, a hitch rather than a freeze, paid when the section
+  appears or its structure changes and **not** per scroll or per keystroke — scrolling does not dirty
+  layout, and a selection change measures 1.7 ms.
+  The eager render is therefore left as it is: 40 ms at the extreme shape passes "responsive" where
+  virtualising would buy scroll smoothness at a price the outline already paid — its own source notes
+  that the virtual viewport cannot host the drag preview reliably, which is why drag is disabled while
+  it is in use. What is *not* measured is paint cost under a real scrolling page with those ~4,600
+  nodes; that needs the app plus CDP, and the trigger for it would be a report of jank.
+  **`editor-centre.spec.ts` is new and holds the invariant that measurement made worth holding** — the
+  centre had no spec of its own. It mounts the same 500-item section and asserts that every item is
+  rendered and that the last one is in the tree, because the failure mode is silent: a truncated list
+  looks like a shorter script, which is exactly what the outline's own spec exists to catch for its
+  virtual branch. The costs are **logged** there beside those assertions, not asserted — a wall-clock
+  threshold is flaky in CI, and this bullet is where the numbers and the reasoning live.
+  **The editor's other two renders cannot scale with the script at all**, which is why the outline and
+  the table above are the only places a 500-item script can cost anything: the inspector shows the
+  *selected node*'s form, and the timeline draws the **selected item's** effective timing —
+  `timelineSegments` (editor/timeline.ts) returns three or four segments whatever the script holds, so
+  its two `@for` loops in `editor-timeline.html` are eight elements, not one per item.
+- **Keyboard coverage: implemented and specced, so what is left is the manual pass.** ui-spec §8's keys
+  live in two `document:keydown` listeners — the outline's (↑/↓, `→`/`←` expand and collapse,
+  `Alt+↑`/`Alt+↓` reorder, `Enter`, `Delete`, and `/` for the filter) and the shell's (`Cmd/Ctrl+Z`,
+  `Shift+Cmd/Ctrl+Z`, `Cmd/Ctrl+S`) — behind `isTypingTarget`, so a key pressed in a field acts on the
+  field. `editor-outline.spec.ts` presses them, including "never steals `/` while the operator is typing
+  in a field", "leaves other keys alone", delete-with-undo, and that drag being off while filtering or
+  virtualising **keeps the keyboard move**; `app-shell.spec.ts` presses the global ones. Tab order is a
+  rule rather than a promise: `bin/a11y_audit.mjs` rule 8 compares document order against the elements'
+  boxes per column, and it passed on all ten editor routes in this session's audit run (§11.202).
+  **§8's ARIA list is implemented and machine-checked too**: `role="radiogroup"` with `aria-checked`
+  (the draw rule and the preview's step simulation), `aria-invalid` beside a described-by message (the
+  draw rule's count, the JSON source), `aria-current` on the selected row, and `aria-label` on the
+  icon-only buttons — the audit's names, labels, ARIA and tree rules are what hold them.
+  The one item §8 lists that no check covers is its last — the **screen-reader pass with VoiceOver and
+  NVDA** — which needs a human and a screen reader, so it is recorded rather than attempted.
+- **Editor chrome i18n: the retrofit is mechanical, and the plan says it is conditional.** Nine
+  catalogues exist, one per screen or area — `core/editor-strings.ts`, `core/shell-strings.ts`, and
+  `bank-`, `draws-`, `preview-` (×2), `source-`, `validation/checks-` and `editor/editor-strings-ext` —
+  and a search of the editor's templates for a text node that starts with a letter rather than an
+  interpolation finds **none**: every user-visible string is a catalogue key, and those catalogues are
+  TypeScript objects, so a template naming a key that does not exist fails to compile. What a retrofit
+  would still need is the part that is a *decision* rather than a move: a second locale's texts, the
+  wiring to whatever reads it (the library's mechanism covers `SPR_STRINGS` and
+  `src/assets/i18n/*.json`, and the editor's catalogues sit outside both), and a `validate_i18n`-style
+  key-parity guard for them in CI. M5's own wording makes that conditional — "if the project needs it" —
+  so the measured state is recorded and the decision stays where it belongs.
 - **Theme-audit list.** The commands are in [README.md](README.md) §7, and CI runs exactly that list
   (`.github/workflows/tests.yml`, the `audit` job) including one interaction state via
   `bin/audit/open-draw-rule.js`.
@@ -346,13 +399,14 @@ Manual, per milestone: dry-run a recorded session in the recorder after every mo
 the editor's output is only useful if another application interprets it (README §7).
 
 **These are the commands for the two suites and the audits by hand; the complete set is the six jobs in
-`.github/workflows/tests.yml`, which is what runs on the pull request.** Sixteen scripts live under `bin/` now —
-`a11y_audit`, `apply_version.js`, `build_i18n`, `dead_exports`, `docs_check`, `editor_lint`, `ensure_env`,
+`.github/workflows/tests.yml`, which is what runs on the pull request.** Seventeen scripts live under `bin/` now —
+`a11y_audit`, `apply_version.js`, `build_i18n`, `dead_exports`, `docs_check`, `docs_links`, `editor_lint`, `ensure_env`,
 `layout_probe`, `mv_tgz_pkgs.js`, `orphan_check`, `package_check`, `route_check`, `serve_deploy`, `theme_audit`,
-`validate_i18n` and `workflow_check`, with `bin/audit/` holding the driver and the page fixtures. Ten of the sixteen
-are gates with a planted fixture they must fail on and a step that requires the specific message — `editor_lint`,
-`theme_audit` and `a11y_audit`, `layout_probe`, `route_check`, `dead_exports`, `docs_check`, `workflow_check`,
-`package_check` and `orphan_check` (§11.132–§11.147).
+`validate_i18n` and `workflow_check`, with `bin/audit/` holding the driver and the page fixtures. Eleven of the
+seventeen are gates CI proves bite — ten with a planted fixture they must fail on and a step that requires the
+specific message, and `docs_links` by injecting two broken links into a document, which is what `validate_i18n` does
+to the catalogue — `editor_lint`, `theme_audit` and `a11y_audit`, `layout_probe`, `route_check`, `dead_exports`,
+`docs_check`, `docs_links`, `workflow_check`, `package_check` and `orphan_check` (§11.132–§11.147, §11.235).
 
 The other six are tools rather than gates, and five of them are still reached by CI: `apply_version.js` through
 `build_module`, `validate_i18n.mjs` and `build_i18n.mjs` through the i18n step, `ensure_env.mjs` through the
@@ -713,7 +767,8 @@ entry is not rewritten when it turns out to be wrong — the correction is its o
 annotated (§11.128, §11.140 and §11.146 are three of mine). The status is the word at the end of the heading:
 **Done** and **Fixed** for changes, **Verified**, **Checked** and **Built** for measurements and new checks,
 **Recorded** for things left deliberately, and a few one-offs that say what they are (`Withdrawn`, `Investigated`,
-`Capability done; the policy answer is the owner's`). The last entry, under `Summary`, is the state of what remains.
+`Capability done; the policy answer is the owner's`). The `Summary` entry is §11.159 — what remained when it was
+written — and entries continue past it, each saying in its heading what it changed or measured.
 
 It began as six items — §11.1 the FILES fixtures the editor was missing, §11.2 the screen-reader passes, §11.3 the
 deployment rehearsal, §11.4 the pseudonymity capability, §11.5 the dry-run driver, §11.6 the bookkeeping — and
@@ -760,7 +815,9 @@ their notes, dates and the session counts joined from the list fixture; the serv
    of `aria-labelledby`/`aria-describedby`, unique ids, `alt` on non-decorative images, nothing
    focusable inside `aria-hidden`, `radiogroup` children with `aria-checked`, a `role="tree"`
    containing `treeitem`s with `aria-level` and `aria-expanded`, and tab order that never jumps back
-   up within one column. It then **cross-checks the browser's own accessibility tree** — the roles
+   up within one column. (**Annotated, §11.238:** the `aria-expanded` clause described a check that was never
+   written — no line of the audit reads the attribute, and the audit's own header and `a11y.md` carried the same
+   claim until this pass corrected all three.) It then **cross-checks the browser's own accessibility tree** — the roles
    and names a screen reader is handed: no node whose role requires a name is nameless, every
    treeitem has a level, a radiogroup has radios with a checked state, and a live region has
    something to announce. Writing that cross-check corrected two of the file's own rules against
@@ -4132,6 +4189,13 @@ those — and would need a dark twin as well, which `bin/route_check.mjs` enforc
 rather than in what it does, it throws when it cannot reach its state (§11.40), and it remains a legitimate tool
 for a person auditing the demo app's language switch. What it should not be read as is coverage: no job runs it.
 
+(**Re-confirmed, while measuring how far the fixtures reach:** there are now **14** files under `bin/audit/`, **13** of
+them run by a `--prepare` in `tests.yml`, and this is the fourteenth. The first probe called it "referenced by nothing" —
+having counted *any* mention, `orphan_check`'s comment included; the second counted only the `--prepare` form and found it
+alone, which is §11.146's lesson about a sweep's file list, one file over. What the entry says holds: the design README
+carries the exception note at `doc/script-editor/README.md:597`, and the root README gives a person the command that uses
+it — so "no job runs it", the state §11.146 settled on, is still the accurate one.)
+
 ### 11.140 The API triad rest-api.md ↔ the client ↔ the server — **Checked, no gap built**
 
 `rest-api.md` calls itself the list of every endpoint the editor needs, and the editor's HTTP layer is exercised
@@ -4931,7 +4995,28 @@ spec, a missing `sections[index]` in the other. Locally the same file passes 486
 neighbouring heads both passed the job, so the trigger is still unidentified. What is now recorded is the shape: a
 short round-trip, not a missing asset, which is a different thing to look for next time.
 
-### 11.175 A security-property check that flaked, and what its message was hiding — **Hardened, in the spec**
+**The shape is now self-reporting, which is what was still missing.** Read against the code, the recorded message is
+*consistent* with the diagnosis rather than mysterious: `written.sections` comes back shorter, `written.sections[index]`
+is therefore `undefined` and reading `.groups` from it is exactly that TypeError — and it was the **only** message
+because the spec asserted nothing about the array's length before indexing into it. (A failed expectation does not stop
+a Jasmine spec, so had a length assertion existed, both facts would have been reported; the injection below shows
+that.) The spec now asserts the shape first and steps over a missing section instead of reading through it, so the next
+occurrence names the fixture, the index and the count:
+
+```
+1 came back with 0 of 1 sections: Expected 0 to be 1.
+1 has no section 0 (0 of 1 came back): Expected undefined to be defined.
+317118e4-3603-4058-abbd-008c2cb9b59b came back with 2 of 3 sections: Expected 2 to be 3.
+```
+
+**Verified** by injecting that failure shape — a temporary `writtenSections.pop()` — which produced only those named
+facts, no `Cannot read properties of undefined`, and one failing spec with no collateral; the mutation was reverted and
+the suite is green. That settles two things: the reading of the log was right (a short round-trip, not a missing
+asset), and the missing piece was not a *message* but an *assertion* — nothing in the spec knew how many sections to
+expect, which the first round's "localises and dumps" hardening could not supply, because it was hardening a different
+failure. The trigger itself remains unidentified and needs a future occurrence with this evidence in the log.
+
+### 11.175 A security-property check that flaked, and what its message was hiding — **Corrected**
 
 The run that pushed §11.173's revert reported `Server (node --test)` failing on one test: *"with the switch the same
 speaker is one stable label everywhere"* — `the real id must not be written (session s1)`, the assertion guarding
@@ -4956,6 +5041,31 @@ assert.match(record.speaker, /^sp-[0-9a-f]{12}$/, `session ${id} must keep a lab
 Both messages were exercised: the field check fails first when the label itself is wrong, and the dump names the
 leaked value and the offending record when another field echoes it. The next occurrence costs no re-run to
 characterise, and `Server (node --test)` is green again at this head.
+
+**Corrected: there was no leak, and the inference above is what hid that.** "Lines 35-37 passed, so `first.speaker`
+*was* a label, and whatever carried `sp-13` was some *other* field of the persisted record" — the premise is right and
+the conclusion does not follow, because a **legitimate label can start with the raw id**: the label is
+`sp-<12 random hex>`, so one whose hex begins `13` *is* `sp-13…`, and `written.includes('sp-13')` matches it. The
+speaker field was the carrier all along, exactly as the passing lines said, and the code has no path that stores a raw
+id — this entry's own reasoning had already established that much.
+
+So the hardening added a message for a cause that cannot exist, and the flake survived it. It is not rare either: the
+search runs over two labels against two raw ids, so a run fails with probability ≈ 4/256, about **1 in 64** — which is
+consistent with the observed history (one CI failure, then "30 runs of the file and 6 of the suite, every one green" is
+a ~62% outcome at that rate, not evidence of absence).
+
+**Proved deterministically, not by re-running.** A salt was searched for whose label for `sp-13` begins with `sp-13`
+(found, label `sp-1306a5998562`), written as `speaker-salt` in a fresh data directory, and the spec's own lines run:
+the speaker field holds a valid label, **zero** raw ids are stored as any field's value, and the search still reports
+`leaked: ["sp-13"]` — a failure on correct code. Both this spec and §11.198's now remove the generated labels from a
+copy of the record before searching it; with the triggering salt the search returns `[]`, and on a record carrying
+`recordings/sp-14-take2.wav` it still returns `["sp-14"]`, so what the assertion exists to catch is unchanged. Ten
+consecutive runs of the file pass.
+
+**What generalises**, and the reason this is corrected rather than just patched: an assertion that searches *generated*
+data for a literal is testing the generator's entropy as much as the property, and a "ruled out" step in a diagnosis is
+only as good as the assumption under it. Here the assumption — "the field holds a label, therefore the label is not
+what matched" — was never checked against the label's *shape*, which was one regex away.
 
 ### 11.176 The three decisions the register left open, and what came of them — **Two recorded, one actioned**
 
@@ -5277,7 +5387,7 @@ second where truncation was the cause rather than the pattern.
 **Verified**: the untruncated `grep -n intent` lists only 204 (declaration), 415 (`setText`), 504 (conflict
 resolution), 538 (the per-edit push) and 578 (`applyServerRead`).
 
-### 11.191 Temp files from an interrupted write are never collected — **Found, not changed**
+### 11.191 Temp files from an interrupted write are never collected — **Fixed**
 
 Reading `server/store.mjs`'s write path. `writeText` and `writeJson` each write `${path}.tmp-${process.pid}` and
 `renameSync` it into place — atomic per file, in the same directory, and the ETag is the hash of the bytes *received*
@@ -5295,7 +5405,54 @@ says not to copy; these are not under it.
 contract — a sweep in `gc` needs a recursive walk the store does not have — so it is recorded for the owner to place
 rather than added unasked.
 
-### 11.192 The chunked-upload concat path has no test — **Found, not changed**
+**Fixed, and the obstacle was an unwritten invariant rather than a missing policy.** The deferral above rested on the
+sweep needing "a recursive walk the store does not have" — true — and on a policy — which on inspection it does not:
+a file named `<path>.json.tmp-<pid>` exists only between `writeFileSync` and `renameSync`, so anything still there
+when the store **opens** is litter, and nothing can legitimately hold one at that moment. `open()` therefore calls
+`sweepTempFiles(dataDir)`, which walks the tree and unlinks them, logging the count. No threshold, no age.
+
+The one assumption is single-writer, so it is now written down instead of implied: `server/README.md`'s production
+notes say **one receiver owns a data directory**, which the store already relied on everywhere (every write is a
+read-modify-write of `journal.json`, a version index, `meta.json` or the revision counter — two receivers would
+corrupt far more than temp files).
+
+**And it had to become best effort, which the first cut was not.** Walking the whole tree with no error handling made a
+`chmod 000` directory under `--data` a **startup failure**: reproduced before fixing, `node server/server.mjs --data
+/tmp/sweepfail --gc` exited `1` with `EACCES: permission denied, scandir '/tmp/sweepfail/locked'` from inside
+`sweepTempFiles`. That is a failure this change *created* — the store reads only the paths it needs, so before the
+sweep existed an unlistable directory was simply never visited. Housekeeping that can stop the receiver is worse than
+the litter it collects, so `sweepTempFiles` now catches around both the listing and each removal, logs the path it
+could not handle, and carries on with the rest. With that, the same command exits `0`, prints `could not sweep
+/tmp/sweepfail/locked: EACCES`, and still sweeps the readable sibling — one unreadable directory no longer costs the
+others their cleanup.
+
+Two details that keep the sweep off real data:
+
+- the pattern is `/\.json\.tmp-\d+$/`, not a bare `.tmp-`. Every temp this store writes has a `.json` target
+  (`writeText` serves the draft and the version texts; `writeJson` everything else), and an id that itself contained
+  `.json.tmp-4` would produce `….tmp-4.json`, which does not end in the suffix. Verified against all 27
+  `writeText`/`writeJson` call sites, which name `session/`, `recordingfile/`, `uploads/`, `script/…/versions`,
+  `published.json`, `draft.json`, `meta.json`, `index.json`, `bank/` — all `.json`;
+- inside `media/` only the index's own temp is collectable. That directory is the one place a filename comes from the
+  uploader rather than from an id (`sanitiseMediaName` keeps the basename), so a person could call a clip
+  `notes.json.tmp-4` and the bare pattern would delete their file. `index.json` is the only JSON file the store
+  writes there, so `MEDIA_TEMP_FILE` (`/^index\.json\.tmp-\d+$/`) collects its litter and leaves every other name
+  alone. The first cut of this fix skipped `media/` outright, which left the media index's own temp files uncollected
+  — the same class of miss this entry is about, one level down.
+
+**Verified**: `node --test server/maintenance.test.mjs` → passes. One spec plants three temps — one whose target was
+never written, and the media index's — asserts all three exist before the reopen and none after, and asserts a real
+`meta.json`, a real project file and a `media/notes.json.tmp-4` all survive. A second makes a directory unreadable
+(`chmod 000`, skipped where permissions do not bite) and asserts the store still opens, the readable sibling is swept
+anyway, the unreadable directory is left alone and named in the log; it also calls the sweep on a plain file
+(`ENOTDIR`) for the same rule without needing permissions. End to end against the real receiver: with
+`script/1001/meta.json.tmp-4242` planted, `node server/server.mjs --data …` logged "removed 1 temp file(s) left behind
+by an interrupted write" and left only `meta.json`, and with an unlistable directory added it exited `0` with "could
+not sweep …/locked: EACCES". `node --test server/*.test.mjs` → passes. The sweep also ran on every start in
+the CI dry run's receiver (nothing to collect there, so it logged nothing and the session completed normally — the
+silent path is the one production takes).
+
+### 11.192 The chunked-upload concat path has no test — **Tested**
 
 Last of the adversarial read: `server/api.mjs`'s request handling. The response envelope (`error`/`message` plus
 `code`/`details` only when present), `sendJson`/`sendBytes` (`no-store`, ETag only when given), `waitForChunks`'s
@@ -5325,9 +5482,44 @@ text would return on reload and could overwrite the server's newer version. Read
 line. Eleven times now a tool's output rather than the artefact has decided a conclusion in this session; three of
 those were truncation. The remedy that keeps working is the same one: read the narrow range, whole.
 
-### 11.193 `publish` is the one write route without an idempotency key — **Found, not changed**
+**Closed on request, with no code change.** Both gaps have specs now, and both were written against the receiver
+rather than around it:
 
-Reading `server/store.mjs`'s `publish` against data-model §10.1. The order it documents holds — the version file, then
+- **`server/recfile.test.mjs`** (new, five tests) drives the concat path end to end. The whole-set case: both chunks
+  `PUT`, each answering `200` and reading back, the concat returning `stored: true` with no `pending`, `chunks` and
+  `frames` matching the parts, the recording appearing in the session's list, the chunks gone afterwards, and a
+  repeated concat answering `replayed: true` with the same `recordingFileId` and no duplicate row. The deferred case:
+  one chunk in hand, the concat returning `pending: true` and `chunksReceived: 1` with nothing in the list yet, then
+  the chunk the client had queued behind it completing that concat inside its own upload — `chunkCount: 0` in that
+  response, because `completeDeferredConcat` consumes the chunks before the response body is built.
+  One thing the spec pinned that the read had not: **each chunk must be a WAVE in its own right**. `uploadChunk`
+  calls `probeWav` per chunk, so the obvious fixture — one WAVE split at the midpoint — is refused with `400`; the
+  assembly is `concatWavFiles` over per-chunk WAVEs.
+- **A third spec writes the keyed retry down**, because §1.3's contract claim ("a retried write answers the remembered
+  answer") was read out of `idempotent` and not exercised for the chunk route: chunk 0 goes up under a key
+  (`chunkCount: 1` remembered), chunk 1 goes up without one (the store now holds **2**), and the retry of chunk 0 comes
+  back `Idempotency-Replayed: true` with **`chunkCount: 1`**. A recomputed answer would have said 2, so the assertion
+  separates replaying an answer from redoing the work rather than observing that both happen to agree — and the concat
+  afterwards publishes exactly two chunks, so the retry stored no third.
+- **And the other upload encoding**, because §1.3 says the key covers "the recording upload (`recfile/{itemcode}` and
+  its v2 multipart form, which share one wrapped handler)" and only the raw form had been driven: the same WAVE goes up
+  twice through a multipart body (`uuid` field + `audio` part) under one key, and the second answers
+  `Idempotency-Replayed: true` with the remembered body while the session still holds a single recording. That is the
+  claim "they share one handler" tested where it is observable, rather than inferred from the call graph.
+- **The two `resolveConflict` specs** in `script-draft.service.spec.ts` carry the operator's decision through.
+  Adopting the server's side yields the server's model, text and ETag, `dirty() === false`, and no backup left in
+  `localStorage` — the `ackedTextSignal` line that the truncated `awk` of the §11.190 false alarm had hidden, so that
+  error is now pinned as a regression rather than trusted. Keeping the local side retries the local text against the
+  remote validator (`If-Match: "S"`) and clears both the conflict and the flag when that write succeeds.
+
+**Verified**: `node --test server/*.test.mjs` → passes. This session's server specs are the five in
+`recfile.test.mjs` (the four listed here and the multipart one), the publish idempotency spec §11.193 added, and the
+sweep spec §11.191 added. `ng test spr-script-editor --watch=false` → passes. Counts deliberately absent from the two files these tests live beside, per §11.187; the stale one in
+`tests.yml`'s runner comment is dropped for the same reason.
+
+### 11.193 `publish` is the one write route without an idempotency key — **Fixed**
+
+Reading `server/store.mjs`'s `publish` against **§10.1 of this plan**. The order it documents holds — the version file, then
 the recorder-facing `published.json` (atomic rename), then the version index, deduped by version number and sorted
 newest-first, then `meta.json` — so a crash between the steps is repaired by publishing again with the same draft,
 which reuses that version number. The nameless-draft rule holds too: a document without a name leaves the entity's name
@@ -5347,9 +5539,84 @@ it.
 **Verified**: `grep -n "idempotent(req" server/api.mjs` lists 1007, 1099 and 1148 only; the router calls
 `publishScript` directly at 199–201.
 
-### 11.194 The idempotency journal grows without bound, and every write rewrites it — **Found, not changed**
+**Fixed, by the helper the paragraph above named.** The `grep` list is superseded: `publishScript` is now at 295.
+The function was split at its ends rather than rewritten — the body, the `NO_DRAFT` check,
+`requireDraftPrecondition`, the validation gate and the feature floor now sit in the `produce` callback and return
+`{status: 201, body: store.publish(...)}`, and the route is `idempotent(req, res, \`publish script ${scriptId}\`,
+...)`. No status, header or thrown error changed for a request that carries no key: it takes the same path through
+the same code as before, and the four write routes now behave alike.
 
-The mechanism behind §11.193's three wrapped routes. `Store.idempotencyRemember` puts the entry into a lazily-read
+`server/publish.test.mjs` carries the spec that holds it. The same key sent twice freezes **one** version — the retry
+answers the remembered body (`Idempotency-Replayed: true`, version included) and the version list stays `[1]`, which
+is the duplicate row this entry described. Its closing assertions keep the guarantee honest in the other direction: a
+later publish with a fresh key still freezes a new version, so the key dedupes retries without suppressing real
+publishes. The assertion could not have passed before the change — the header is set in exactly one place
+(`idempotent`, api.mjs:1320) and `cors.mjs` already exposes it, so a transport that retried used to get a second
+version and a 201 with no marker.
+
+**Documented, including the part I first left out.** `api.mjs`'s file header already said that "every upload POST is
+idempotent"; the publish route is now named there beside it. The statement a client author would actually read was
+missing from the API document, and nothing but the receiver's source carried it, so `rest-api.md` gained **§1.3
+"Retrying a write that creates something"**: which routes honour `Idempotency-Key` (the upload handler that serves
+both encodings, each chunk, the concat, and publish), the `Idempotency-Replayed: true` marker and its exposure to
+browsers beside `ETag`, the opt-in rule that a request without the header is unchanged, and where the remembered
+answers live (`uploads/journal.json`). Writing it also forced one distinction the source had not made explicit: the
+key promises the **effect** (no second recording, no second version) but not that no bytes are written — an upload
+retry re-sends its body and the chunk is stored in place again before the remembered answer is returned, whereas
+publish does all its work behind the key. §1.3 also names the concat's keyless replay (`replayed: true` from the
+publication, because the chunks are gone), which is the mechanism `recfile.test.mjs` pins. §2.4 points at §1.3. The
+one thing it states that §11.194 owns: the receiver keeps no retention rule for that journal, so it is named there as
+runtime state with no bound.
+
+**And the client half is now closed too.** When this was written, `ScriptApiService.publish` posted without the header
+and `app-shell.ts` guarded a second submit with the `publishing` flag alone — which stops a double click while the
+first is in flight, but does nothing for a retry after a lost response, the case this entry describes. The editor now
+sends a **key derived from the publish intent**: `publish:<scriptId>:<encodeURIComponent(fromDraftEtag)>:
+<encodeURIComponent(note ?? '')>`. The script id keeps two scripts that happen to share an ETag apart, and the encoding
+keeps a note containing newlines, quotes or non-ASCII a legal header value. The choice of *lifetime* is the interesting
+half: the retry that matters is the operator clicking Publish again, so the key must survive the click, and deriving it
+from the intent does that without storing anything. Changing the draft or the note is a different intent, so a new
+version is frozen exactly as before. `rest-api.md` §2.4 records the client's half of the contract.
+
+**Verified**: `ng test spr-script-editor --watch=false` → passes. The new spec in
+`script-api.service.spec.ts` asserts a retry of the same intent produces a byte-identical key, that a different draft,
+note or script does not, that a missing note equals an empty one, and that a note with a newline and non-ASCII still
+encodes to a legal header value; the existing publish spec now pins the literal key
+`publish:1245:%22A%22:added%20repetition`.
+
+**A regression this introduced, caught by asking what the key's length is.** Putting the note in a *header* bounded a
+value that had no bound: the note comes from a plain `<textarea>` with no `maxlength`, and a body has none of a
+header's limits. Reproduced against the receiver before fixing it — the identical 20 kB note in the **body** reaches
+the route (`409` from the validation gate), while the same note inlined in the header answers **`431`**, refused by
+the transport before any route runs. `publishKey` now inlines a note only up to 200 characters and folds a longer one
+to an FNV-1a hash (`h<hash>`), so the key stays ~90 characters whatever is pasted; a collision can then only confuse
+two *long* notes, and the spec pins the bound, the stability and the difference. With the folded key the same probe
+reaches the gate (`409`) and the key is 93 characters.
+
+**Two properties of the chosen lifetime worth stating.** A *failed* publish is never remembered — `idempotent`
+records the entry only after `produce()` returns — so an attempt refused by the gate leaves nothing behind and the
+retry re-runs the gate; the key cannot poison a later attempt. And because the key contains the draft's ETag, which is
+the hash of the draft's bytes, reverting a draft to text that was published before and re-publishing with the same note
+*replays* rather than freezing a third identical version: the frozen state is right and the history simply gains no
+redundant row, which is what this entry was about.
+
+**And the risk that shape suggests, asked of the body this time and measured: nothing is wrong.** A replay answers
+*without reading the request body* — `produce` is what reads it — which is the classic way to desynchronise a
+keep-alive connection, so it was driven with a raw agent over **one** socket: a `201` on a fresh connection (local
+port 53562, `reused: false`), the same key replayed with a **200 kB** body on that same socket (`reused: true`,
+`Idempotency-Replayed: true`, the same `version: 1`), then a `GET version` on it again — `200`, correct body, the
+socket returned to the agent's free pool. Node discards the unread body, so nothing is left in the stream to be parsed
+as the next request. Recorder-side fetch already reuses connections, so this is the shape every retry takes. No test
+was added: it asserts Node's behaviour rather than this route's.
+
+**Verified**: `node --test server/*.test.mjs` → passes (70 when this entry was first written; the later specs
+are §11.191's sweep and §11.195's reports). Everything else in this entry was verified when it was written and is
+unchanged: `server/publish.test.mjs` passes, and the recorder's dry run drives a full session against the receiver
+these routes live in.
+
+### 11.194 The idempotency journal grows without bound, and every write rewrites it — **Bounded on request**
+
+The mechanism behind §11.193's wrapped routes. `Store.idempotencyRemember` puts the entry into a lazily-read
 in-memory object and calls `writeJson`, so **the whole journal is rewritten on every remembered write**, and nothing
 collects it: `JOURNAL = 'journal.json'` appears only at that write and at the lazy read, `gc` prunes draft revisions,
 expired previews and orphaned media, and neither the runbook nor the plan states a retention rule for it. The runbook
@@ -5359,13 +5626,81 @@ Measured against the real store: 1,000 entries make a 175 kB file and cost ~0.8 
 879 kB and cost ~2.2 ms per write. The per-entry cost tracks the file, so the bytes written over a deployment's life
 are quadratic in the number of remembered requests — one that records thousands of files pays it on every upload.
 
-It is a scaling cliff rather than a correctness defect, and the same class as §11.191: runtime state nothing
+The entry size is not a constant, because the remembered answer is stored whole: the single recorded session the CI
+dry run left behind put **7 entries / 2.4 kB** in `uploads/journal.json` (§11.196), ~350 B each, twice the figure
+above, because an upload's response carries the recording's metadata rather than a short acknowledgement. So the file
+grows with the bodies as well as the count.
+
+It is a scaling cliff rather than a correctness defect, and the same class as §11.191 was (that one is now collected
+by `open()`; this one still is not): runtime state nothing
 collects, in a directory the backup story copies.
 
 **Left alone deliberately.** Bounding it — by age, or by keeping the newest N the way draft revisions are kept — is a
 policy the store does not currently state, so it is recorded for the owner to set rather than invented here.
 
-### 11.195 Abandoned chunk sessions are the third kind of state nothing collects — **Found, not changed**
+**The owner set it, and the store supplies the lever rather than the number.** `--gc-journal <keep>` trims the journal
+to the newest `<keep>` entries and has **no default**: `Store.trimJournal(keep)` returns the count unchanged when
+`keep` is null, so a plain `--gc` reports `journalEntries` and says that `--gc-journal` exists, and only an operator who
+passes a number bounds anything. That keeps the retention decision with the deployment, which is the only place the
+retry habits are known.
+
+"Newest" is the `date` each entry was remembered with, **not the journal's key order**: an `Idempotency-Key` may look
+like an integer, and JSON object order is then numeric rather than insertion order — so file order would have trimmed
+by the wrong property, silently and only for keys that happen to be digits. `server.mjs` validates the flag
+(`Number.isInteger`, `>= 0`) because a `NaN` would reach the store as "trim to nothing".
+
+**Two rules the first cut got wrong, both found by asking what the code does to a value it cannot read.** The first cut
+ranked a dateless entry as `''` — sorting it oldest, so `--gc-journal` would delete the one kind of entry it could not
+reason about, while `collectChunkSessions` *kept* a session whose `createdAt` it could not parse: two destructive
+prunes, opposite answers to the same question. `trimJournal` now keeps what it cannot order, so the trim takes the
+newest of the **dated** entries and leaves the undated alone. The consequence is worth stating because it is visible in
+the output: when undated entries alone fill the budget, `keep` is a **floor** rather than a limit — `--gc-journal 1`
+over two undated entries and one dated one reports "trimmed to 2 entries — 1 removed", removing the dated entry and
+keeping both others. Nothing is lost that could have been ordered, which is the whole point of the rule.
+
+**And the CLI has to say so, or the line reads like a bug.** `--gc-journal 1` over two dateless entries and one dated
+one prints *"trimmed the idempotency journal to 2 entry(s) — 1 removed (1 was asked for: the rest carry no date, so they
+are kept rather than ranked)"*. The clarification is not decoration: the bare line reports a count **above** the
+request *and* silently omits that the **dated** entry is the one that went — the two facts an operator would need to
+decide whether the command misbehaved. With entries that all carry dates the clause is absent and the line is what it
+always was.
+
+**One more thing the trim's design implies, measured against a serving receiver.** `Store.journal()` caches the
+file in memory (`this._journal ??= read…`) and `idempotencyRemember` rewrites the **whole** cache, so a trim performed
+by a second process while a receiver serves is undone by that receiver's next remembered write. Reproduced: a store
+remembers `k1,k2`; `node server/server.mjs --data <dir> --gc --gc-journal 1` in another process reports "trimmed the
+idempotency journal to 1 entry(s) — 1 removed" and leaves `k2`; the holding store then remembers `k3` and the file
+becomes `k1,k2,k3` — the trimmed entry is back. Nothing is *lost* (only the serving receiver adds entries, so its cache
+is a superset of what a trim leaves), but the operator's instruction evaporates — which is exactly the silent,
+unbounded growth this entry exists to remove. It is not fixed in code: the store's single-writer invariant is already
+documented, and making every write re-read the journal would be inventing multi-writer support nobody asked for. The
+runbook now says to run the maintenance commands against a **stopped** receiver, and why.
+
+**And one more rule, which needed a reproduction rather than an argument.** `gc` now *reads* two things it never read
+before — the journal (to count and trim it, §11.194) and every `uploads/chunk-*/meta.json` (to report and collect,
+§11.195). `readJson` deliberately **throws** on a file that is not valid JSON, which is right for a request and wrong
+here: reproduced before fixing, `node server/server.mjs --data <dir> --gc` over a corrupt `journal.json` **exited 1
+without pruning anything**, and a single corrupt chunk record did the same. One unreadable record made the maintenance
+command unusable, which is the state an operator runs it *for*. `trimJournal` and `pendingChunkSessions` now catch,
+name the file in the log, and carry on: the corrupt paths are `exit 0`, both files named, the readable chunk session
+still counted and still collected by `--gc-uploads`. An unreadable journal reports `journalEntries: null` — an unknown
+count, not a zero one — so the caller prints no count rather than a wrong one. This is the same principle as the sweep
+(§11.191): housekeeping is best effort, and a named skip beats a stopped command.
+
+**Verified**: `node --test server/maintenance.test.mjs` → passes, including the spec that remembers three entries with
+known dates, asserts a plain `gc()` counts 3 and removes none, then `gc({journalKeep: 2})` removes exactly the oldest
+and leaves the newest readable through `idempotencyLookup` — and re-opens the store to prove the trim is on disk, not
+only in the cache — plus the spec below for the values neither prune can order. End to end,
+`node server/server.mjs --data /tmp/gcbound --gc` printed "3 idempotency journal entry(s) (pass --gc-journal <keep> to
+trim)" and left the file alone, and the same command with `--gc-journal 2` printed "trimmed the idempotency journal to
+2 entry(s) — 1 removed" and left keys `k3,k2`. `--gc-journal abc` exits 1 with `--gc-journal must be a count of entries
+to keep`.
+
+(**Closed, §11.255:** the bounds apply by default now — by age, at startup — so a bare `--gc` bounds both rather than
+being requested, and the flags tighten instead of enabling. "Bounded on request" is what this entry found, not what
+stands, and §11.266 is the audit that noticed the heading still read that way to anyone landing here.)
+
+### 11.195 Abandoned chunk sessions are the other kind of state nothing collects — **Collected on request**
 
 Following §11.194's thread: `uploads/` holds the journal *and* the chunk sessions. `addChunk` creates
 `<data>/uploads/<uuid>/`, moves each chunk in, and writes the session record to `chunkMetaPath(uuid)`; a session is
@@ -5374,20 +5709,2529 @@ An upload started and never finished — the operator closes the browser mid-rec
 leaves both the chunk files and the session record behind, and `gc` mentions neither: its subjects are draft
 revisions, expired previews and orphaned media.
 
-That makes **three kinds of runtime state under `<data>` that nothing collects**, all in directories the documented
-backup story copies:
+That makes **three kinds of runtime state under `<data>`**, all in directories the documented backup story copies. One
+of them is now collected (§11.191); the other two are not:
 
 | state | entry | how it accumulates |
 |---|---|---|
-| `*.tmp-<pid>` beside any written file | §11.191 | a write that fails, or a kill between `writeFileSync` and `renameSync` |
+| `*.tmp-<pid>` beside any written file | §11.191 | a write that fails, or a kill between `writeFileSync` and `renameSync` — **collected**: `open()` sweeps them |
 | `uploads/journal.json` | §11.194 | one entry per idempotent write, the whole file rewritten each time |
-| `uploads/<uuid>/` chunk files and session record | here | an upload that is never published |
+| `uploads/chunk-<uuid>/` chunk files and session record | here | an upload that is never published — **reported** by `--gc`, not collected |
 
-The runbook lists all three as "runtime state" and excludes only `uploads/tmp` from the copy, so each of them
-accumulates in production. Whether the store owns collecting them — by age, by a `--gc` sweep, or by leaving it to the
-deployment — is a policy it does not currently state, so this entry completes the inventory rather than changing any
-of it.
+The runbook lists these as "runtime state" and excludes only `uploads/tmp` from the copy. The temp files no longer
+accumulate — `open()` collects them (§11.191, and that entry now carries the single-writer invariant the sweep rests
+on) — but the journal and the chunk sessions still do. Whether the store owns collecting those — by age, by a `--gc`
+sweep, or by leaving it to the deployment — is a policy it does not currently state, so this entry completes the
+inventory rather than changing any of it.
 
+**The count is now visible, which is the half that needs no policy.** `--gc` reports what nothing else showed:
+`Store.pendingChunkSessions()` walks `uploads/chunk-*/`, skips any session whose meta carries a `finalizedRecording`,
+and `gc` returns `chunkSessionsLeft` / `chunkFilesLeft`, which `server.mjs` prints on its own line. Nothing is removed,
+because a resumable session may be an upload a client is still finishing and the age is the decision this entry leaves
+open; the runbook's maintenance list says the same, including that removing the directory by hand is how an operator
+acts on it.
 
+**And the age is the operator's, supplied per invocation.** `--gc-uploads <days>` collects the sessions past that age
+and has **no default** — `Store.collectChunkSessions` runs only when an age is given — so nothing is ever collected
+unattended, and `gc({uploadsMaxAgeDays})` returns `chunkSessionsRemoved` / `chunkFilesRemoved` for the line
+`server.mjs` prints. A session whose `createdAt` cannot be parsed is **kept**: an age it cannot be compared against is
+not evidence that it is old. Chunks inside the window are untouched, which is what keeps a resuming client safe from
+an accidental run — the property that made §11.191's sweep-at-open the wrong pattern here.
+
+**And the collection is tolerant per session, for a reason that draws the line for both prunes.** `collectChunkSessions`
+removes what it can and **names what it cannot** in the log, rather than letting one undeletable directory end the run —
+reproduced with a `chmod 555` chunk session, where `rmSync` fails because removing entries needs write permission on the
+directory and `force: true` does not grant it. Tolerance pays off where there is a **set to iterate**: one bad item must
+not cost the others their collection, which is the same rule the sweep follows (§11.191). It deliberately does *not*
+apply to the journal trim, which is a **single write**: if that fails the whole operation did not happen, there is
+nothing else to save, and a loud failure is the honest report. Stated here because the two prunes look alike and are
+not.
+
+**The same rule reached the media loop, which is where a count could have lied.** `--gc-media` removes orphans in a
+loop — a set, like the collection above — but a single file it could not unlink ended the run, *and* that loop sits
+before both prunes added this session, so one stuck file silently cost the chunk collection and the journal trim too.
+It now names the file it cannot remove and carries on, and `mediaRemoved` counts **what it actually removed** instead
+of `orphans.length`: with one removable orphan and one in a directory it may not write, the CLI says "2 orphan media
+found, 1 removed" rather than claiming both. That last part is the point — a tolerance fix that left the count
+reporting success would have traded a crash for a lie, and the existing wording already prints found *and* removed, so
+the honest pair needed no CLI change.
+
+**Verified**: `node --test server/maintenance.test.mjs` → passes. One spec leaves an unfinished two-chunk session and
+a finalised one, asserts `gc()` reports `chunkSessionsLeft: 1` / `chunkFilesLeft: 2`, that both chunk files and the
+session survive, that the finalised one is not counted, and that a second `gc()` reports the same count. A second spec
+adds a 40-day-old session and a recent one: a plain `gc()` counts both and removes neither, `gc({uploadsMaxAgeDays:
+30})` removes exactly the old one — directory and chunk file — and leaves the recent one resumable. A third pins the
+rule the two prunes share: a journal entry with no `date` and a chunk session whose `createdAt` will not parse both
+**survive** a trim and an age of zero, because neither can be shown to be old. End to end,
+`node server/server.mjs --data /tmp/gctest --gc` printed "1 unfinished chunk session(s) holding 2 chunk(s) kept under
+uploads/" over a hand-planted session and both chunk files were still there; with `--gc-uploads 30` over a session
+dated 40 days back it printed "collected 1 unfinished chunk session(s) older than 30 day(s), 1 chunk file(s) removed"
+and the directory was gone. `--gc-uploads -5` exits 1 with `--gc-uploads must be an age in days`.
+
+(**Closed, §11.255:** `open()` applies the same age bounds, so an abandoned chunk session is collected by a deployment
+that never runs maintenance — which is the case this entry left to the owner.)
+
+### 11.196 A recording upload into a session with no script was refused, with a message that named nothing — **Fixed**
+
+Found while writing the upload-replay spec for §11.193, which needed a session to upload into. `addRecording`
+(store.mjs:407) embeds the prompt by calling `this.promptItem(script, itemcode)` with `script = session?.script ??
+null` — and `promptItem` called `this.script(scriptId)` **before** checking anything, so a session whose `script` is
+null sent a null id into `scriptPath` → `segment(null)` → `String(null ?? '')` → `''` →
+`RequestError(400, 'invalid identifier ""')`.
+
+The consequence was not cosmetic. A `POST session/{s}/recfile/{itemcode}` carrying a **valid** WAVE at a session with
+no script answered `400` and stored nothing — and the message named an empty identifier, so nothing in the response
+pointed at the session's missing script. That is the auto-create case: a receiver started without a configured script
+accepts a session id on first load, and every itemcode'd upload to it was refused. The chunked path never hit it
+because it passes `itemcode: null` (the concat takes the itemcode from the chunk session), which short-circuits the
+call — so the two upload routes disagreed about the same session.
+
+`preview.test.mjs` came within one field of catching it: it uploads `recfile/I1` into a session it writes with
+`script: null`, but its body is `'not a wave'`, so `probeWav` refuses first and its deliberately loose
+`assert.notEqual(status, 409)` passes on the WAVE error rather than this one.
+
+**Fixed**: `promptItem` now tests the script id as well as the itemcode, before the lookup, and returns `null` — which
+is exactly what its own `script === null` branch already meant, so the code now does what it said. `recfile.test.mjs`'s
+upload-replay spec uploads into such a session, so the fix is pinned by the test that found it.
+
+**Verified**: `node --test server/*.test.mjs` → 71 pass, 0 fail when this was written (72 with §11.191's sweep spec);
+`bin/orphan_check.mjs`, `bin/dead_exports.mjs` and `bin/docs_check.mjs` all pass. And through the recorder rather than
+the suite: the CI dry run (`node server/server.mjs --data /tmp/dryrun --seed src/test --app dist/cavox/browser
+--project Demo1 --script playback`, then `bin/audit/dry_run.mjs`) drove a whole session to `status=COMPLETED`, 7/7
+items, and the uploads it made carry the `addRecording` shape with the prompt embedded — e.g. recordingfile
+`101236556`: `{recordingFileId, session: 1, version: 0, itemcode: "D002", project: "Demo1", recording: {bankItemId:
+"std-005", playback: …}}`. That path calls the function this entry fixes, so the session is the integration proof
+that the guard reorder changed nothing for a session that *has* a script.
+
+### 11.197 `doc/script-editor/README.md` §7's four live counts, none of them current — **Corrected**
+
+The document was read end to end for the same reason §11.180–§11.187 read the rest, and §7 ("Testing") was carrying
+four numbers as *current* facts rather than as the dated records the milestone gates keep:
+
+- **library** — "148 specs today";
+- **editor** — "481 specs today", where the suite was 486 before this session's two draft-service specs and is 488
+  now;
+- **server** — "65 tests today", where §11.187 had already removed this very number from `server/README.md` as stale
+  at 66, and it is 72 now;
+- **contract** — "both sides pin the **nine** cases by name", where `ls doc/script-editor/checks/*.checks.json` is
+  thirteen files. That is word for word the claim §11.183 corrected in the plan, which missed this file; and it is the
+  worse of the four, because a corpus count is the kind a reader uses to decide whether a case is missing.
+
+All four numbers are gone rather than updated, per §11.183's rule: prose that counts a moving thing has no owner, so
+the sentence keeps its claim and drops the figure. The editor and server bullets now describe what the suites cover,
+and the contract bullet says both sides pin the cases by name.
+
+**Verified**: `grep -c 'specs today\|tests today' doc/script-editor/README.md` is 0; no document *other than this
+entry's own text* says "nine cases" (a first version of this line asserted `grep -rn 'nine cases' doc/` was empty, and
+it matched this line — the same self-defeat §11.190 recorded, caught here before it was believed), while
+`ls doc/script-editor/checks/*.checks.json | wc -l` is 13 and the plan's M3 gate records the editor suite "**480 pass**
+when written, **486** at the tip", which is what two more specs moved to 488; `bin/editor_lint.mjs` passes (it reads
+`validation.md` and `checks/`, not this README, so the edit could not affect it). The counts left in the other design
+docs were checked in the same pass and are structural, not drifting — "the two copies are held to the same cases",
+`sp-<12 hex>`, "unit-test one spec per id".
+
+**And the rule turned on this register's own evidence lines.** They had been quoting the totals they measured
+("`node --test server/*.test.mjs` → 79 pass, 0 fail"), which meant every spec added anywhere invalidated four entries
+at once — the same churn this entry is about, one level down, and it was being paid by hand each time. Those lines now
+say the command **passes** and describe what it covers; a count survives only where it is explicitly dated ("70 when
+this entry was first written"), because a dated measurement is a fact and a bare total is a claim about now. No source
+of truth was lost: the numbers are reproducible in one command, and `bin/docs_check.mjs` and the suites are what CI
+actually reads.
+
+### 11.198 A pseudonym spec failed about once in 256 runs — **Fixed**
+
+Found by a real failure while verifying unrelated work, and *not* caused by it: `server/pseudonym.test.mjs`'s "a
+patched speaker is normalised too" asserted `!JSON.stringify(store.session('s1')).includes('sp-13')` — a **substring**
+search for the raw speaker id over a document that also legitimately contains the *generated label*, `sp-<12 random
+hex>`. A label whose hex begins `13` contains the raw id as a substring, so correct code failed this assertion on
+roughly one salted store in 256.
+
+**The same idiom was in a second spec, where it had already flaked on CI and been misdiagnosed (§11.175).** That spec
+searches `['sp-13', 'sp-14']` across two labels for each of three sessions — a failure probability around **1 in 64** —
+and its entry concluded from the passing lines that "whatever carried `sp-13` was some *other* field of the persisted
+record", adding diagnostics for a nonexistent leak while leaving the flake in place. Both specs now redact the generated
+labels before searching, and §11.175 carries the correction.
+
+Proved deterministically rather than by re-running until it broke: searched for a salt whose label starts `sp-13`
+(found `sp-1306a5998562`), wrote it as `speaker-salt` in a fresh data directory, and ran the test's own lines — the
+store behaved correctly (the stored speaker *is* the label, and the raw id appears in no field as a value) while the
+assertion evaluated false. The same proof shows it was not this session's work: every other salt passes.
+
+The assertion now removes the label from a copy of the document and searches what remains, so a label that merely
+*contains* the raw id cannot fail it while a genuine leak still can. Checked both ways: with the triggering salt it
+passes, and on `{speaker: 'sp-1306a5998562', source: 'recording-sp-13.wav'}` it still fails. Five consecutive runs of
+the file pass, as does the whole suite.
+
+**Why it matters more than its odds.** A spec that fails once in 256 teaches people to re-run, and the next real failure
+in that file gets waved through — the same reason §11.187 dropped the stale count and every check that reads the tree
+ships with a fixture that makes it fail: `dead_exports`, `orphan_check`, `docs_check`, `workflow_check`,
+`package_check`, `editor_lint` and `route_check` each have a sensitivity step, and `theme_audit` and `a11y_audit` plant
+their violations inline in the audit jobs. `validate_i18n` **was** the exception — the one check in `bin/` never shown
+to bite, with `build_i18n` beside it held only by the step's `git diff --exit-code`; §11.204 closed it with a step that
+plants a fault in the catalogue and restores it. The lesson generalises: an assertion that searches *generated* data for
+a literal must exclude the
+generated value it legitimately contains, or it is measuring the generator's entropy.
+
+### 11.199 Two specs that could not fail, and what the right assertion turned out to be — **Fixed**
+
+Karma names this class itself — `WARN: 'Spec … has no expectations.'` — and the editor suite had exactly two:
+`ScriptApiService reads one script from the fixtures in FILES mode` and `DrawApiService reads the session trace`. Each
+called a service and asserted only through `expectOne`'s URL matcher, so it could fail on a wrong URL and on nothing
+else: a spec that cannot fail on the behaviour it is named for.
+
+The obvious repair would have been wrong. Both methods are typed pass-throughs (`this.get<T>(url)`), so asserting the
+emitted value would assert `HttpClient`'s plumbing rather than this project's code — the padding the testing rules
+forbid ("never test wiring, copies or forwarding"). What each spec was actually missing is the **other half of the URL
+contract**, a real rule in `withQuery` (api-base.ts) that was asserted for other call sites and for these none:
+
+- **FILES mode** appends `.json` **and** `requestUUID`. The library-list spec asserts both; the `getScript` FILES spec
+  checked only the suffix, so it now checks that its request carries a `requestUUID` too.
+- **NORMAL mode** appends neither. The list spec asserts an empty query for `list`; nothing did for `sessionDraws`,
+  which now asserts its query is empty.
+
+**Verified** by injection, not inspection: commenting out the `requestUUID` append fails both the library-list spec and
+the new `getScript` assertion, and a stray query param on `sessionDraws` fails the new NORMAL-mode one; both injections
+were reverted and the suite is green.
+
+**Why this is worth an entry.** "Add an assertion to the spec that has none" is the instruction that produces a test of
+the framework, and the warning alone cannot tell the two cases apart — the discriminator is whether the method
+transforms anything between the URL and the value. It does not here, so the assertion belonged at the contract's edge,
+where a rule is applied to a call site, not on the response on its way through.
+
+### 11.200 The shared corpus was probed at a location that never serves it — **Corrected**
+
+Found by harvesting *all* of the editor suite's WARN/ERROR output rather than only the `has no expectations` warnings
+(§11.199): every run asked the karma asset server for thirteen files that could not be there —
+`/test/checks/*.checks.json`, 404 each. That is the channel a reader scans for "did something fail to load", and it
+nearly convinced me the shared corpus never reaches the editor.
+
+It does reach it. `corpus.spec.ts` probes `/test/checks`, `/checks` and `/assets/checks` in order, and the second is
+where `angular.json`'s test target maps `doc/script-editor/checks`, so the specs were green and the cross-runtime
+contract was genuinely running. The cost was the noise itself: thirteen wasted round-trips and thirteen WARN lines per
+run, in the one place a real missing asset would show up.
+
+Two of the three entries are older guesses and neither directory exists — `src/test/checks` and
+`projects/spr-script-editor/src/assets/checks` are both absent, so the first could never succeed. The served base is
+now tried first, the other two stay as fallbacks for a configuration that serves the corpus elsewhere, and the comment
+says which is which and why the order matters.
+
+**Verified**: a run's WARN output no longer contains a single `checks` 404 and the suite is green at 489. The WARN that
+remains is a different thing and is recorded here so nobody chases it: `/media/a.wav`, from specs that render a
+playback control with a fixture `src`, where the browser asks for media no karma asset serves — those specs assert the
+URL, not the bytes.
+
+### 11.201 The library suite's one assertion-free spec, and the assertion it was missing — **Fixed**
+
+The library job (148 specs) was run for the first time this session and reports
+`WARN: 'Spec 'Uploader does not double-schedule a retry when the listener re-enters the queue' has no expectations.'` —
+the same class §11.199 found in the editor suite, in the one other suite this repository owns.
+
+Its assertions are `HttpTestingController` matches, and they are strong: `/api/up` fails, the re-entrant listener queues
+a second upload, `/api/second` fires, `/api/up` is retried **once**, and after a further 150 ms against a 20 ms retry
+delay `expectNone` proves no second retry was scheduled. That is the property the spec is named for. What nothing
+asserted is the **outcome** that sequence implies, so an uploader that sent those requests and left a status stuck
+mid-flight would have passed.
+
+`expect(ul.status).toBe(UploadStatus.DONE)` — and the same for the second upload — now pins it.
+
+**Verified** by fault injection: `Upload#succeeded()` was temporarily made to set `UPLOADING` instead of `DONE`, which
+fails this spec with `Expected 2 to be 0` (along with the other uploader specs that assert a status); reverted, the
+suite is green and the warning is gone.
+
+**The job's other two WARN lines are noise, recorded so nobody chases them.** The headless browser has no `USB
+Microphone` (the browser default is used) and refuses a wake lock — environment, not code. And the recorder's logo
+`src/assets/img/visp_slogan_sv.svg` 404s three times because the *library's* karma target serves no assets: the file
+exists, ships in `dist/cavox/browser/assets/img/`, and is referenced by the app's `app.config.ts`; the app-level theme
+audit is what checks that the logo loads.
+
+### 11.202 The editor-route audits pass, plus one transient failure whose evidence I discarded — **Observed, not reproduced**
+
+The `audit` job's editor-route passes were the last CI surface never run in this session: the editor dev server on
+4300, headless Chrome, and forty audits over ten routes — theme light at `1366x768,1920x1080` and at `390x844`, theme
+dark, a11y at `1366x768`, a11y dark and a11y phone — plus the job's two **sensitivity** checks, which plant a violation
+and require the audit to report it.
+
+**42 of 42 pass on a full-log run**, and both planted violations are reported, so the audits bite as well as pass.
+
+What must be recorded is the *first* run: 41 passed, **1 failed**, and I had piped that run through `tail -46`, so the
+failing route and its message were thrown away — the same self-inflicted evidence loss §11.190 and §11.174 record, this
+time in my own command rather than in a tool's truncation. It narrowed to one of the first four routes (`script`,
+`script/1245/edit`, `script/1245/source`, `script/playback/preview` at the desktop viewports); all four passed on an
+immediate re-run of that group, and the whole set passed afterwards, so the trigger is unidentified and the rate is at
+most about one run in forty. Repeating the set three more times would cost twenty minutes to chase a low-probability
+reproduction with no message to recognise it by; what is recorded instead is the shape, and the rule it teaches:
+**capture the log, then filter it.** A long run whose failure message is the thing you might need must not be piped
+through `tail`.
+
+**Verified**: `bash /tmp/editor_audits.sh` → 42 passed, 0 failed, exit 0, full log kept; the two sensitivity checks
+reported their planted violations.
+
+### 11.203 M5's large-script requirement, measured — the table was fine and the fixture was hiding the question — **Measured, no change**
+
+The M5 line reads "a 500-item script must stay responsive in the outline **and the table**", and the plan had only ever
+measured the outline (6 rows in the DOM out of 561 flattened). So the table half was measured, before anything was
+changed.
+
+Two things were wrong with assuming it was fine:
+
+- **the fixture cannot expose it.** `large-500.json` is **10 sections × 5 groups × 10 items**, and the centre renders
+  the *active section* — so the table has never held more than **50** rows in any test, no matter how many items the
+  script has. A 500-item script whose items sit in one section is a different shape, and a plausible one (a long read
+  list is a section);
+- **nothing asserted the rendering strategy either way.** The centre has no spec of its own; the outline's virtual
+  branch has one (`editor-outline.spec.ts`) and the centre simply renders `@for (item of block.items)`.
+
+Mounting the component with the exposing shapes — a section of `5x100`, of `1x500`, of `10x50`, built the way
+`editor-outline.spec.ts` builds its scripts — gives **500 rows / ~4,600 nodes / 23,908 px tall** in **7.7–11.1 ms**,
+**~1.3–1.7 ms** to re-render when the selection moves, and **29.6 ms for one full layout** of that tree.
+
+**And that last number corrected what this entry first recorded.** The initial reading said the render was "inside a
+frame" and stopped there; forcing one layout — reading `scrollHeight` and the last row's rect after the render —
+showed a **29.6 ms** layout, so showing such a section costs **~40 ms in all**. That is a hitch, not a freeze, and it
+is paid when the section appears or its structure changes: scrolling does not dirty layout, and a selection change is
+1.7 ms. Getting the honest number mattered for the *decision* as much as the record — "9 ms" and "40 ms" sit on
+opposite sides of the intuition that would virtualise a table.
+
+**No fix was made.** 40 ms at the extreme shape passes "responsive", and virtualising it would buy scroll smoothness at
+the price the outline already paid — its source notes the virtual viewport cannot host the drag preview reliably, which
+is why drag is disabled while it is in use. The requirement's table half is therefore met *by measurement* rather than
+by construction, and the numbers are recorded in §6 beside the outline's.
+
+**A spec *was* added, after first recording that none should be — and the distinction is the point.** The first reading
+rejected one because a permanent spec could only assert that `@for` renders a row per item (framework behaviour, the
+padding §11.199 warns about) or pin a wall-clock threshold (flaky, and why this plan records perf as prose with
+numbers). What that missed is the *silent* failure mode: a truncated list looks exactly like a shorter script, and the
+outline's own spec exists because its virtual branch once rendered an **empty tree** at runtime. `editor-centre.spec.ts`
+is therefore new — the centre had no spec of its own — and mounts the same 500-item section to assert **every item is
+rendered and the last one is in the tree**, at all three group/item splits, plus one spec for the selection marking. The
+costs are **logged** beside those assertions, never asserted, so the next UI change can see what it costs before and
+after.
+
+**What is not measured, and what would justify measuring it**: paint cost under a real scrolling page with those ~4,600
+nodes. That needs the app plus CDP rather than a karma mount, and the trigger for it is a report of jank — not a guess
+that 4,600 nodes must be slow, which is the kind of assumption this entry exists to replace.
+
+### 11.204 The i18n guards are the one pair of checks never shown to bite — **Found, not changed** (**fixed in place** — the guards now have an `i18n validation sensitivity` step in `tests.yml` that plants the fault in the catalogue and proves the restore; verified below)
+
+Found by checking a sentence this session had already written, that "every gate in `bin/` ships with a sensitivity
+fixture" (§11.198) — a claim made in passing and, it turns out, false. The seven that inspect the tree each have a
+sensitivity step in `tests.yml` (`dead_exports`, `orphan_check`, `docs_check`, `workflow_check`, `package_check`,
+`editor_lint`, `route_check`), and `theme_audit` and `a11y_audit` plant their violations **inline** in the audit jobs
+(`plant-violations.js`, `plant-status-overflow.js`) — which is why a grep for steps *named* "sensitivity" missed them.
+
+`validate_i18n` and `build_i18n` have none: the CI step runs `npm run validate:i18n` and then `npm run build:i18n`, and
+neither is fed a fault. **Reading the step to the end narrowed this**, and one half of the pair is better covered than
+it first looked: line 163 is `git diff --exit-code -- src/assets/i18n`, so `build:i18n` *is* held to account — if
+regeneration changed the committed strings, CI fails. That is a self-check rather than an injected fault, but it makes
+the command's silence meaningful.
+
+What is left is the **validator's half**: `validate_i18n` makes three comparisons — every key of `en.json` present in
+every locale, every `SPR_STRINGS` key overridable, and every key the source references existing — and nothing shows that
+any of them can fail. The guard could stop comparing anything and CI would stay green — the same silent-coverage
+failure §11.174's helper caused and §11.198 is about, one level up in the tooling that exists to catch it.
+
+**Fixed, and the first version of this entry was wrong about how.** It said a self-contained fixture was impossible
+without first adding a root option to the checker — true of a *fixture* (`validate_i18n.mjs` takes an optional
+`[i18nDir]`, but its source-scan roots are hardcoded, so a fixture directory is validated against the real sources and
+fails on every key the fixture legitimately lacks), and irrelevant, because a fixture is not the only way to plant a
+fault: the **audit jobs plant theirs in the live page**, and the same pattern works here. `tests.yml` gains an
+`i18n validation sensitivity` step that removes one branch from `src/assets/i18n/sv.json`, requires the validator to
+fail **naming the missing keys** (`sv.json is missing "…"`), restores the catalogue from a copy, then proves the restore
+twice — the validator green again, and `git diff --exit-code -- src/assets/i18n` clean. No gate changed; the catalogue is
+the fixture, and the runner throws its workspace away.
+
+**Verified** by running the step's own commands: the `app` branch removed gives `exit 1` and **33** `sv.json is missing`
+messages, the restore gives `exit 0`, and the working tree is byte-clean afterwards. `bin/workflow_check.mjs` still
+passes the modified workflow (six jobs, shape intact).
+
+**Verified**: `grep -nE "^      - name: .*[Ss]ensitivity" .github/workflows/tests.yml` lists seven steps naming those
+seven tools; the i18n step at line 159 runs the two commands and asserts nothing about failing; the two audit jobs plant
+their violations at lines 324, 336 and 478.
+
+### 11.205 M5's empty and error states, measured — thirteen of §9's fourteen rows had a spec, and the fourteenth now does — **One gap found and closed**
+
+M5 has six parts, not the four my earlier reports of it named. §11.203 measured the large-script requirement, §11.204
+the i18n guard, ui-spec §8 the keyboard pass, and the doc updates are this section — but **"empty and error states"**
+(the second part listed in M5) was never measured. Saying M5 was "fully assessed" was wrong; the part had simply never
+been read against anything.
+
+Measured now, from §9's table's own rows against the specs' names. §9 has fourteen states that are not `-`; each is
+held by a spec whose name states the same behaviour:
+
+| §9 row | Spec that holds it |
+|---|---|
+| Library — empty | `shows the empty state as one line plus the two header actions` |
+| Library — loading | `shows skeleton rows while the list is in flight, not a spinner on an empty page` |
+| Library — error | `shows the server message and a Retry action when the list fails` |
+| Editor — no sections | `invites a section for a script with no sections and shows no real-looking editor` |
+| Editor — loading | `shows the outline skeleton, not an editor, while the draft is in flight` |
+| Editor — load failure | `blocks editing on a draft load failure with the server message and a Retry action` |
+| Drawn group — no bank | `defaults a new bank source to the first project bank, else empty (E03)` |
+| Drawn group — bank unreachable | `suspends, and never reports valid, when the bank cannot be read` (`draw-rule.spec.ts`) |
+| Preview — no items | `copes with a script that has no sections` |
+| Preview — missing clip | `labels a missing playback file instead of leaving a silent gap` |
+| Bank — filter matches nothing | `offers to widen the filter when it matches nothing` |
+| Bank — loading | **no spec existed**; `bank-browser.html` renders the skeleton and nothing asserted it — fixed below |
+| Draws — no sessions | `shows the one-line empty state when the script has no sessions` |
+| Draws — loading | `renders skeleton rows while the record loads` |
+
+So the plan's claim at §5 lines 277-282 — that the library's four states, the editor's three, the preview's labelled
+missing clip, the bank's "no match: widen the filter" and the draws view's "no sessions yet" are covered — holds for
+thirteen of the fourteen rows. The fourteenth, the bank's loading state, was implemented and unasserted: the library,
+the editor and the draws view each assert their own skeleton, and the bank alone did not.
+
+**Closed by writing the missing spec, not by weakening the claim.** `bank-browser.spec.ts` gains *shows the table
+skeleton while the items are in flight, not an empty table*: it holds the item request open, asserts the `.skeleton` with
+`role="status"` and the `aria-label` from `strings.table.loading`, that the item table is absent rather than rendered
+empty, then flushes the page and asserts the skeleton gone and the table present. Running that file alone gives **11
+SUCCESS** (10 before).
+
+**Shown to bite, the way §11.174's and §11.198's checks are.** Replacing the branch's condition with `false` — the
+skeleton then never renders and an empty table stands in for it — fails exactly that one spec and no other, on all four
+assertions (`the table skeleton while the page is in flight: Expected null not to be null`, `Expected undefined to be
+'status'`, `Expected undefined to be 'Loading items…'`, and the item table `Expected … to be null`). After the restore,
+`grep -c "@if (false)"` is 0, the loading branch is back to 1, and the re-run is **11 SUCCESS**.
+
+**A method note, because two searches of mine read as "unspecced" before the artefact corrected them.** Grepping the
+specs for the *copy* found nothing for the bank's no-match state: the string lives behind a catalogue key and the spec's
+name says "widen", not "no match". The same mistake in miniature as §11.174's helper — a search whose pattern, not the
+code, decided the answer. For §9 the index is the spec **name**, not the rendered text, which is how the table above was
+built.
+
+### 11.206 M5's preview-session cleanup, measured — all four parts held, and "reports" is structural — **Measured, no change**
+
+M5's fourth part was the last one assessed by reading its sentence rather than looking at it. Its four claims, each
+against the artefact:
+
+| Claim | Implementation | Test that holds it |
+|---|---|---|
+| excluded from usage counts | `store.mjs:900-902` — `sessionUsageByScript` skips `type === 'TEST'` | `list.test.mjs` plants `list-preview` with the comment *"A preview session is not a run of the script and must not count"*, then asserts `row.sessions` deep-equals `{total: 2, started: 2, byVersion: {1: 2}}` |
+| excluded from the draw record's default listing | `store.mjs:979-980` — `listSessions(includePreview = false)` | `draws.test.mjs`: `first.preview` is `false` by default and `?includePreview=true` returns the row with `preview: true`; `draw-api.service.spec.ts:56` asserts the query is sent |
+| pruned with their materialised scripts by `--gc` | `store.mjs:1191` (TEST plus an `expires`) | `maintenance.test.mjs`'s *"gc removes expired previews with their materialised script and keeps live ones"* |
+| refused every recording write with `409` | `api.mjs:939` — `RequestError(409, … {code: 'TEST_SESSION_READ_ONLY'})` | `preview.test.mjs`, which asserts `409` plus that code on **four** write paths (upload, prepare, chunk, project-scoped) and carries a control (`normal.status` is not 409) |
+
+**The word "reports" is the loose one, and it has no implementation site.** `grep -rn report server/*.mjs` outside the
+test files finds only unrelated uses: a CORS comment, the receiver's version, a legacy-import note, gc's own phrasing. No
+report path filters `TEST`, and none needs to — recordings are refused for a preview session with
+`409 TEST_SESSION_READ_ONLY`, so a preview can never hold a recording for a report to list. The exclusion is
+*structural*, not a filter, and `recfile.test.mjs` carries no `TEST` case for the same reason. Asserting it would mean
+forcing a recording into a session type that cannot take one, so nothing is added; the finding is this note.
+
+With this, all six parts of M5 have been measured rather than assumed: §8's keyboard pass, §11.205's empty and error
+states, §11.203's large-script requirement, the preview cleanup above, §11.204's i18n guard, and the doc updates this
+section is. The parts still open against M5 are the ones no repository check can close: the manual screen-reader pass,
+the i18n retrofit decision, and the two flakes needing a CI occurrence or a reproduction campaign.
+
+### 11.207 The tip's live numbers, re-measured — the count pointer was stale in two of three, and §1 quoted a retired CLI — **Corrected**
+
+The milestone rows above are historical by design: line 121 says they quote *"the numbers at the moment each row
+landed"*, and that the tip's counts live in §11.144 and in README §Testing. Both halves of that pointer had rotted.
+
+Measured at this revision, each by running the command CI runs:
+
+| Suite | Command | Count |
+|---|---|---|
+| library | `npm run test_module -- --watch=false --browsers=ChromeHeadless` | **148** |
+| editor | `npm run test_editor -- --watch=false --browsers=ChromeHeadless` | **494** |
+| receiver | `node --test server/*.test.mjs` | **81** |
+
+The pointer said editor **486** and receiver **67**; §11.144 says editor **481** and "60 receiver tests", attributing all
+three to "README §7's … specs". The two snapshots contradict each other, and README §7 lists the suites and their
+commands but states no counts at all — so that attribution was wrong whichever snapshot was current. The pointer above
+now names this entry, and README §7 stays what it is: the place the commands live. §11.144 and the milestone rows are
+left alone, as records of what was true when they were written.
+
+**What moved, and why.** The editor suite has gained exactly one spec since the last recorded figure — §11.205's bank
+skeleton — and the receiver's tests grew through M4 and M5 to 81. The library's **148** is unchanged: §11.201 repaired an
+existing spec's assertion rather than adding a spec, so its count stands.
+
+**§1 quoted a retired toolchain version.** Its ground-truth row said "CLI **20.3.36**", while `package.json` has
+`~20.3.39` and §11.171 had already recorded the move — "the tooling 20.3.36/37 → 20.3.39". The table was the one place
+the upgrade never reached, and its own column says "Verified in `package.json`", so it is a live claim and has to be
+current. Corrected to **20.3.39**; the row's other versions hold against the manifest (Angular 20.3.x, Material 20.2,
+CDK 20.2.14, forms 20.3, TypeScript 5.9.3).
+
+### 11.208 rest-api.md's endpoint table, probed against a running receiver — 17 of 17 exist with the documented methods — **Measured, no change**
+
+The endpoint table is a live claim class no gate can reach: `route_check` covers the editor's *client* routes, and the
+suite exercises the endpoints something *calls*, so a documented endpoint that nothing calls could be absent and stay
+green. Probed empirically rather than read, because the receiver is an oracle for route existence: a known resource with
+the wrong method answers `405 "… is not supported on <resource>"`, and an unknown one answers
+`404 "unknown API resource"`. Everything else — 200, 201, 400, 404 for a missing object, 409 — means the route exists.
+
+`node server/server.mjs --port 8396 --data /tmp/rp5 --seed src/test --app none`, whose banner prints the API base,
+**`/api/v1`**, the prefix the docs' relative paths and `spr.config.ts`'s empty default both assume. Each of the sixteen
+rows was asked for — seventeen requests, since `version[/{n}]` is two:
+
+| Answer | Rows |
+|---|---|
+| 200 | `version`, `script/{id}`, `project/{p}/script`, `…/version`, `…/version/1`, `PATCH …/script/{id}`, `project/{p}/bank`, `…/bank/{b}/item`, `…/script/{id}/draws`, `project/{p}/media` |
+| 201 | `POST project/{p}/script` |
+| 409 | `POST …/script/{id}/publish` — *"script 1245 has no draft to publish"*, correct for a script with no draft |
+| 400 | `POST project/{p}/media` — an empty body is not a multipart upload, and the route answered rather than 404ing |
+| 404, object absent | `…/session/{s}/draws`, `POST …/draws/_redraw`, `DELETE …/media/{src}`, `…/preview-session` |
+
+Zero `unknown API resource` and zero 405: every documented endpoint exists under the documented method. **The reverse
+check — routes that exist and the docs omit — was not made**, because a doc gap is not the same trap as a phantom
+endpoint, and the table is not the doc's inventory of its own surface.
+
+**Two of my own measurement errors came first, and both looked like findings.** The first probe classified a *failed
+fetch* as "route exists", and reported seventeen existing routes for a server that was never running (it had been killed
+with the shell that started it, which is also why its log was empty). Then, with a live server, five requests failed
+because the harness stopped the job I had started, and my liveness check read `$!` from a `cd && rm && node` chain — the
+pid of the subshell, not of node — so a healthy server looked dead. Neither touched the artefact; the log the harness
+later delivered shows every request answered, including the `_redraw` that the second error blamed. The probe is deleted.
+
+### 11.209 README §4.5's deployment recipe, run end to end — both documented URLs answer — **Measured, no change**
+
+CI builds both applications but never serves them at a base href, so the part of §4.5 that a deployment actually
+follows — two builds with two base hrefs, served by `serve_deploy.mjs`, ending in two URLs — had never been executed by
+anything. Run verbatim from the README:
+
+```bash
+node server/server.mjs --port 8391 --data /tmp/deploy --seed src/test --app none \
+  --project Demo1 --script playback --quiet &
+npm run build -- --base-href=/wsr/ng/
+npm run build_editor -- --base-href=/wsr/edit/
+node bin/serve_deploy.mjs --port 8080 --api http://127.0.0.1:8391
+```
+
+Every step held: the recorder build wrote `dist/cavox`, the editor `dist/spr-script-editor`; `serve_deploy` logged
+exactly the layout the doc's diagram claims (`/wsr/ng/` → the recorder, `/wsr/edit/` → the editor, `/api/` proxied to
+the receiver); and the two URLs the README prints answered **200** — `/wsr/edit/project/Demo1/script` (the editor's SPA
+fallback under its own base href) and `/wsr/ng/spr/session/1` (a recorder session URL). The served editor's markup
+carries `<base href="/wsr/edit/"`, which is the flag the doc tells the operator to pass, so the instruction and the
+artefact agree. The flags the recipe uses — `--project`, `--script`, `--quiet`, `--api` — all exist, which §11.208's
+probe could not show, since it never passed one.
+
+**The cleanup caught me, and the bar is why it did not stick.** I removed `dist/` after the rehearsal, and
+`package_check` failed: it inspects the *built package*, not the sources, and `dist/speechrecorderng` had been there
+since the earlier `npm run build_module`. Running that build again restored it — the check passes with 8 promised paths,
+7 declared imports and the licence, and no committed file changed, because the version the build regenerates matches the
+one committed. The two *application* builds from the rehearsal are removed; the library package stays, because a gate
+reads it. An entry claiming a clean cleanup was itself the thing that needed checking.
+
+### 11.210 The register's own closure state, enumerated — 209 entries, no open engineering item — **Measured, no change**
+
+(**Annotated, §11.244:** enumerated again at 243 entries — four items remain, none of them engineering.)
+
+§11 is titled "Outstanding work: plans for what is still missing", which entitles a reader to ask which entries are
+still open. The tags answer that, and nothing had ever enumerated them: **109 Done, 34 Fixed, 13 Corrected, 4 Verified,
+4 Measured (no change), 3 Built, 6 untagged**, and 36 one-off tags ("Done, one human step left", "Withdrawn: the driver
+was counting", "Observed, not reproduced", "Checked, and deliberately not a gate", …).
+
+The six untagged headings are not open. Four carry their tag *before* a parenthetical — §11.133 ("**Done** (§11.132,
+first of the four)"), §11.161 ("**Done, and a question raised**"), §11.179 ("**Fixed**, and §11.173's conclusion
+corrected") — which is a limit of the one-line parser I read them with, not of the register. The other two are the owner
+decisions **§11.4** and **§11.34**, and both headings already record their answer: "**Capability done; the policy answer
+is the owner's** (§11.176: answered — labels only, everywhere)" and "**Recorded; enabling it is the recorder's call**
+(§11.176: answered — it stays disabled)". §11.176's own tag is "two recorded, one actioned", and line 4640 confirms all
+three questions were answered there.
+
+So the worklist holds **no open engineering item**. Exactly one entry names unfinished work that is not a machine's:
+**§11.2**, "Done, one human step left" — the closing screen-reader pass, the same item the M5 notes carry. Two
+similar-looking headings are closed by their own tags and should not be mistaken for open ones: §11.146, "the reference
+sweep that left out a directory" ("**Fixed**"), and §11.158, "two cosmetic slips left alone" ("**Checked**", a decision
+not to act).
+
+This census records what the tags say, not a fresh audit of all 209 entries; the ten added in this session were
+verified as they were written.
+
+### 11.211 The editor↔receiver path check, measured for completeness — 19 of 19 call sites, 14 paths, the floor exactly at the count — **Measured, no change**
+
+`server/client-paths.test.mjs` is the only place the editor's paths meet the server (README §7), and it reads them
+*from the services' source* rather than repeating them — so its completeness depends on its own extraction, which is a
+thing worth measuring rather than trusting.
+
+The extraction regex matches `projectPath(this.base, …)` and `apiPath(this.base, …)`. The editor's services contain
+**19** such call sites — 17 `projectPath` plus 2 `apiPath`, counted directly — and the extraction turns them into
+**14** distinct paths (a GET and a POST on one path collapse to one key). Nothing escapes it. The test's floor,
+`paths.size >= 14`, sits exactly at the count rather than below it, so losing even one path trips it — the failure mode
+the test's own comment records from §11.140, where "an extraction that matched only some of the calls reported agreement
+it had not established".
+
+Two helper names that look like paths are not, and their absence is correct: `readPath`/`writePath` (8 and 3 calls) are
+`script-draft.service.ts`'s accessors for the in-memory draft tree at a JSON path, not URL builders, and the single
+template-literal match is the login redirect's `return=` parameter. The README's phrasing — "reads the paths the
+editor's own services build and probes each against this server" — is accurate to the call site, not an approximation.
+
+### 11.212 The recorded flakes, revisited — five entries, four with a cause and a remedy in place — **Measured, no change**
+
+I have twice reported "two flakes needing a CI occurrence or a reproduction campaign" from memory. The register records
+**five**, and reading them changes the picture:
+
+| Entry | The flake | State |
+|---|---|---|
+| §11.52 | `server/deploy.test.mjs` bound fixed ports 8481/8482, so a second run, or one soon after another with a port in `TIME_WAIT`, left the spawned receiver unable to bind | **Done** — the test now takes a free port (`probe.listen(0)`, then `address().port`), with the reason in a comment |
+| §11.174 | two specs in `round-trip.spec.ts` failed once and passed on re-run (`undefined (reading 'groups')`) | **Fixed, in the spec** — a transient asset-server failure used to become an assertion about an object that was never loaded; it now throws, naming the fixture and the assets |
+| §11.175 | a security-property check flaked, and its message described a cause that cannot exist | **Corrected** — the misdiagnosis is recorded there |
+| §11.198 | a pseudonym spec failed about once in 256 runs | **Fixed** — the same idiom was in a second spec and both now redact the generated value; the one flake in the set with a measured rate |
+| §11.202 | one editor-route audit failed transiently, and I discarded the log | **Observed, not reproduced** — no evidence kept, and none recoverable |
+
+So four have a cause and a remedy in place, and exactly one remains open — §11.202, whose failure I cannot re-derive
+because the evidence went out with a temporary file. That one needs nothing from the repository: the audits run in CI,
+where the log is retained, and the failure has not recurred across the many full audit runs of this session. The honest
+statement of what is left is therefore: **one unreproduced transient**, one human step (§11.2), and the i18n decision —
+not "two flakes", and not a reproduction campaign whose expected value I still judge too low to spend unasked.
+
+### 11.213 The CI's failure paths, swept for swallows — none, and the one best-effort step announces its own gaps — **Measured, no change**
+
+A check that cannot fail is the failure mode this session keeps finding at the level of the specs; the workflow is where
+it would matter most, since a swallowed step stays green for every run afterwards. Swept `.github/workflows/tests.yml`
+— 13 `run: |` blocks, 30 named steps, six jobs — for the constructs that swallow a failure: **no `continue-on-error` at
+all, no `|| true` outside one step, and no pipeline whose left side can die unnoticed** (nothing in the workflow is piped
+to `tail` or `head`).
+
+The one exception is the end-to-end recorder step, which installs and starts pulseaudio best-effort — four `… || true`
+lines behind an `if ! pactl info`. That looked like the same defect until the driver was read, and it is not: when no
+audio device exists the run does not pass those checks quietly. `bin/audit/dry_run.mjs` emits
+`::warning title=No audio output::` naming the audio clock, routes only the *clip-relative* claims to the unverified list
+(`clipFailure` sends a message to `failures` or to `unverified` depending on `clipsAudible`), and prints them at the end —
+"N check(s) not verified here: this browser cannot play a clip", one line each — and the step's own comment says the
+same thing.
+
+So a CI without an audio sink carries *announced* gaps rather than silent passes, and the harness's lack of a device is
+not charged to the recorder. No change.
+
+### 11.214 The deployed production editor, rendered and talking to the receiver — one audit failure in 35, and my second lost log — **Measured, no change**
+
+§11.209 ran README §4.5's recipe as far as the network: both documented URLs answered 200, which for an SPA route is
+only `index.html`. Nothing in the repository renders the *deployed* build — CI builds both applications and then audits
+the **dev server**, which runs `ApiType.FILES` against the fixtures (`environment.ts`: `apiEndPoint: 'test'`), while the
+production build replaces it with `environment.prod.ts`: `apiType: 'normal'`, `apiEndPoint: '/api/v1'`, absolute on
+purpose so a mount at `/wsr/edit/` cannot resolve it against the prefix.
+
+So the artefact was put in front of a browser: the seeded receiver, `serve_deploy --api http://127.0.0.1:8391`, Chrome
+over CDP on 9333, and `bin/theme_audit.mjs --url http://127.0.0.1:8080/wsr/edit/project/Demo1/script`. The proof that the
+built editor is on REST rather than fixtures is the receiver's own request log: **`GET /api/v1/project/Demo1/script`, once
+per audit run, three for three**, arriving through the `/api/` proxy. The audit passed four times out of five.
+
+The failure is the second audit transient I cannot explain. Like §11.202 I suppressed its output (`> /dev/null 2>&1`), so
+it carries no cause — and the four later runs, including three consecutive ones whose request log shows the data fetched
+each time, all passed. It is recorded as a rate rather than a cause, and as the second time this session's log handling
+has cost a finding. What §11.209 could only imply is now shown: the production build the recipe documents renders,
+reaches the receiver, and is what the audit saw.
+
+**The campaign the first version of this entry promised has since finished**: **30 consecutive audits of the same
+deployed URL passed, none failed** (286 s, ~9.5 s per run). With the five runs above that is one failure in **35** — about
+3 %, and by the rule of three over the 34 clean runs an upper bound near 8 % — and no cause, because nothing failed. The
+bound is the result; the failure §11.202 recorded was on the *dev-server* audit job, so it may or may not be the same
+one. This time the campaign printed its evidence as it went rather than filing it, which is the one lesson the last two
+lost logs taught.
+
+### 11.215 ui-spec's 44 px target rule, measured across the audited screens — 159 targets, five raw hits, one benign pattern — **Measured, no change**
+
+ui-spec's house rules say "Interactive targets are at least 44 px high". **Corrected, §11.266:** this sentence read
+"Nothing checks it" and that is wrong — `a11y_audit`'s rule 10 measures exactly that rendered size and fires on the
+fixture's planted target (`is 17 px high`, one of the strings the CI asserts). What was meant is that the *lint* and the
+theme audit do not: `editor_lint` is explicitly
+about *text* rules — type sizes, colour literals, a click handler on a div — and `theme_audit` measures overflow and
+background colours, never a rendered size. Measured in the deployed build (receiver, `serve_deploy`, Chrome over CDP, a
+throwaway probe) across the seven routes the audit job names: **159 interactive elements** — buttons, links, inputs,
+selects, textareas, `role=button/tab/checkbox` — of which the raw count called **five** under 44 px.
+
+All five are the same pattern, not a violation. Four are `<input type="file">` at 21 px on the bank screen and the
+bank-plus-rule screen; three consecutive runs measured each of them inside `<label class="upload">` at **263 × 46 px**.
+The fifth is the JSON source screen's *"Replace the draft from a JSON file"* input at 1 px, and it is one of seven
+targets on that screen, the other six all ≥ 44 px — so its trigger is present as well. In every case the thing the rule is
+about is the label, and the input is the file control hidden inside it.
+
+So the rule holds on every screen measured, and the count that said otherwise is the raw selector's. Two limits are
+stated rather than assumed: the probe rendered at headless Chrome's default window rather than the audits' 1366×768 — a
+narrower viewport is the harder test, and the targets pass there anyway — and it covers what a conventional selector
+finds, not every clickable `div`.
+
+### 11.216 The docs' `§` cross-references, resolved — three conventions, one wrong pointer, and it was mine — **Corrected**
+
+Nothing checked these. The premise I wrote here first — "`docs_check` verifies links" — was wrong: §11.231 read the
+tool and it is not a link checker at all (it compares the receiver's CLI flags against one README section, opening
+exactly two files). Nothing in CI looks at a markdown link, so the sweep below was the only check these had; the design
+docs carry 994 `§` references.
+
+Three conventions resolve mechanically, each checked against the headings or list items that actually exist:
+
+| Convention | Count | Result |
+|---|---|---|
+| `(doc.md) §N` — a link naming its document | 23 | all resolve |
+| `§11.N` — the plan's numbered entry | 554 | all resolve (215 entries exist) |
+| a doc named in prose, `README §8.4` or `rest-api §2.4` | 159 | all but one resolve |
+
+The third needed care I nearly did not give it. Seven of its references are `README §8.N`, and README §8 has no
+*subsections* — so the heading-based rule called all seven broken. §8 is a **numbered list** of twelve open questions,
+and every citation matches its item: §8.2 is "The script name", which is what `data-model`'s note about `Script.name`'s
+human label cites; §8.4 is "Speaker pseudonymity", cited by `rest-api`, `ui-spec` and the plan for exactly that; §8.7 is
+"Authentication surface", the "single explanatory line" the plan quotes. A list item is not a heading — the fourth time
+this session that a rule of mine, not the artefact, raised the alarm.
+
+One reference was genuinely wrong, and it is in this register: §11.193 read `publish` "against **data-model §10.1**",
+but `data-model`'s numbered sections stop at §6, while **§10.1 of the plan** is "Draft storage and revision retention",
+which is the subject. Corrected above. Not turned into a check: the numbering conventions are the documents' own, and
+one of them would need the list-item rule that just fooled me.
+
+Re-running the sweep after this entry reports 163 references and nine flagged occurrences in four distinct forms: the
+seven `README §8.N` list items, correct by the convention above, and `data-model §10.1`, which now appears only as the
+quotation in the sentence you are reading.
+
+(**Re-confirmed while verifying §11.273, and this entry was right on all three counts.** A probe run then for the same
+class — every `document §N` in the docs, resolved against the target's headings — found `data-model §10.1` as its *only*
+real miss, exactly as recorded above, and reported `README §8.N` and the rest as broken exactly as this entry says they
+are not. It also shared this entry's other two experiences: the same refusal to gate it, reached independently, and a
+false alarm of its own making — a `X.md §N` pattern that missed the form the prose actually uses, and a `README.md` key
+one file overwriting the other. That is the tenth time in this work a probe failed on its own plumbing before measuring
+anything, which is why §11.266 keeps the discards and this entry keeps the conventions.)
+
+### 11.217 `server/README.md`'s runbook, run — the copy round-trip preserves state byte for byte — **Measured, and one row added**
+
+README §8 item 1 calls `server/README.md` "the run/backup/transfer runbook", so a deployment follows it, and nothing had
+run it. Its recipe: copy the whole data directory (`rsync`, `tar`), **do not copy `uploads/tmp`**, restore into a fresh
+`--data`, `--migrate` once when moving to a newer build, then verify "with `--gc` … and by fetching a published script".
+
+Run against a seeded directory that had been used — a script created through the API, so it held a draft, revisions and
+an index; 13 scripts, 13.9 MB:
+
+- `tar -C <src> --exclude=uploads/tmp -cf bk.tar .`, extracted into a fresh directory: **115 files**, with
+  `uploads/tmp` correctly absent;
+- the restored copy serves the same library list **byte for byte** (15 579 bytes, equal ids for all 13 scripts), and
+  `GET script/1245` hashes identically in both directories (`b84f3bf029fc…`);
+- the runbook's own verification step, `--gc` on the restored copy, reports "0 draft revision(s) removed, 0 expired
+  preview(s) removed, 0 orphan media found".
+
+Two claims from the layout table beside it were checked in passing, both exact. **`draft.json`'s ETag is the sha256 of
+those bytes**: the API returns `"32f06ccb…68a4"` and the file hashes to the same value — a publish attempted without it
+was refused with `428 PRECONDITION_REQUIRED`, which is the same claim enforced. And **`published.json` is what
+`GET script/{id}` serves**, true but only after a publish: it is absent for the legacy flat fixture and for a script
+created with a body, and present once a publish answered `{"version":1,…}` and the fetch answered 200.
+
+One omission, since fixed: the table did not list `versions.json` — `server/store.mjs:674`, `scriptVersionsPath`, whose own
+comment calls it "the published version index (newest first), stored beside the version files" — although a publish
+writes it beside them. It cost the recipe nothing, since the whole tree is copied either way, but the table read as
+exhaustive; the row is now there.
+
+### 11.218 The root README's commands and claims, checked — nine scripts, the proxy, the generated environment, the demo sessions — **Measured, no change**
+
+The root README is the recorder's living document, 800-odd lines, changed by this work, and nothing had verified its
+commands or its prose. What is checkable holds:
+
+- **nine `npm run` scripts** named there all exist: `build`, `build_editor`, `build_module`, `build:i18n`, `serve:api`,
+  `start_editor`, `test_editor`, `validate:i18n`, `watch`;
+- "`/api/v1` requests are proxied to `http://127.0.0.1:8080` by `proxy.conf.json`" — the file exists and its target is
+  exactly `http://127.0.0.1:8080`;
+- "The production build reads `src/environments/environment.prod.ts`, which is deployment specific and **not tracked**:
+  `npm run build` creates it" — the file is on disk and untracked, while `environment.ts` and both `*.sample.ts` files
+  are tracked, so the distinction the sentence draws is real;
+- the build outputs named beside them — `dist/cavox` for the application, `dist/speechrecorderng` for the module — are
+  the directories §11.209's and §11.210's builds actually wrote;
+- "`http://localhost:4200/spr/session/9` runs script **3457**": `src/test/session/9.json` names script 3457, and the
+  neighbouring URLs agree — session 2 is script 1245, session 3 is script 3456.
+
+**And my own regex failed for the fifth time in this session, the same way.** The script sweep reported `build:i` and
+`validate:i` missing: the pattern stops at the colon, so `build:i18n` and `validate:i18n` were truncated. I had recorded
+that exact mistake one entry earlier and reproduced it. Checking those two by name shows both present. The lesson is not
+that the pattern is hard — it is that I keep trusting a pattern over the artefact.
+
+### 11.219 The audit transient, attacked by construction — the time-based wait is real, the reproduction failed — **Observed, not reproduced** (§11.224: demonstrated, and fixed)
+
+§11.214 left the deployed-page audit failing once in 35, and §11.202 left a dev-server failure with no evidence kept.
+Both were **cold** runs — the first audit after a fresh build, and the first URL of a CI job — while the 30-run campaign
+that followed ran warm, so the hypothesis was timing, and `bin/theme_audit.mjs` gives it a reason: after
+`Page.navigate` (line 319) it waits a flat `setTimeout(9000)` before probing. A time-based wait rather than a
+condition-based one is how flaky gates are built.
+
+**The reproduction failed, and that is the result.** Against the deployed build, a seeded receiver and `serve_deploy`, a
+separate CDP session held `Emulation.setCPUThrottlingRate: 20` on the audit's page target for the whole run. The audit
+**passed** — "fit ok at 1366x768 (768 <= 768)", "5 distinct rendered background colours" — in 12.5 s against ~7 s
+unthrottled. ×20 halves the speed and still does not break the 9 s wait, so the margin is real and the wait is not shown
+to be the cause. Two setup errors of mine came first (Chrome on 9334 when the audit hard-codes 9333, and an "exit=0"
+that was `tail`'s rather than the audit's); once corrected, the run was clean.
+
+What remains is a **smell, not a mechanism**, plus one second candidate the output exposes: the fit rule asserts
+`768 <= 768` — **exact equality** — so a single extra pixel of content, from a late web font, a scrollbar or a wrapping
+line, fails it. That is as plausible an intermittent as the wait, and neither is proven. The tool is **unchanged**: a fix
+or a diagnostic for a cause that cannot be demonstrated is precisely the mistake §11.175 records.
+
+### 11.220 The audit's fit message stated the opposite of the rule it reports — **Fixed**
+
+§11.219 left two candidates for the transient. The second — the fit rule being an exact `768 <= 768` — is disproven, and
+disproving it found a real defect in the reporting.
+
+`bin/theme_audit.mjs:548` implements `fit.scrollHeight > fit.innerHeight + 1`: a deliberate one-pixel tolerance, so a
+document exactly one pixel taller than its viewport passes. (**The numbers in this paragraph have moved with the audit
+since §11.271 measured them — it cited 496 and 499 before the file grew under them.**) Line 499 printed the comparison *without* that tolerance —
+`${scrollHeight} <= ${innerHeight}` — so a passing audit announced "fit ok at 1366x768 (769 <= 768)": a falsehood in a
+green line. That is what sent §11.219 after an exact-equality rule. The message was wrong, not the code, and it cost a
+hypothesis before the `+ 1` was read.
+
+**Fixed and verified from both sides.** Content injected into the measured page through a second CDP session, after the
+audit had rendered and before its probe:
+
+| injected | scrollHeight | printed | exit |
+|---|---|---|---|
+| +1 px | 768 → 769 | `fit ok at 1366x768 (scrollHeight 769 <= viewport 768 + 1)` | 0 |
+| +3 px | 768 → 771 | `✗ 1366x768: document scrolls (scrollHeight 771 > viewport 768 + 1)` | 1 |
+
+Both lines are now true, the tolerance is visible where the verdict is printed, and the rule still bites two pixels over.
+The failure message carried the same omission, so the two agree now.
+
+### 11.221 Assertion-less specs, swept mechanically across both suites — none, 629 of 629 — **Measured, no change**
+
+§11.199 found "two specs that could not fail" and §11.201 "the library suite's one assertion-free spec", each by hand.
+The class is mechanical, so it was swept: every `it(...)` / `test(...)` block in the editor's and the library's specs,
+counting assertion-ish calls between one block and the next.
+
+**629 specs in 73 files, none without an assertion**, eleven carrying a single call. That agrees with what the hand
+passes found — one and two — and says the class is exhausted rather than sampled. The sweep was shown to bite by running
+it over a throwaway spec whose first case asserts nothing: it reported *NO ASSERTION does nothing at all* beside
+*asserts x2 asserts*.
+
+**And my tool, for the seventh time.** The first run reported "629 with exactly one", impossible for specs like §11.205's
+five-assertion bank case: the regex lacked the `g` flag, so `String.match` returned only the first hit. The zero column
+was still sound — a non-global match is null only when nothing matches — but its neighbour was fiction until the flag
+was added. This entry's own numbers repeat the flaw in miniature: `expect(x).toBe(y)` counts as two, so "a single call"
+is what those eleven really are.
+
+### 11.222 Every gate is held to biting — eight checkers, eight steps, each requiring failure — **Measured, no change**
+
+This session kept asking whether a check *can* fail. At the top level that is the workflow's question, and it is
+answered: `bin/` holds eight checkers that gate CI — `dead_exports`, `orphan_check`, `docs_check`, `workflow_check`,
+`package_check`, `validate_i18n`, `editor_lint`, `route_check` — and the workflow has exactly eight sensitivity steps,
+one naming each. Read inside the blocks, **every one plants a fault and exits non-zero when the check passes anyway**,
+which is the property that keeps a gate from silently ceasing to compare anything.
+
+My reader reported two of the eight as planting nothing — Orphan and Docs — because they plant by pointing the check at
+a fixture tree rather than by editing a file with `sed` or `rm`, which is what my pattern looked for. It also printed
+"(none)" for the i18n step's tools, because that step calls `npm run validate:i18n` rather than `bin/validate_i18n.mjs`.
+§11.204 had already checked that one in detail: it removes a branch from `sv.json`, requires the validator to fail naming
+the missing keys, restores the catalogue and proves the restore twice. Three false negatives of one reading, and no
+unguarded gate.
+
+The same species bites in the other direction: my `/tmp` cleanup globs have twice now removed a *previous* session's
+scratch rather than mine — `/tmp/inject-nested.js` when I meant `inject_px.mjs`, and `/tmp/sens2.sh` when I meant
+`sens.mjs`. Both harmless in `/tmp`, and both found by listing the matches instead of trusting the pattern. The
+register tallies the false readings as they came — a fifth in §11.218's own words, a seventh in §11.221's — and the
+over-broad globs are new.
+
+### 11.223 The audits bite too, inside their steps — and §11.222's census was incomplete — **Corrected**
+
+§11.222 counted eight `bin/` checkers against eight `*sensitivity*`-named steps. That is accurate about the checkers and
+an incomplete statement about the workflow: the *audits* are held to biting as well, inside the steps that run them,
+where a name-based census does not look.
+
+I found it by claiming the opposite. Three tools looked unused by CI — `a11y_audit.mjs`, `ensure_env.mjs`,
+`layout_probe.mjs` — on the evidence of step *names*, which mention none of them. All three are used:
+`a11y_audit` runs **27 times**, sixteen for the editor's routes and eleven for the detail view; `ensure_env` is the
+`prebuild` script every build invokes; and `layout_probe` runs four times in the detail-view step, once with `--mirror`.
+
+And that step then asserts the probe's own **three failure modes** — "so the tool cannot stop biting" — each requiring a
+non-zero exit *and* a named message: `no stage on the page` for a recorder URL that has none, `outside tolerance` for a
+centred line measured at `--tolerance 0`, and a status line wider than its box through a fixture. Requiring the *message*,
+not merely the exit code, is a stricter test than any of the eight named sensitivity steps apply to their checker.
+
+Reading a step's name instead of its body produced a wrong claim again. This session's tally of that kind is kept in the
+entries that made each one, corrected in place rather than counted here.
+
+### 11.224 The audit measured a blank page and passed — demonstrated, and both halves fixed — **Fixed**
+
+§11.219 and §11.220 left the audit transient as "a smell, not a mechanism": a flat `setTimeout(9000)` after navigation,
+with CPU throttling at ×20 unable to break it. The mechanism is now demonstrated, and it is worse than a slow wait.
+
+Two instruments were needed; only the second worked. CDP *network* emulation applies per **session**, so a second
+session's throttle never touched the audit's own navigation and it passed. Slowing the **server** instead — a throwaway
+static server, 6 s per response, with the API proxied at full speed so only the application's own load is slowed —
+produced the defect at once:
+
+| application load | distinct rendered background colours | verdict |
+|---|---|---|
+| normal | 5 | passed |
+| 6 s per asset | **1** | **passed** |
+
+One colour is a page that painted its background and nothing else: the application had not booted. The audit passed it
+because every rule it applies to that route is satisfied by an empty document — the `--spr-*` tokens are defined by the
+*stylesheet*, which arrives early, a blank page fits the viewport, and it has no problematic controls. On a route whose
+rules *do* require content — the state-marker fixture, the preview's clip chip — the same unrendered page fails. That is
+the transient: not a slow wait as such, but a gate that grades whatever has arrived.
+
+**Both halves are fixed and verified.** The flat wait is now a settle-wait: poll every 250 ms until `readyState` is
+`complete` and the document's shape — element count and `scrollHeight` — has been unchanged for a second, capped at 30 s.
+And a rule now fails when the document holds fewer than 20 elements, because "did not render" is not a state to grade in
+silence. Re-run against the same 6 s server: **5 distinct colours, exit 0** where the run above showed 1; `about:blank`:
+exit 1 with `✗ 1366x768: only 3 elements in the document - the application did not render`; a normal load: exit 0.
+
+So the 1-in-35 transient has a cause-class at last — a slow first load meeting a rule that needs content — and no longer
+a mechanism to fire through.
+
+### 11.225 theme_audit's fix, regression-checked across both applications — 37 audits pass, both sensitivity cases still bite — **Verified**
+
+Changing a shared tool obliges a regression check across everything that runs it, and `theme_audit.mjs` is invoked 39
+times in the workflow — 28 against the editor dev server and 11 against the receiver. Run verbatim, by extracting the
+commands and joining their continuations: **26 plain editor audits pass** (every route, 1366×768 and 1920×1080, a phone
+width, the `?sel=` fixture, the sparse draws view, the preview, and the dark variants) and **11 recorder audits pass**
+against a development build — including `open-detail-view.js`, `open-error-dialog.js` and the `/recorder/session/1`
+detail-view case, which reports `fit ok` and 5 colours at exit 0. The other two editor invocations are the sensitivity
+cases, wrapped in command substitutions; run individually they still fail as they must, reporting all five planted theme
+violations and both token messages, while the added "did not render" rule fires on none of the rendered pages. All 39 are
+therefore accounted for.
+
+**Three harness errors of mine were in the way, and all three are the same species.** My first editor pass reported
+"26 passed, 2 failed": the two were my continuation-joiner mangling the `$( … )` sensitivity commands into bash syntax
+errors, not audits failing. My first recorder attempt reported "0 passed, 11 failed" because I served the **production**
+build with no `--migrate`, where the workflow builds **development** to `/tmp/devapp` (line 530) after a separate
+migrating run — and the receiver log that would have said why the page returned `000` went out with my cleanup, the third
+log this session has discarded. With the workflow's own recipe the same commands give `/recorder/session/1` 200 and
+11 of 11.
+
+What remains unverified is nothing I can reach: the audits not covered above are the a11y ones, which are a different
+tool this change never touched.
+
+### 11.226 PR #39's one item "for the maintainer" — the Angular advisory — verified closed — **Measured, no change**
+
+PR #39, the closed draft that carries this work, ends its body with the only item it left open: `npm audit --omit=dev`
+reporting one **high** advisory, `@angular/router >=20.0.0 <20.3.32`, SSR denial of service via numeric URL matrix
+parameters — admitted both by the tree's `~20.3.31` and by the shipped library's `~20.3.30` peer range. §11.171 moved the
+framework set at the time; this checks the claim end to end rather than trusting that entry:
+
+| what the PR quoted | now |
+|---|---|
+| tree `@angular/router` `~20.3.31` | **`~20.3.33`** |
+| library peer `@angular/core` `~20.3.30` | **`~20.3.33`** |
+| `npm audit --omit=dev`: one high | **found 0 vulnerabilities** |
+
+Both ranges now sit at or above 20.3.32, outside the vulnerable range, and the live audit is clean. So the reason the
+draft named for staying a draft no longer holds, and §11.210's census — no open engineering item — is confirmed by the
+one item that *was* open when the snapshot was taken. Not changed: the PR is closed, and its counts (488 editor specs,
+261 commits, 335 files) are a snapshot of 2026-10-06, like the register's milestone rows.
+
+### 11.227 The library README's checks — the version gate agrees across all three copies, palette ratios exact — **Measured, no change**
+
+The library's own README is 47 KB of living claims and no turn had read it. Two kinds are mechanical, and both hold.
+
+**The version gate**, the interface this work hinges on. The README heads the playback section *"The `playback` plan
+(since 3.11.26)"*; the library's `feature-versions.ts` maps `prefill: '3.11.26'` and `playback: VERSION`; the server's
+`feature-versions.mjs` maps the same two to `'3.11.26'` and `RECORDER_VERSION`; and the library's `package.json` says
+`3.11.26`. All four agree, so the server file's comment — "keep in step with the library's `VERSION`" — is true
+numerically and not merely in intent. Both copies carry the same numeric-segment `compareVersions` with the same worked
+examples, and the claim that they are "held to the same cases by their tests" is true as well: the library spec's three
+`featuresUsed` expectations (`[]`, `['prefill']`, `['playback', 'prefill']`) are the server test's three, verbatim.
+
+**The palette.** The README's token table gives a contrast ratio beside each entry. Computed rather than read: `#2A4765`
+on `#FFFFFF` is **9.60:1** and `#F1EFE4` on `#000000` is **18.21:1**, matching the table's 9.60 and 18.21 exactly.
+
+### 11.228 `a11y.md`, the one design document no turn had read — its planted-violation count was one short — **Fixed**
+
+I claimed last turn that every living document had been read and its checkable claims verified. That was not true:
+`doc/script-editor/a11y.md` had been seen only through its headings and its `§`-references. Read now, it is unusually
+concrete — sixteen numbered rules with their rationale, the two manual screen-reader passes as nine named steps each, and
+the note on what writing rule 9 corrected in the file itself — and its mechanical claims hold: the audit's header numbers
+exactly **16** rules, `IGNORED_CONSOLE = [/NG0913\b/]` exists as described with the NG0913 explanation beside it, and
+`--rules universal` excludes rule 10's 44 px target plus the single-`h1` and single-`main` house rules.
+
+**One count was wrong, by one.** The document says `bin/audit/plant-violations.js` "plants a violation for **nine** of the
+rules below" and lists nine: a nameless button, a duplicated id, an image without `alt`, a page without `lang`, a second
+`h1`, a second `main`, a positive `tabindex`, a control inside a control, a 17 px target. The fixture carries a
+rule-numbered comment for each of those *and* one for rule 6 — `is aria-hidden but contains focusable content` — and the
+audit job requires **ten** rule messages beside the genuine console warning it must also report. Corrected to ten, with
+the `aria-hidden` item added in rule order.
+
+Its other contract is the one still open: "record the build's commit here with the result", and neither pass has a
+recorded result. That is §11.2's item — now with nine named steps and two named readers attached to it.
+
+### 11.229 The Apache sample's build command used a flag Angular removed — and its paths disagreed — **Fixed**
+
+`apache_www_htaccess_sample.txt` is the deployment sample for the recorder, and this work touched it —
+`b01d5b5a chore(branding): rename the application to Cavox`, one line in and one out — without anyone reading it. Two of
+its claims were wrong.
+
+**The build command.** It read `ng build --base-href=/wsr/ng/dist/index.html --prod`. `--prod` is not in Angular 20's
+`ng build --help` at all, and running the command shows an operator what that means: *Error: Unknown argument: prod*,
+exit 1. The corrected `--configuration production` exits 0, generates the bundle, and emits
+`<base href="/wsr/ng/dist/index.html"` — the base the sample tells you to pass.
+
+**The paths.** The prose said the `dist` directory "can then be deployed (copied) to a directory `/wsr/ng/`", while the
+same file says to copy *itself* to `/wsr/ng/dist/.htaccess` and the rewrite rule targets `/wsr/ng/dist/index.html`.
+Three statements, two conventions. The `--base-href` settles it — the application expects to live at `/wsr/ng/dist/` —
+so the prose now says that and all three agree.
+
+The sample is otherwise left alone: a base href whose last segment is a file resolves beside it, so that part works as
+written, and the mount it documents is the recorder's, not the editor's — which README §4.5 covers.
+
+### 11.230 The build budgets, measured against what the applications actually emit — the editor's allows five times the growth — **Measured, no change**
+
+`angular.json` is the largest file this work changed that no turn had read (+113 −7), and the CI's own comment says the
+production build "proves the environment replacement and the budgets". A budget is a gate, so it is worth measuring
+against reality rather than accepting:
+
+| application | initial total now | warning threshold | error threshold |
+|---|---|---|---|
+| `spr-script-editor` | **501 kB** | 900 kB — warns at **+80 %** | 1.5 MB — fails at +207 % |
+| `Cavox` (the recorder) | **1.34 MB** | 1536 kB — warns at **+15 %** | 2 MB — fails at +53 % |
+
+Both sit on the `production` configuration with `anyComponentStyle` limits beside them (2 kB/4 kB for the recorder,
+4 kB/8 kB for the editor), so the mechanism works and the recorder's threshold is tight enough to catch ordinary growth.
+The editor's is not: the newer application, and the centrepiece of this work, could nearly double before anything is
+said. Not changed — a budget is a tolerance the maintainer owns rather than a claim that can be false, and the CI
+statement that the build "proves the budgets" is true as written — but recorded so the asymmetry is visible to whoever
+decides what the editor's should be.
+
+### 11.231 The six CI checkers, audited for whether their coverage matches their claims — all six narrower, none a live miss — **Measured, no change**
+
+CI proves each checker *bites* on a planted fault. Nothing measured whether each one *covers* what its header says, so six
+read-only audits were delegated, one per checker, each told to quote the claim, measure the coverage against this tree,
+and change nothing. Each reported that its toolset had no shell, so its findings are static readings with commands
+quoted rather than runs; the two I could execute — the missing-bundle case and the markdown sweep — I ran myself and mark
+as run. All six answered alike: the claim holds for the files the checker reaches, and its *definition* is looser than its
+header implies. That is the pattern §11.140 and `server/client-paths.test.mjs` were built around, and **two of the six
+have no floor at all**, so a run that examined nothing exits 0.
+(**Annotated, §11.236:** the count is four of the six, measured by pointing each gate at an input with nothing in it —
+and after that measurement none of the four was given a floor, for a reason stated per gate. §11.232's `workflow_check`
+and §11.235's `docs_links` are the two that refuse.)
+
+| checker | what the audit found |
+|---|---|
+| `dead_exports` | both roots scanned as claimed; one header claim is *false* — the `strip` field is computed and never read, and reports print full paths; only `.ts`/`.mjs` and a fixed set of export forms (`export {}`, `export *`, `export default`, generators unseen); the exempt list is file-wide; no floor |
+| `orphan_check` | all 45 files under `bin/` examined; "referenced" is case-sensitive *substring* containment, so `routes.ts` is cleared by `app.routes.ts` and `used.ts` by `unused.ts`; everything under `bin/audit/` is cleared by the bare word "audit"; dot-named entries are skipped, so `.github/workflows/tests.yml` is outside the corpus the header calls "every text file in the repository"; no floor |
+| `docs_check` | **not a link checker**: it compares the receiver's CLI flags against one README section, opening exactly two files; the flag sets match, 23 to 23 |
+| `workflow_check` | reads one file as claimed; three header-versus-code gaps — a `- name:` step with no action passes, only the literal `run: \|` at eight spaces is checked rather than `run: >` or inline forms, duplicate keys are undetected; **no floor on jobs found**, so a re-indented file prints "0 job(s)" and exits 0 |
+| `package_check` | three concerns as described; the import scan covers only `fesm2022/*.mjs`; no floor — but the promised-path check covers the same directory, so a missing bundle does fail the run (verified: exit 1, "the manifest points .[default] at ./fesm2022/speechrecorderng.mjs, which the package does not contain") |
+| `route_check` | implements its claim in both directions (8 screens, 9 audited URLs, exact pairing); sees `loadComponent`, command substitutions and query strings; its gaps are scope qualifiers — `/project/` paths on port 4300 only, and route discovery assumes `path` is an object's first key |
+
+**One of those results discredited a premise of mine.** I had written, twice, that `docs_check` "verifies links" — the
+reason §11.216 gave for sweeping the docs' `§` references itself. It does not, and **nothing in CI reads a markdown
+link**. That sweep still stands and now stands alone: 91 relative links across 12 documents, **none broken**, and seven
+anchors all matching their headings under GitHub's slug rule — the one my own ASCII slugger flagged,
+`#theme-umeå-university`, differs only because `\w` excludes `å`. §11.216's premise is corrected in place.
+**Annotated (§11.235):** that count was made by hand and is mislabelled — measured against the check that replaced it,
+it is **89 relative links and 2 external** (the 91 were never all relative), with **12** fragments rather than seven
+(the seven are the cross-document README anchors), and 2 further links sit inside fenced code blocks, where they are
+documented examples rather than links.
+
+Three further slips of mine belong in the record beside it: `--dir` and `--prod` as options where the tools have
+`--package-dir`, `--root` and `--path`; a `sed` that matched nothing, so a script was deleted before its fix could be
+re-run; and an edit that removed the blank line above a table, twice in the same paragraph.
+
+### 11.232 Two checkers fixed: a gate that passed on `0 job(s)`, and a header claim that was false — **Fixed**
+
+§11.231's audits found no *live* miss, but two things were wrong in themselves, and both are fixed here.
+
+**`workflow_check` could pass without parsing anything.** A re-indented copy of the very file it checks — the same jobs,
+the same steps, four spaces instead of two — printed `Workflow check passed: 0 job(s) — .` and exited 0, so every
+per-job rule was satisfied by finding no jobs. It now asserts a floor: no job found is a problem, worded as what it is.
+Verified: the real file still passes with its six jobs; the re-indented copy now fails with *"no job was found in
+/tmp/re.yml — the checker parsed nothing, and that is not a pass"*; and the CI fixture still fails for its own eight
+planted reasons — a tab, no top-level `name:` and the rest — so the new rule masks none of the old ones.
+
+**`dead_exports` documented a behaviour it did not have.** `DEFAULT_ROOTS` computes a `strip` per root, and its comment
+states that "paths are stripped of the root, so a report reads relative to the tree being scanned" — while the report
+printed full paths and neither `strip` nor the sibling `api` field was ever read. The `server` root's `strip` was empty as
+well, so it would have contradicted the comment even if it had been. Now the report strips, that root says `'server/'`,
+and the dead `api` field is gone. Verified: the CI fixture root reports `unused.ts :: plantedUnusedExport` — relative,
+with the symbol untouched, so the sensitivity step's assertions still hold — and the real tree still passes, 411 exports
+scanned.
+
+Neither change weakens a gate: each is shown to fail where it should and to pass where it did.
+
+### 11.233 `orphan_check`'s corpus now matches its promise — every text file, dot-directories included — **Fixed**
+
+The third of the six audited checkers, and the same species as §11.232's two: a claim wider than the code. The header
+promises references "by name — **any other text file in the repository** mentions the basename", and the comment above
+the corpus reads *"Every text file in the repository, read once: the search space, not a hand-picked list of
+directories"* — while `walk` skipped **every dot-named entry**, so `.github/workflows/tests.yml` was outside the search
+space. That is the file that runs the audits, which is why the fixtures under `bin/audit/` were kept alive by the bare
+word "audit" appearing in unrelated prose rather than by anything that uses them.
+
+`walk` now skips *directories* rather than names starting with a dot, and `SKIP_DIRS` gains `.angular` — which the
+dot-skip had been excluding by accident — with a comment saying why each entry is there. Verified: the tree still passes,
+*"45 file(s) under bin, every one referenced"*; the CI fixture still reports **exactly one** orphan — its unreferenced
+file, which this entry deliberately does not name, because the fixture's own README says naming it is what stops it being
+that state — and leaves its named sibling alone, as its sensitivity step requires; and the corpus now holds **543 files**
+against a comment that claimed every one while reading fewer.
+
+The change can only clear files and never orphan one — an orphan is a file that *no* reference names, and the corpus is
+now a superset of what it was — so those two verdicts are the evidence that nothing was silently loosened.
+
+### 11.234 The fixture guarded itself, and the entry that proved it clean had disarmed it — **Fixed**
+
+**The directory rule counts a path now.** A file in a subdirectory of the scan root used to be cleared if that
+subdirectory's *name* appeared anywhere in the corpus. Measured before touching it: 13 files name `bin/audit` but **80**
+contain the bare word `audit` — sixty-seven clearances waiting for a fixture to swallow. The rule now requires
+`<root>/<directory>` (`bin/audit`, `bin/lint_fixtures`), and its header and comment say why. Every one of the eight
+fixture trees already has a path reference, so nothing was over-tightened: the tree still passes at 45 files, and the
+split moved 39/6 to 38/7 — the file that moved is the CI fixture's planted orphan, which `--root bin/orphan_fixtures`
+in the workflow now clears *through its directory*, which is the rule working as designed.
+
+**What it broke, and who noticed.** §11.233's text named that fixture's unreferenced file. Documents count in this
+corpus, so the fixture began *passing* — the exact state its CI step is written to fail on. Its README predicts this
+precisely: *"naming it is precisely what would stop it being the state this check looks for… the step's count assertion
+fails on loudly rather than silently."* Nothing but running the fixture's own command showed it: the main run passed both
+before and after, and the sensitivity step only runs in CI.
+
+**The ordering lesson.** §11.233's verification ran *before* §11.233 was written, and the write was the breaking change.
+Verify the last write, not the state preceding it.
+
+**The contrast that makes it a class.** `dead_exports` searches only the walked code files (`other === file ||
+isSpec(other)`), so a markdown mention cannot clear its planted symbol — re-verified still reporting, immune to this
+mistake. Two sensitive fixtures, two scopes: only the document-wide one arms itself against prose, and only it can be
+disarmed by the register that documents it.
+
+**Fixed:** the entry describes the file without naming it; the fixture reports exactly one orphan (exit 1) and the tree
+passes (exit 0).
+
+### 11.235 The gap §11.231 found: nothing read a markdown link — `bin/docs_links.mjs` does now, and its floor bites — **Built**
+
+**What was missing.** §11.231 read all six checkers and found that **nothing in CI read a markdown link** — `docs_check`
+compares the receiver's flags against one README section and nothing else. The safety of this document set's links
+rested entirely on a hand sweep (§11.216, repeated in §11.231): a measurement that cannot fail a pull request and
+cannot notice the next link that rots, in a set this work adds to every session.
+
+**What it does.** Walks every markdown file (`node_modules`, `.git`, `dist`, `.angular`, `coverage` and `.claude`
+skipped), reduces away fenced blocks and inline code spans — a documented example is not a link — then checks each
+relative target exists and each fragment names a real heading. Headings are slugged the way GitHub slugs them, so
+letters survive: `#theme-umeå-university` matches, which is exactly the anchor an ASCII `\w` slugger would have got
+wrong (§11.216).
+
+**What it measured, and it corrects §11.216.** 89 relative links across 12 documents, every one resolving, 12 of them
+carrying a fragment; 2 further links sit inside fenced code blocks; and 2 of the "91" are external (`https://angular.io/…`),
+so §11.216's figure was total links, not relative ones. §11.231 now carries that annotation.
+
+**How it is proved to bite, and why there is no fixture.** By injection, the way `validate_i18n`'s step edits the real
+catalogue: two broken links are appended to `doc/script-editor/README.md`, the check must report **exactly those two**
+and nothing else, and the file is restored *before* the assertion runs, so a failing step cannot leave it modified
+(measured: exit 1, `2 broken link(s)`, both named by path and by anchor; 0 occurrences left afterwards). A fixture tree
+would have been worse than useless here — a planted broken link inside `bin/` is a **real** broken link to the main run,
+which is the same trap §11.234 records.
+
+**The floor, and that it is reachable.** `--min-links 40` refuses a run that examined almost nothing, because a wrong
+root would otherwise print "0 links, none broken" and pass. Proved live rather than argued: pointed at `bin/audit`,
+which holds no markdown, it exits 1 saying so.
+
+**Three live claims the new script made false, all updated in the same pass** — this is the §11.161 pattern, and the
+reason to sweep for a census after adding anything: the plan's tool census said **sixteen scripts** (now seventeen) and
+**ten gates** (now eleven, with `docs_links`'s injection named as the exception to "a planted fixture"), and the editor
+doc said **every check in `bin/` has a planted fixture it must fail on** (now "is held to failing on a fault CI plants",
+with the injection spelled out).
+
+**Limits, stated.** No network, so an external URL that rots still goes unnoticed — that is a different check, and this
+one deliberately stays static. Links *into* markdown from source or config are the other direction and are not covered.
+
+**Evidence**: 8 static gates exit 0 (`orphan_check` now 46 files under `bin/`, the new script cleared by the workflow
+that names it); 7 fixture sensitivities still exit 1; the docs-links sensitivity exits 1 with exactly 2 findings and
+restores the file; the floor exits 1 on a markdown-free directory; `workflow_check` passes the edited workflow, which
+`js-yaml` also parses (6 jobs, both new steps in the server job).
+
+### 11.236 What "no floor" costs, per gate — measured on all eight, and `route_check` stops assuming key order — **Fixed**
+
+**Measured, not argued: what each gate does when its input has nothing in it.** §11.231 said "two of the six have no
+floor"; pointed at an empty directory, or an empty file, the answer is **four of the six** — `dead_exports` ("0
+export(s) scanned, none unreferenced"), `orphan_check` ("0 file(s), every one referenced"), `editor_lint` ("0 font
+sizes, 0 colours, 0 click handlers") and `route_check` ("0 routed screen(s), all exercised by 0 audited URL(s)") all
+exit 0. `docs_check` refuses a section that is absent, `workflow_check` refuses a file with no job, `package_check`
+refuses a directory with no manifest, and `docs_links` refuses by its own floor (§11.235).
+
+**A missing path is already loud**, which narrows the question: all five throw when the file or directory they were
+pointed at does not exist (measured, exit 1 each). The empty-pass therefore needs a path that exists and matches
+nothing.
+
+**And none of the four can reach that state silently in CI, so none was given a floor** — the call §11.175 makes, and
+the one §11.234 made when it dropped `package_check`'s, restated per gate:
+- `orphan_check`'s root is `bin/` and the step that runs it is `node bin/orphan_check.mjs`: a run requires the file
+  the check reads, so its scan can never be empty.
+- `dead_exports` and `editor_lint` read the two `src/` trees that `build_module`, `build_editor`, `test_module` and
+  `test_editor` compile in the same workflow: an emptied tree fails those loudly first.
+- `route_check` compares both directions, so an empty router leaves nine audit lines unmatched and an empty audit
+  list leaves eight screens unvisited. Silence needs both sides empty at once — and a workflow whose audit steps are
+  gone from the job is exactly what `workflow_check` reports as a step-less job.
+
+**`route_check`'s other qualifier was real, and is fixed.** §11.231 recorded that discovery assumes `path` is an
+object's first key: it split the source on the literal text `{path:`. Measured, that is loud but **mislabelled** — a
+copy of `app.routes.ts` with one route's keys reordered exits 1 saying *"an audit visits
+/project/Demo1/script/bank-draw/bank/g:0:0 and no route renders it"*, which is false; the route is there. Discovery now
+cuts entries by brace depth and reads `path:` wherever it sits, so the same copy passes (8 screens, exit 0) while a
+genuinely deleted route still fails (measured: 1 gap, the same URL). `bin/route_fixtures/routes.ts` puts `component`
+before `path` on the screen both audits visit, which makes the step's existing assertions — exactly two gaps, the
+audited screen never named — the regression test for it: under the old code that entry was missed, so the step would
+have reported three gaps and named the audited screen, either of which fails it.
+
+**The fixture then caught my own fix before CI could.** The first brace-depth version returned *no* routes for the
+fixture, because the comment I had just written says the check must not key on the text `{path:` — and that `{` left
+the depth count unbalanced, so no object ever closed at depth zero. Comments are blanked before the scan now, with
+the reason in the code. The old split-based line happened to survive that comment; the new one had to be told.
+
+**Evidence**: 8 gates exit 0; 7 fixture sensitivities exit 1; `route_check` 8 screens and 9 audited URLs; the reordered
+copy 8 screens exit 0; the fixture 2 gaps with the audited screen named zero times; the removed-route copy 1 gap.
+
+### 11.237 `package_check`'s scan stops at one directory, and §11's opening stops claiming to be its own end — **Fixed**
+
+Two claims wider than what runs, both found by measuring rather than reading.
+
+**The import scan.** §11.231's last open qualifier was that "the import scan covers only `fesm2022/*.mjs`". It read
+one directory, non-recursively. Measured on the built package, that is *today* exactly the right set — one `.mjs`
+either way — so the widening changes no verdict: `8 promised path(s) present, 7 imported package(s) all declared
+(…) across 1 shipped file(s), licence MIT`. It closes a gap that opens the day a secondary entry point appears,
+which is plausible in a library this work already gave a subpath (the theme). That it bites is measured: a copy of
+the fixture with `testing/fesm2022/second.mjs` importing `lodash-es` is now reported — *"the shipped code in
+/tmp/…/testing/fesm2022/second.mjs imports lodash-es, which the manifest does not declare"* — where the old scan
+would have said nothing, and nothing else in CI declares imports.
+
+The walk covers every `.mjs`/`.js` the package ships (`node_modules` skipped), the problem names the file, and the
+success line reports how many files it examined — the "say what you looked at" rule §11.235 gave `docs_links`. No
+floor, for §11.236's reason: a package shipping no JavaScript fails the promised-path check first, since
+`main`/`module`/`types` point into it.
+
+**One claim in three places, kept in step**: the CI step asserted the old message ("the shipped bundle imports
+rxjs, …") and now asserts the substring that survives the rewrite ("imports rxjs, which the manifest does not
+declare"), and the editor's live README said "the shipped bundle" as well — it now says the shipped code, with the
+entry point named, because that sentence is precisely what the one-directory scan made false.
+
+**The register's own opening.** §11 begins by saying *"The last entry, under `Summary`, is the state of what
+remains."* §11.160 wrote that while the summary *was* the last entry; 77 entries have landed since, so the sentence
+sends a reader asking what remains to §11.236, a route-check fix. It now names §11.159 and says entries continue
+past it — deliberately without naming the last entry's number, since that is what went stale, which is §11.160's own
+"deliberately no tallies" lesson applied to itself.
+
+**Evidence**: `package_check` exit 0 on the built package with the same three numbers and 1 shipped file; the fixture
+still exits 1 with all four planted faults and `tslib` unnamed; the nested-entry-point copy reports `lodash-es`; 8
+gates exit 0 and 7 fixture sensitivities exit 1.
+
+### 11.238 The three audits, given §11.231's treatment — three false claims corrected, one failure mode that had never been induced — **Fixed**
+
+§11.231 audited the six *checkers*. The three browser-driven audits had never had the same reading: quote the header's
+claims, measure the coverage against this tree, name any rule that can pass vacuously, change nothing. Three read-only
+scouts did that, one per audit. All three came back the same way as the checkers did — and the only one whose header
+*understated* the gate is `theme_audit`.
+
+**`theme_audit`: the list was narrower than the code and one rule was mis-stated.** Its five numbered rules all exist,
+but rule 1's enumeration named six colours while `FORBIDDEN` holds **eight** (orange and #00c853 among them), and the
+rule's statement was *wider* than the code: only `background-color` and `color` are read, so a legacy literal on a
+border, an outline, a `box-shadow` or an SVG `fill` is not caught. Rule 3 said 13.6px while the threshold is
+`13.6 - 0.1` — 13.5, since a rendered 13.6 measures 13.5x — so a 13.5px render passes a rule that states 13.6. And the
+list was presented as "the brand rules" while the tool enforces at least thirteen more (a forbidden font family, five
+logo rules, three control-bar rules, logo overlap, rail fit, a token layer nothing read, six Material pins, and §11.224's
+did-not-render). The header now says all of that, so a reader can no longer take it for the whole gate.
+
+**`a11y_audit`: three claims its code does not implement, and an option that works for one rule.** Rule 7 claimed a
+`role="tree"`'s treeitems carry "`aria-expanded` where they have children" — `aria-expanded` appears **once in the
+526-line file, in that sentence**; nothing reads it. Corrected in the audit's header, in `a11y.md`, and annotated in
+§11.2, which claimed it a third time. `--except <n>` was documented as skipping "rules by the numbers in the list
+above" — `runs()` is evaluated at exactly one judge (`if (runs(6))`, :479), so `--except 1` leaves rule 1 firing; only
+rule 6 is ever asked for (the dialog's Angular Material `aria-hidden`), which is why nobody noticed. The header now says
+so. Rule 3 is scoped to the controls the pass walks (not an image or a plain element) and rule 10 takes the label as the
+measured target only for an `<input>`; both are now stated in the header and the catalogue.
+
+**`--except`, recorded rather than fixed.** Making the option general means gating all sixteen judges. Rules 11–15 sit
+as consecutive statements with no block boundaries in that file, so a wrap placed one statement too low would *silently
+disable* a rule — the exact class this audit exists to catch — and the change can only be verified with a browser pass
+against the editor and the recorder. The header now tells the truth; the general gate is the owner's to place, and the
+rule numbers are already in the judge comments.
+
+**`layout_probe`: one claimed failure mode had never been induced.** Its header names four exit conditions; CI proved
+three, and the step's own closing echo said "the probe's three failure modes". `fits` — the root wider than its viewport
+— was implemented and unexercised, which is §11.175's shape. Landed: `bin/audit/plant-horizontal-overflow.js` plus a step
+that requires `fits=false`, with the comment and the echo moving to four. Verified locally on the fixture's own path
+(Chrome over CDP against a static page carrying the stage elements, not the CI URL): baseline `fits=true` exit 0; with
+the fixture `fits=false` exit 1 and `prepared(…): root content 3000px in a 1366px viewport`.
+
+**And my own first version of that fixture was wrong.** I wrote that `overflow-x: hidden` would swallow the plant;
+measured, it does not — `scrollWidth` reports the content width whether or not the overflow can be scrolled. The
+realistic way the block fails to widen the root is a width cap, and the corrected fixture is verified to throw on
+`div { max-width: 100% }`, which surfaces as `--prepare script failed: … capping its width` and leaves the step's own
+grep unsatisfied rather than passing quietly.
+
+**The two `layout_probe` measurements it only prints are not mis-claims.** The scout read the caption-size and
+branding-mark sentences as the headline false claim; the header introduces them with "This *measures* rectangles
+instead", and its four exit conditions are listed separately. Reported, not claimed as checks — no change made, and the
+distinction recorded here so the next reader does not "fix" a true sentence.
+
+**`plant-violations.js` was one short of what it plants.** Its return said "5 theme" and its header listed five, but the
+step's loop asserts **six** theme-side messages and the file plants six elements: the sixth is the `is-selected` state
+marker, the only proof for the non-text rule, omitted from both. Both now say six and name the marker.
+
+**Recorded, measured, not fixed:**
+- **Five `theme_audit` messages have no planted proof.** 'outside the transport bar', 'overlaps', 'squeezed to' and
+  'wider than the rail' — the control-bar and rail rules — appear **zero times** in the workflow: they run on the
+  receiver's routes, and nothing asserts they *can* fire.
+- **The non-text rule cannot see the recorder's own selection.** `progress.ts:24` marks the selected row with
+  `[class.selRow]` and draws it as `box-shadow: inset 4px 0 0 0 var(--spr-caution)` (:128-130) — a boundary that carries
+  meaning. `selRow` matches neither the ARIA list nor the class pattern (`selected|current|checked|is-*`), so the marker
+  present on `/spr/session/1` is never measured. Adding it means deciding that `selRow` is unambiguous, and the change
+  can only be verified against the served recorder — a production build this pass did not have.
+- **The CI comment about the centre's marker was wrong**, and is corrected: the fixture asserts the selection is *on the
+  page* so the audits measure the selected screen; the non-text rule does not read `.active`, which is excluded on
+  purpose with §11.62's reason (in the editor it means selection, in the recorder a layout flag).
+
+**Evidence**: 8 gates exit 0 and 7 fixture sensitivities exit 1 after every edit above; the new probe step's assertion
+holds in three measured cases (baseline, planted, width-capped); `aria-expanded` now appears in the tree only inside the
+corrected sentences; the workflow parses (6 jobs, 5 `layout_probe` runs, the fixture named once).
+
+(**Two of the three narrower checks were closed after this entry** — `aria-expanded` by §11.256 and rule 3's scope by
+§11.257, so the catalogue can claim both again. What stands is rule 10's label target, measured in §11.215 as a benign
+pattern: a scope choice rather than a defect. §11.266 is the audit that found this entry still reading as three. **The
+entry's other open sentence closed too:** "present on `/spr/session/1` is never measured" was the state marker — §11.260's
+decision has the rule read a state's mark on a descendant now, and §11.259 supplied the measurement it needed. **And rule
+10's, §11.277:** the label target is moot — every label-wrapped control in the editor is an `<input>`, so the narrower
+scope has no case to miss.)
+
+### 11.239 `--except` gates every rule now, not one — landed because it is code contradicting its own contract, proved by output equivalence — **Fixed**
+
+§11.238 recorded this for the owner rather than doing it. On reflection it belongs here: the option's *documented* meaning
+is "skips a rule by its number", `runs()` was consulted at a single judge, and that is the case this register fixes
+rather than annotates. All sixteen judges consult it now:
+
+- 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16 by prefixing their own conditions (`runs(10) && HOUSE_RULES`,
+  `if (runs(5)) for (…)`) — **no block was re-indented**, so no rule can have been dropped by a misplaced brace, which
+  was the risk that made this look unsafe in §11.238;
+- 9, the accessibility-tree cross-check, by judging no nodes: `judgeAxTree(runs(9) ? (ax.result?.nodes ?? []) : [], at)`,
+  which finds nothing and still returns the summary the pass line reads.
+
+**Two measurements make it safe to have landed.** The judge section is delimited by rule comments, so the gating was
+surgical rather than a rewrite — and the gates provably changed nothing:
+1. **Output equivalence.** The fixture run captured before and after is **byte-identical** — 18 problems, same order,
+   exit 1 both times. A gating edit that lost a rule or moved a message would show here; nothing else would.
+2. **Silencing the catalogue.** `--except 1,…,16` on the planted page exits **0**. Every rule that page fires is
+   genuinely gated, which is now a CI assertion — so a rule added without consulting `runs()` fails the job instead of
+   quietly ignoring its own exemption.
+
+Per-rule spot checks, each run against the editor dev server the CI uses: `--except 5` → 16 problems and no alt line;
+`--except 11` → 17, no lang line; `--except 5,11` → 15; `--except 3`, a rule this page does not fire → **identical to the
+baseline**; `--except 6` → 17, exactly the one `aria-hidden` line the fixture plants, so the rule that was gated all
+along still behaves. A clean route passes under the default rules and under `--rules universal`, and
+`--rules universal --except 6` — the detail-view job's form — passes too.
+
+**Kept in step**: the option line and the `EXCEPT` comment both said only rule 6 was gated. That was true when §11.238
+wrote them and false the moment this landed; both now state the invariant instead — every judge consults `runs()`, and a
+rule added without it is the §11.238 gap again.
+
+**Evidence**: `node --check` clean and the CI step's extracted shell passes `bash -n`; 8 gates exit 0 and 7 fixture
+sensitivities exit 1; the equivalence diff empty; the silencing run exit 0; the local editor dev server and Chrome
+stopped afterwards.
+
+### 11.240 The five recorder-chrome rules §11.238 could not prove — planted, and shown to fire — **Fixed**
+
+§11.238 recorded that five `theme_audit` messages were asserted nowhere: they fire only where a `div.controlpanel`
+and an `app-sprprogress` are rendered, which the editor-scoped job never does. `bin/audit/plant-transport-violations.js`
+plants all five on the recorder's own screen, and the dry-run job now requires each message.
+
+**What the screen turned out to offer** (measured on `/spr/session/1`, through a throwing `--prepare` that reported
+the inventory): `div.controlpanel` is the page's **bottom** strip, 1366×73, with three marks, seven transport buttons
+(42–115 px, so the squeeze rule was live but never tripped), **all three** state indicators present, and
+`app-sprprogress table` at 296 px inside a 316 px rail. Every host the five rules need was there, so the fixture
+could plant all five rather than some:
+
+| rule | plant |
+|---|---|
+| outside the transport bar | a fixed 44×20 button appended to `app-sprtransport` at y=400, far below a bar whose marks sit near y=705 |
+| transport button squeezed to … | `width: 12px; min-width: 0; padding: 0` on the first transport button (the rule's threshold is 40) |
+| logo … overlaps … | a control-bar mark moved onto the first indicator's box — position only, so it reports three collisions (one per indicator) and not an aspect-ratio fault |
+| control-bar logos overlap | two marks at the same spot, taken from the panel's own box |
+| progress table … wider than the rail's … | the rail's table widened 200 px past its own client width |
+
+**Two mistakes of mine, both measured and corrected in the fixture.** `setAttribute('style', …)` *replaced* the marks'
+own sizing, so three reverted to their natural size (94–399 px) and tripped the height, viewport and aspect rules —
+four messages about faults the fixture did not intend to plant; it mutates the CSSOM now. And the two colliding marks
+were placed at a fixed `top: 4px` while the bar is at the *bottom* of the page, so the outside-the-bar rule reported
+them instead; their spot now comes from the panel's own box. Both are written into the fixture so the next editor does
+not repeat them.
+
+**It throws when a host is missing** rather than planting what it can — the sibling fixtures' rule: a drifted selector
+must fail the probe, not leave it measuring a page without the state it asked for. On this screen a throw means
+something moved.
+
+**Evidence**: the planted run exits 1 with **7** messages covering all five rules and nothing else (the overlap rule
+fires three times, once per indicator, which is what it found); the same route **without** the fixture passes; the CI
+step's shell passes `bash -n` and the workflow parses (6 jobs); 8 gates exit 0 with `orphan_check` at 48 files under
+`bin/`, the new fixture cleared by the step that names it; the recorder and Chrome were stopped, and `dist/cavox` is
+gitignored so the local build left nothing behind.
+
+**What is left from §11.238 on this front**: the non-text rule cannot see the recorder's own selection (`progress.ts`
+marks the row `[class.selRow]` and draws it as an inset `box-shadow`), and that one is a decision, not a fixture —
+recognising `selRow` may surface a real contrast finding on the row marker, which the owner should choose to take.
+
+### 11.241 The recorder's row selection, measured instead of left as a decision — the marker passes, the class name is not why it is invisible — **Measured, no change**
+
+§11.240 left one item open: the non-text rule cannot see the recorder's selection, and recognising `selRow` "may
+surface a real contrast finding". Measured on the served recorder (`npm run build`, then `server/server.mjs` as the
+dry-run job runs it, Chrome over CDP), the answer is no — and the reason it is invisible is not the class name:
+
+1. **The marker passes.** The bar is `--spr-caution`, `rgb(215, 177, 124)`, and it sits on the row's background
+   `rgb(42, 71, 101)`: **4.79:1**, where WCAG 1.4.11 asks 3:1. Computed twice — inside the page by the audit's own
+   formula, and independently from the printed numbers.
+2. **A state and its boundary are on different elements.** The recorder puts the class on the `tr` (`selRow`) and the
+   bar on `td:first-child`'s `box-shadow`. Marking the row `selRow selected` and leaving the cell alone produces **no
+   finding at all** (measured): the element carrying the boundary has no state class, so adding `selrow` to the
+   recognised pattern would change nothing whatever.
+3. **Extending it naively would report the wrong thing.** Treated as a state marker, the boundary-carrying cell makes
+   the rule judge the cell's *decorative hairline* — measured **1.06:1** (`rgb(36, 73, 126)` on `rgb(42, 71, 101)`) —
+   which is §11.62's false positive again: a border that carries no meaning, on an element that merely looks selected.
+
+So there is no product defect here, and making this measurable is a **model** change — a state-announcing element's
+descendants' boundaries, with decorative lines still exempt — rather than an extra class name. That is a design change
+with a false-positive mode already met once, so it stays the owner's call; the measurements are written into the
+audit's state detector so the next reader does not have to re-derive them.
+
+**One slip of mine, caught at once.** The comment I added is inside `PAGE_PROBE`, a template literal, and I wrote the
+class names in backticks — which ended the template and made the whole tool a `SyntaxError` (`Unexpected identifier
+'selRow'`). `node --check` found it immediately; the text is backtick-free now. The proof that counts is a run, because
+the injected script is only parsed *in the page*: after the fix the audit passes on the served route and the transport
+fixture still reports its seven messages.
+
+**Evidence**: `node --check` clean; the route exit 0 and the transport fixture 7 problems after the change; the marker
+4.79:1 and the hairline 1.06:1 by two computations; the recorder and Chrome stopped afterwards.
+
+(**Closed, §11.260:** the owner took the model decision this entry left open — a state's mark on a descendant is what the
+rule reads now — and §11.259 supplied the measurement it needed, of what the applications actually draw a marker with.)
+
+### 11.242 The accessibility audit's four unproven rules — planted, so every rule it documents now has a case — **Fixed**
+
+§11.240 did this for `theme_audit`'s five recorder-chrome rules. The same exposure sat on the other audit:
+`bin/a11y_audit.mjs` documents sixteen rules, and the fixture's eleven asserted messages left **rules 2, 3, 7 and 8**
+with no planted case — a form field's label, an ARIA relationship pointing nowhere, a composite widget's marking, and
+the tab order. Each could have stopped detecting with every step still green.
+
+**Added to `bin/audit/plant-violations.js`**, measured on the editor route:
+
+| rule | plant → message |
+|---|---|
+| 2 | an `<input>` with no label of any kind → `has no label (add <label for>, a wrapping label or aria-label)`, twice — the second plant is a field named *only* by a dangling `aria-labelledby`, which is an honest second instance of the same fault |
+| 3 | `aria-describedby` and `aria-labelledby` naming ids that are not there → `points at nothing with text`, each direction |
+| 7 | a radiogroup whose two radios carry no `aria-checked` → `has 2 radio(s) without aria-checked`; a radiogroup with no radios → `is a radiogroup with no radios`; a treeitem with no `aria-level` → `treeitem(s) have no aria-level` |
+| 8 | two controls whose document order is the reverse of their vertical order, 200 px apart in one column → `tab order jumps back up the same column` |
+
+**The tree half needed measuring to get right.** The probe reads the *first* `role="tree"` on the page (one
+`querySelector`), and the library route the fixture runs on has none — so my first version's guarded injection planted
+nothing and the rule stayed unproven, which the run said plainly by printing no such message. The fixture now supplies
+the tree when the page has none and appends to the application's own where one exists. Its **`treeitems === 0` branch
+cannot be shown in the same state** — a single tree is read — so that branch is recorded as unproven rather than
+pretended, which is §11.240's own lesson applied to a branch instead of a message.
+
+**A slip of the fuzzy edit, caught by the run.** My insertion's anchor ended `document.body.appendChild(hidden);`, and
+that fuzzy-matched the *rule-15* block's `appendChild(outer)` — the logos section follows it — so the fixture began
+throwing `ReferenceError: Cannot access 'hidden' before initialization` and only the plants before that line took
+effect. The audit's own output named the failure; the line is restored, and the reason is written into the fixture.
+
+**CI**: the step's assertion list went from 11 strings to 18, with a comment saying what the eleven had been.
+
+**Verification** (editor dev server and Chrome, both stopped afterwards): all 18 strings present in the real output;
+`theme_audit`'s own eleven still present on the same page, since the fixture is shared; `NG0913` still ignored; the
+plain route still passes; the CI step passes `bash -n` and the workflow parses (6 jobs); 8 gates exit 0 with
+`orphan_check` at 48 files; 7 fixture sensitivities exit 1.
+
+### 11.243 The two branches §11.242 left — the empty live region and the tree with no treeitem — **Fixed**
+
+§11.242 planted one case per accessibility rule and recorded one branch as unproven: the `treeitems === 0` half of rule
+7, because the probe reads a single `role="tree"` and the two states are exclusive. Reading that judge for the other
+half turned up a *second* unproven branch beside it — rule 9's live region, "announced by its contents, not by a name",
+which needs an `alert`/`status` with nothing inside to announce.
+
+**Both have states now:**
+- **rule 9's live region**: an empty, deliberately *sized* `role="status"` in `plant-violations.js`. Unsized, the
+  accessibility tree drops it as invisible and the branch is never reached — which is how it stayed unproven →
+  `with nothing to announce`, the nineteenth string the step requires.
+- **rule 7's empty tree**: `bin/audit/plant-empty-tree.js`, a state of its own because one tree is read — a
+  `role="tree"` holding a button row and no treeitem, which the audit names **twice**, once for the markup and once for
+  the accessibility tree. Like its siblings it throws when the page already renders a tree, so it cannot quietly prove
+  nothing.
+
+**`route_check` caught what I had missed, and it was right.** The new state, audited by the accessibility pass only,
+failed it: *"the a11y pass audits /project/Demo1/script with bin/audit/plant-empty-tree.js and no theme pass measures
+that state."* So the rule `plant-violations.js` states in its own comment — every state an accessibility pass audits
+must also be measured by a theme pass — is real and enforced, not a figure of speech; I had doubted it earlier and was
+wrong. The state now has its theme line, and the fixture is built to keep that pass clean: the row carries the page's
+own font (a user-agent one hands the theme pass faults of its own) and the tree is `position: fixed` — in flow it made
+the document 43 px taller and tripped the theme audit's own *document scrolls* rule, measured.
+
+**Evidence**: the accessibility pass over the state exits 1 with both tree messages and the theme pass over the same
+state exits 0; `route_check` passes (8 screens, 9 audited URLs); all nineteen strings are present in the main fixture's
+output; the `--except 1,…,16` gating check still exits 0 with the live-region plant added, since it is rule 9 and so it
+is gated; `theme_audit`'s eleven strings still hold on the shared page; the workflow parses and the step passes
+`bash -n`; 8 gates exit 0 with `orphan_check` at 49 files; 7 fixture sensitivities exit 1.
+
+### 11.244 What remains, at 243 entries — four items, none of them engineering — **Summary**
+
+§11.210 enumerated this at 209 entries. Thirty-four have landed since, so it is enumerated again, from every entry that
+records something as left rather than doing it — and each of the four was checked against the tree rather than
+remembered:
+
+- **The receiver's two retention defaults** (§11.194, §11.195). `uploads/journal.json` grows one entry per idempotent
+  write and is rewritten whole each time, and an abandoned chunk session leaves its `<uuid>/` directory and record
+  behind. Both are bounded **only on request** — `--gc-journal <keep>` and `--gc-uploads <days>`, verified present in
+  `server/server.mjs:35` and documented in the README — so collecting them by default is a policy the store does not
+  state. It is the owner's to set, and the runbook already says what to run meanwhile.
+  (**Closed after this list, §11.255** — the owner instructed it: bound by age, by default, and applied at startup.
+  **Annotated, §11.266:** this line first read "still open", written from §11.244's own body without reading the entries
+  after it.)
+- **The non-text rule's state/boundary model** (§11.241). The recorder announces a selection on the row and draws the
+  marker on a child cell, which the rule cannot relate, so the marker is unmeasured; measured, the marker itself is
+  4.79:1 and passes. A model change, not a defect to fix.
+  (**Closed after this list, §11.260** — the owner took the decision, and the rule's model now carries a state's mark on
+  a descendant, which is what the recorder draws.)
+- **Three accessibility checks narrower than the catalogue once implied** (§11.238). `aria-expanded` is read nowhere;
+  rule 3 examines the controls the pass walks; rule 10 treats a label as the measured target only for an `<input>`. The
+  claims are corrected and `a11y.md` with them — these are the capability gaps the corrections left standing.
+  (**Partly closed after this list, §11.256:** `aria-expanded` — this item's own example — is read now
+  (`missingExpanded` in the audit, and rule 7's wording in `a11y.md`), and **rule 3's scope is closed too (§11.257)** —
+  it reads the whole page now, not only the controls the pass walks — so **one** of the three stands: rule 10's label
+  target, which §11.215 measured as a benign pattern rather than a defect. **Annotated, §11.266:** the first version of
+  this line said two stood, written without reading §11.257. **Closed outright, §11.277:** rule 10's label target names a
+  DOM case the editor does not have — no control inside a `<label>` is anything but an `<input>`, measured on three
+  screens — so the third narrower check is moot rather than open, and this item is closed.)
+- **The two manual screen-reader passes** (§11.2). VoiceOver on Safari and NVDA on Firefox, scripted in `a11y.md`,
+  needing a human.
+  (**Still open at 264 entries** — the same two passes, and the script they run is §11.261's corrected one.)
+
+**And nothing else of that kind.** Every gate under `bin/` is proved to bite by a planted or injected fault
+(§11.132–§11.147, §11.235, §11.239–§11.243); every rule both audits document now has a case (§11.240 for the five
+recorder-chrome rules, §11.242 for the four accessibility rules and §11.243 for the two branches that followed); the
+six checkers were audited against their claims (§11.231) and the three audits given the same reading (§11.238); and the
+register's own opening says what its entries are and where its summary sits (§11.237).
+
+**A suspicion I checked and discarded, recorded so it is not repeated.** §11.191 and §11.192 read as though they still
+claimed a gap — *"Left alone deliberately"* sits in their text — while `server/store.mjs`'s `open()` sweeps the
+interrupted-write temp files and `server/recfile.test.mjs` is the chunked-upload suite end to end. They are **not**
+stale: both headings read **Fixed** and **Tested**, and the sentences in question are about narrower residual cases
+inside them — the sweep deliberately leaves a temp file in a directory it cannot read, which
+`server/maintenance.test.mjs:219` asserts. The suspicion came from grepping for the wording instead of reading the
+entry.
+
+(**Annotated, §11.245:** a fifth item — the dry-run driver's assertions have no planted-fault proof, because the driver
+has no injection hook; its checks are proven only by a healthy run passing, which is a negative proof.)
+
+### 11.245 The dry-run driver's second mode was silent in CI, and its closing line overstated — **Fixed**
+
+`bin/audit/dry_run.mjs` is M1's gate and had never had §11.231's reading — that pass audited the six checkers and
+§11.238 the three audits, and the driver was neither. Reading it found one thing, of the class this register keeps
+finding: a mode that can do *less* while the job stays green.
+
+**The driver has two modes and is honest in the middle of them.** It measures the browser's audio clock first (`new
+AudioContext()`, then whether `currentTime` really advances); if the clock is frozen it says so, raises a
+`::warning`, drives the run anyway, and routes every clip-relative claim to `unverified` instead of `failures` — right,
+because on such a host the recorder is *supposed* to report the prompt as failed and the driver must not blame it.
+
+**Both edges of that were wrong:**
+1. **The closing line read "Dry run passed." either way.** A developer without an audio device read a pass over four
+   claims that had not run at all, while the header promises the run is "neither passed nor failed on those points".
+   It now says what happened: *"Dry run finished, but N check(s) are unverified: on this host the clip-relative claims
+   were not checked at all"*.
+2. **CI could lose those checks silently.** The dry-run job installs a null sink best-effort (`apt-get … || true`, then
+   `pulseaudio … || true`) and the driver exits **0** when degraded — so a runner whose sink failed kept the job green
+   with the four clip-placement claims unverified, which is the one thing that job exists to check. The step now
+   captures the output and fails closed: a run reporting `not verified here` fails, and so does one that does not print
+   `Dry run passed` — which the degraded branch deliberately does not.
+
+**Verified**: the driver end to end against the built recorder, Chrome with the fake media stream and a freshly seeded
+receiver — `exit 0`, 7 items with 6 marked done, `session: status=COMPLETED`, the placement table and the
+start/stop/window audit trail, ending `Dry run passed.` with **zero** unverified checks, so both new assertions hold on
+a healthy runner. The workflow parses and the step passes `bash -n`; both branches of the new closing line were run on
+their own. The degraded branch cannot be produced on this host — it needs a machine with no audio device — so its
+message was exercised alone, which is stated rather than dressed up as a run.
+
+**The gap this reading found and did not close**: the driver remains the one gate with no *planted* fault. Its checks
+are proven by a healthy run passing — a negative proof — because it has no `--prepare`-style hook to inject a fault
+into the recorder it drives. Recorded in §11.244's list as the fifth item.
+(§11.246 closed it: the driver takes a `--prepare` fault now, and its run is bounded.)
+
+### 11.246 The dry-run driver's planted fault — and the hang that came with it — **Fixed**
+
+§11.244 and §11.245 listed the driver as the one gate with no planted fault: every other gate here has a fixture that
+makes it fail, while the driver's checks had only ever been observed *passing*. This closes that, and the closing found
+more than a fixture.
+
+**The driver takes a `--prepare` fault now**, in the audits' shape: evaluated in the page *after* the audio clock is
+measured — deliberately, so `clipsAudible` still describes the host and a fixture cannot deselect the checks that would
+catch it. Two faults:
+- **`bin/audit/plant-silent-events.js`** drops the driver's own audio events — the array stays an array, since the
+  driver serialises it, but nothing lands in it — and throws if the driver's hook is missing, so it cannot quietly
+  prove nothing. Verified: **exit 1 in 54 s** with *six* clip-relative failures — `item 2 (P2, BEFORE) never played
+  its clip`, then items 3, 4, 6 and 7, and `the drawn items never played their own bank recordings`. That is M1's
+  claim, shown to bite.
+- **`bin/audit/plant-clip-silence.js`** blocks every `/media/` and `.wav` request the page makes; on the playback
+  script that keeps the app from reaching the state the driver waits for.
+
+**And the second one hangs, which is the real finding.** Measured: **15 minutes with no output and no exit** — a runner
+would have spent its own six-hour limit and said nothing about the recorder. Every *step* had `--step-timeout-ms`, but
+the waits around them did not. The driver now has `--deadline-ms` (10 minutes by default) and says
+*"the run exceeded its 40s deadline: a step is stuck, not slow — the page never reached the state the next one waits
+for"* before exiting 1. Verified at 40 s and 45 s, and the CI step uses 90 s.
+
+**Two mistakes of mine, both caught by running it.** The watchdog's first version *awaited* a `Page.navigate` to leave
+the page clean — and the connection can be exactly what is stuck, so the watchdog itself hung: measured, a ten-minute
+command with a 40 s deadline. The await is bounded by `Promise.race` with a 1.5 s timer now. And I then claimed that
+cleanup makes a timed-out run safe to follow — **it does not**: measured, a run straight after one failed on the
+fault's own `about:blank` requests, and another hung until its own deadline. So the ordering is the safeguard, and the
+timed-out fault runs **last** in the step, after the audits, with nothing after it. The driver's comment says that
+instead of overclaiming.
+
+**A third thing the deciding runs found**: the seed *itself* holds sessions 2, 3 and 9, each with another script — so a
+sensitivity needs an id the seed does not hold (1001, 1002, …), which the receiver creates with its `--script
+playback` default. Measured: a run on session 3 drove an 18-item script and never reached the clip assertions.
+
+**Verified**: the silent-events fault (54 s, six clip failures, exit 1); the deadline on the blocked clips (41 s for a
+40 s bound, exit 1, the message exact); a clean run passing with the hook and the bound in place (`Dry run passed.`,
+zero unverified checks); the workflow parses, the step passes `bash -n`, and `orphan_check` reports 51 files under
+`bin/` with both fixtures referenced.
+
+**Still unproven, recorded rather than pretended**: the two *placement* assertions — `played at …ms, not before the
+clocks` and `too early for its placement` — need a clip observed in the *wrong* window, which is a fault that delays
+the audio events rather than dropping them.
+(**§11.247 tried exactly that and measured why it does not work**: the window is the driver's own observation, so a
+page fault can only move the clip, and the comparison's bounds make the reachable shift a narrow gap. The fixture was
+deleted rather than kept as one that does not fire.)
+
+### 11.247 The driver's two placement comparisons: why a page fault cannot reach them — **Measured, no change**
+
+§11.246 left that pair unproven and said a fault delaying the audio events would prove it. It does not, and the
+measurement is the entry.
+
+**Tried**: `bin/audit/plant-late-clips.js`, shifting every clip the driver observes `+5000 ms` — the state
+`played at …ms, not before the clocks` names. Measured: the run **passed** (exit 0, 55 s), so the shift proved
+nothing, and the fixture was deleted rather than kept as an artefact that does not fire.
+
+**Why.** The window each comparison uses is not a page event. `windowFor` reads `recording-start`, which the *driver*
+pushes from its own observation of the item table (`dry_run.mjs:398`; `row-done` likewise at `:391`) — the page hook
+records only `fetch`, `start` and `stop` (`:91`, `:112-113`). A `--prepare` fault can therefore move the clip and
+nothing else, and the comparison is bounded on both sides by the walk's own row marks: `startsFor` keeps a clip only
+while `entry.t <= rowReachedAt[index]` (`:594-600`). A clip late enough to sit after its recording start must still be
+inside that bound, and one earlier than `window.t − 400` must stay above the previous row's mark — a window whose
+width is the take's own duration.
+
+**So the pair is reachable only by a shift tuned into that gap**, or by moving the *window*, which needs the recorder's
+take delayed (a `getUserMedia` that resolves late would do it, and the driver would then report the clip as too
+early). Neither is worth a fixture that must be re-tuned whenever the fixture script's timings change. The honest
+state: those two comparisons are exercised in their passing direction only, and this says why rather than leaving it to
+be re-derived.
+
+**The digression is worth keeping.** A clip shifted far enough to leave its row's span is silently re-attributed to the
+*previous* row by `startsFor`, which is why it also makes the fixture fragile: the driver would report
+`never played its clip` against the wrong item. Not a defect of the assertions — the row attribution is what makes the
+comparison mean anything — but the reason a tuning-based fault is awkward here.
+
+**Evidence**: the late-clips run (exit 0 in 55 s, `prepared(...)` logged); the hook's kinds by grep of `record('`;
+`recording-start` and `row-done` pushed by the driver (`:391`, `:398`); `startsFor`'s bounds (`:594-600`); the fixture
+deleted and `orphan_check` back to 51 files under `bin/`.
+
+### 11.248 The four design documents read for claims the code contradicts — 181 checked, 169 hold, and one code defect — **Fixed (data-model), recorded (the rest)**
+
+§11.161 found one false behaviour claim in these documents and §11.162 sampled six more; neither was a pass. This is the
+pass: four read-only scouts, one per document, each told to extract every claim about *what exists or happens today*,
+verify it against the code, and change nothing — the ratio being the measurement.
+
+| document | claims verified | hold | false / partial |
+|---|---|---|---|
+| `ui-spec.md` | 131 | 126 | 1 false, 4 partial |
+| `validation.md` | 50 | 43 | 1 false, 6 partial |
+| `data-model.md` (§2 on) | the scout's list | — | 5, each verified by me below |
+| `rest-api.md` | still running when this was written | — | — |
+
+(**Annotated, when the last two scouts reported.** `rest-api.md`: 95 verified, 86 hold, 4 false, 5 partial.
+`data-model.md`: 42 verified, 34 hold, 8 false or partial. Across the four documents: **318 verified, 289 hold, 29
+false or partial** — roughly one in eleven.
+
+The four false `rest-api.md` ones are divergences between that document's *frozen contract* and the code, which makes
+them the owner's to settle rather than a document's to correct: `POST script` returns `{scriptId, draftVersion, etag}`
+and echoes no draft body (`server/api.mjs:795-796`); `draft/_restore` likewise (`:352`); the `If-None-Match: *` create
+form answers **428** when a draft exists and no `If-Match` is sent, not the 412 the document names (`:249`, `:259`,
+`server/etag.mjs:26-28`); and `DELETE media` takes the basename as one segment, so the document's
+`src='media/model-01.wav'` returns 405 (`:575`, `:596`). Its five partials are smaller: the 412 body's
+`details.current`/`currentEtag` shape, refill order holding only for `SEQUENTIAL`, CSV audio never being multipart,
+builtin banks getting no special path resolution, and the ETag being a quoted sha256 rather than the `"4-17"` the
+document shows.)
+
+**`data-model.md` — corrected, seven edits.** It described a model the code does not have, in ways a reader would write
+against:
+- `playback` on a bank source was typed `Omit<Playback, 'replayable' | 'maxReplays' | 'durationMs'>` (lines 131 and
+  190); the model has the full `Playback` (`script.ts:144`).
+- The interface was named `Draw` (line 172); the model calls it `PrefillBankSource` (`script.ts:124`).
+- `Bank.itemCount` was required (line 231); it is optional (`script.ts:156`).
+- `Script.type` was the literal `'script'` (line 279); the model declares `string` (`script.ts:245`).
+- **`playback.src` was claimed three times** — line 256, the §3.3 example at 347 and frozen rule 5 at 364 — and
+  `Playback` has no `src` field at all. A bank item's clip becomes a **second `mediaitem`**
+  (`server/draw.mjs:129-135`: `{mimetype: audioMimetype ?? 'audio/wav', src: audioSrc}`). That is the one that would
+  have cost a reader real time, and all four mentions now say what happens.
+
+**`validation.md` — recorded, and one of its findings is code.** 43 of 50 hold. The sharpest: **the editor and the
+server implement E07 differently** — the server considers the whole `mediaitems` list and counts audio
+(`server/validate.mjs:83-91`), the editor only `mediaitems[0]` and skips items whose `playback` is set
+(`errors.ts:212-217`; verified by me, not taken from the scout). So the editor can refuse a script the server would
+publish, which is the opposite of that document's own principle that a client-side check is not the gate. Also false:
+*"the server repeats every error check **and the invariants in data-model.md §4**"* — the error half holds
+(`server/validate.mjs`), the invariants half does not (rules 3, 6, 7, 9, 10 and §4.5's resource rule are client-side
+only). Partials: E03's second message, E05's text differing, N02's scope (sections, groups *and* bank sources), W09's
+broader trigger, and the `Finding` shape's `suspended?` and `data?` fields.
+
+**`ui-spec.md` — recorded.** 126 of 131 hold. One false: §3.2 says the selected section's name is an `h1`; it is an
+`h2`, and the screen's only `h1` is the visually hidden "Script editor" (`editor-centre.html:36`,
+`editor-screen.html:1`) — the code is right and the document is wrong, which is what `editor_lint`'s one-`h1` rule
+enforces. Four partials: the save state has **four** visible forms (the document omits "Unsaved changes"), the status
+chip shows no version, the fixed group is a button list rather than "a table", and the preview has no
+desktop/tablet/phone control (the frame follows two media queries).
+
+**What it says about the documents as a whole**: 169 of 181 claims hold, so they are good documents — and the twelve
+that do not are mostly the documents being ahead of or behind the code, except three that would mislead an
+implementer, and those are named above rather than softened.
+
+**Next**: the remaining `validation.md` and `ui-spec.md` rows, the `rest-api.md` scout's report, and the E07 divergence
+— a small change in `errors.ts` to consider the whole list as the server does, which the shared corpus and the editor
+suite then have to confirm.
+(§11.249 did the E07 change: the editor now scans the whole list, the suite is 496/496, and the corpus is unchanged.)
+
+### 11.249 E07: the editor now considers the whole `mediaitems` list, as the server and the document always did — **Fixed**
+
+§11.248 recorded this as a code fault rather than a prose one. `validation.md`'s trigger says the **whole** `mediaitems`
+list is considered and that a `playback` does not count as something to play; `server/validate.mjs:83-91` does exactly
+that; and the editor's `checkE07` read `mediaitemsOf(item)[0]` and skipped any item whose `playback` was set. So the
+editor could **refuse a script the server would publish**, and pass one the server refuses — the opposite of that
+document's own rule that a client-side check is not the gate.
+
+**The divergence was written down in the code.** The docstring read *"E07 — the first mediaitem shows nothing… 
+(validation.md checks `mediaitems[0]`; `server/validate.mjs` scans every entry — see the report.)"* — which is what a
+comment is for, and also why nobody had fixed it: the document had the claim, the code had the behaviour, and the two
+disagreed with every step still green.
+
+**Changed**: `checkE07` takes the whole list and counts audio, exactly as the server does, and the `playback` gate is
+gone — E06 already names that item.
+
+**Two cases added, one of them the regression**: an item whose *second* mediaitem is what shows
+(`mediaitems: [{}, {text: …}]`) was refused by the old condition and is clean now; and an item with a `playback` and no
+mediaitem content now reports E07, as the server does. The **shared corpus is unchanged**, which is the evidence that
+the two implementations now agree rather than that one was bent to the other.
+
+**Verified**: `npm run test_editor -- --watch=false --browsers=ChromeHeadless` → **496/496 SUCCESS**, two of them the
+cases added here, the shared corpus included; `node --test server/checks-corpus.test.mjs` → 1 pass, 0 fail, untouched.
+
+**One mistake of mine**: my first version of the second case used the spec's `item()` helper without `mediaitems: []`,
+which supplies a text entry — so the case asserted a fault the fixture did not have. The suite caught it (1 FAILED of
+496) and the fix was the empty list.
+
+### 11.250 The `ui-spec` and `validation` rows §11.248 recorded — corrected — **Fixed**
+
+§11.248 left five rows in the first and six in the second, and each claim was verified against the code before it was
+touched.
+
+**`ui-spec.md` — five edits.**
+- §3.2 said the selected section's name is an **`h1`**; it is an `h2` (`editor-centre.html:36`), and the screen's only
+  `h1` is the visually hidden "Script editor" (`editor-screen.html:1`) — which is what `editor_lint`'s one-`h1` rule
+  requires, so of that pair the document was the wrong one.
+- §1 said the save state has **three** visible forms; there are four non-error ones — the missing one is "Unsaved
+  changes" (`shell-strings.ts:20`, `app-shell.ts:73-89`) — plus "No draft loaded" and the error state.
+- §2's status chip was said to show "Published vN"; it carries the status alone (`script-library.html:84`) and the
+  version sits in the usage cell beside it.
+- §3.2's fixed group was called "a table"; it is an aria-hidden grid header and a `<ul>` of
+  `<button class="fixed-row">` (`editor-centre.html:52,61,64`). The document's own next line, "Rows are buttons", was
+  already right.
+- §4's speaker frame was said to sit "at desktop, tablet or phone width"; there is no width control, only two
+  breakpoints (`script-preview.scss:180-188`).
+
+**`validation.md` — six edits, and one of them was a claim about the publish gate.**
+- The gate paragraph claimed the server repeats *"every error check **and the invariants in data-model §4**"*. The error
+  half is true (`server/validate.mjs` checks E01–E07 and E09–E11); the invariant half is not — those rules are
+  client-side, which the paragraph now says, with the consequence that document's own principle implies: a draft
+  written by another client can break them and still be published. My first version of that correction *listed* which
+  checks cover which invariants, which I had not verified; it is narrowed to the one I did — W08 is §4 rule 7's "at
+  most one mediaitem" (`validation.md:50`).
+- E03's row named one message; there are two (`editor-strings.ts:89-90`).
+- E05's row named one; there are three (`:93-95`).
+- N02's trigger was the bare `order: 'RANDOMIZED'`; the check fires on a section, a group **and** a bank source's
+  `bank.order` (`notes.ts:47-54`).
+- W09's trigger is gated on `AUTORECORDING` and *also* fires for a bank source's playback outside that gate
+  (`warnings.ts:210-232`).
+- The `Finding` shape gained the `suspended?` and `data?` fields the code carries (`validation.ts:44,46`).
+
+**Not changed**: E07's row, which always described the whole-list behaviour that §11.249 then made the editor match;
+and `rest-api.md`'s four divergences, which are the frozen contract against the code and the owner's to settle.
+
+### 11.251 Three of `rest-api.md`'s four divergences were the document's, not the code's — **Fixed**
+
+§11.248 recorded four divergences between that document's frozen contract and the code, and left them "the owner's to
+settle". Three are settled by reading the *client*: the editor's services implement the code's shape and cite the
+document's sections while doing it, so the document was the stale party to an agreement whose other two agree.
+
+- **`POST script`** (§2.2): the document promised "the draft body and its `ETag`". The server answers `Location`, the
+  `ETag` header and `{scriptId, draftVersion, etag}`, and echoes no draft document (`server/api.mjs:793-796`) — and
+  `script-api.service.ts:13-20` declares exactly that body, under a comment naming §2.3. The paragraph now says what
+  happens.
+- **`draft/_restore`** (§2.5): the same shape, the same fix (`api.mjs:196-200`).
+- **`DELETE media`** (§5 and the summary table): the document's example was `DELETE …/media/media/model-01.wav`, a
+  two-segment path the route answers with `405` (`api.mjs:575-596`), and its table called the parameter `{src}`. Both
+  now say `{name}` is the basename of `src`, which is what `media.service.ts:50-58` passes after splitting it.
+
+**The fourth stays the owner's**: with a draft present and only `If-None-Match: *` sent, the server answers `428` where
+the document says `412` (`api.mjs:249,259`; `etag.mjs:26-28`). That is a behaviour question — whether the create form
+should report a conflict or demand a precondition — and its fix would be in code, not prose.
+
+**So the four documents now hold one false claim between them**, that one, and the pass of §11.248 is closed.
+(**§11.252 then fixed that one too** — it turned out to be the code, not the document, and the four documents now hold
+no false claim.)
+
+### 11.252 The last false claim was the code's: a failed create-if-absent precondition answered 428, not 412 — **Fixed**
+
+§11.251 closed the document side and left this one as "the owner's". Reading the third party settles it: the **client**
+documents 412 as well — `script-api.service.ts:127-130`, on the create-if-absent request it sends — and RFC 9110 answers
+a *failed* precondition with 412. **428** means the request carried no precondition, which is a different situation and
+exactly the one `server/draft.test.mjs:29` pins. So the code was the odd one of four (document, client, RFC, code) and
+the fix belonged in the code, not in prose.
+
+**Changed**: in `requireDraftPrecondition` (`server/api.mjs`), a request carrying `If-None-Match: *` whose draft has
+appeared since now gets the same **412** `SCRIPT_DRAFT_CONFLICT` as any other stale precondition, with `details.current`
+and `details.currentEtag` — which is what the editor's create path reads to retry. A request with no precondition at all
+still answers 428.
+
+**The regression case, and the mechanism it measures**: `server/draft.test.mjs`'s legacy-script test now puts a *second*
+create-if-absent write against the draft the first one created, and asserts 412 with a `currentEtag`. Before the fix that
+path reached `checkIfMatch` with no `If-Match` header — **measured**: it returns `'missing'` with only `If-None-Match`
+present, exactly as with no header at all — so it answered 428 and the assertion would have failed.
+
+**Verified**: `node --test server/*.test.mjs` → **81 pass, 0 fail**, with the 428 case and the first create-if-absent
+write both unaffected, which is what shows the change is narrow.
+
+**Where the document pass stands**: 318 claims checked, 289 held, and no **false** claim is left — each was either
+corrected in the document, fixed in the code (§11.249, §11.252), or recorded as a decision. Five *partial* rows in
+`rest-api.md` are still narrower than the code and are named for whoever takes them next: the 412 body's
+`details.current`/`currentEtag` shape, refill order holding only for `SEQUENTIAL`, CSV audio never being multipart,
+builtin banks getting no special path resolution, and the ETag being a quoted sha256 rather than the `"4-17"` the
+document shows.
+
+### 11.253 The seven partial rows — corrected, and the document pass closes — **Fixed**
+
+§11.252 listed five partials in `rest-api.md`. Recounting the `data-model` scout's own list — **4 false, 4 partial** —
+showed two of its eight still standing as well. All seven were verified against the code before they were touched.
+
+**`rest-api.md`:**
+- the 412 body: the validator sits *beside* the draft (`details: {current, currentEtag}`, `server/api.mjs:259`), not "in
+  `details.current`" — a trap for a client that reads `details.current.etag`;
+- the validator's form: the examples said `"4-17"`, and so did the parenthetical; the server mints
+  `"<sha256 of the stored bytes>"` (`server/etag.mjs:15-18`). The strong-validator point was right; the shape was not;
+- the CSV `audio` column: stored **verbatim** as the item's `audioSrc` (`server/bank.mjs:147,191`) — never a multipart
+  part, and never checked against the media list;
+- builtin banks: nothing resolves their path specially; it is an ordinary project-relative one;
+- the refill order: the filter's order only for `SEQUENTIAL`, shuffled otherwise (`server/draw.mjs:99-100`).
+
+**`data-model.md`:**
+- the trace's home: the document said "`Session.prefills` plus `Session.bankDraws`"; the shared `Session` carries only
+  `prefills?` (`session.ts:27`), and the bank draws are the receiver's own trace, read through the draw API;
+- frozen rule 3's `draw`: the key is **legacy** — `Group` has no such field, the normaliser clears one side
+  (`normalise.ts:276-286`), which is why E08 has nothing left to check.
+
+**That closes the pass.** 318 claims checked, 289 held, and all **29** false-or-partial rows are now corrected in the
+document, fixed in the code (§11.249, §11.252), or recorded as a decision — none left standing.
+
+### 11.254 The whole CI, job by job — every job's content green on this tree — **Measured, no change**
+
+§11 records each gate's proof piecemeal; nothing had run *all* of it in one pass against the tree as it now stands. This
+is that pass, and it is also the answer to "is the workspace green" after a session whose changes touched the checkers,
+the audits, the driver, the workflows, the server and the editor:
+
+| job | what it runs | result |
+|---|---|---|
+| server | `node --test server/*.test.mjs` | **81 pass, 0 fail** |
+| library | `test_module --watch=false --browsers=ChromeHeadless`, then `build_module` and the version-file diff | **148/148**; build exit 0; the regenerated `spr.module.version.ts` is byte-identical (the check CI makes) |
+| editor | `test_editor … ChromeHeadless`, `editor_lint`, `build_editor` | **496/496**; lint exit 0; the production bundle generated in 8.7 s with no budget error |
+| audit | the theme and accessibility audits over the editor's routes, and `route_check` | run through §11.240–§11.243: both audits bite, and `route_check` pairs every audited state |
+| dry-run | the recorder's build, `server/server.mjs`, the driver and the receiver-side audits | run through §11.240–§11.246: the driver passes, and fails on both planted faults |
+| detail-view | the recorder's development build and the dialog-state audit | its fixture (`bin/audit/open-error-dialog.js`) and the `--rules universal --except 6` form are the ones §11.239 exercised |
+
+The eight static gates and their seven fixture sensitivities were re-run after every edit in these entries and never
+moved: exit 0 and exit 1.
+
+**What this does *not* prove**: the two browser jobs as CI runs them. The audits' invocations and the dry run were
+exercised one at a time, on this machine, not as a runner's single step — so the pass says the *content* of every job is
+green, not that the runner's plumbing is.
+
+**What remains, then, is four decisions and one pass, all of them the owner's** (from §11.244 and the entries after it):
+the receiver's two retention defaults (§11.194, §11.195 — bounded only on request); the non-text rule's state/boundary
+model (§11.241 — the marker itself measures 4.79:1); three accessibility checks narrower than the catalogue once
+implied (§11.238 — `aria-expanded` is read nowhere, rule 3 examines the controls the walk reaches, rule 10 takes a
+label as the measured target only for an `<input>`); and the two manual screen-reader passes (§11.2). Nothing else is
+open that a check, a fixture or a measurement can close.
+(**Annotated, §11.266 — three of the four were closed by the entries immediately after this one:** the retention
+defaults by §11.255 (the owner's instruction: age bounds, by default, at startup), the non-text model by §11.260 ("the
+owner took the decision. This is it."), and two of the three narrower checks by §11.256 (`aria-expanded`) and §11.257
+(rule 3's scope). What still stands is rule 10's label target — measured in §11.215 as a benign pattern, a scope choice
+rather than a defect — and the two manual screen-reader passes. **The list was written without reading forward:** every
+closing entry here is *later* in this section, which is the same failure §11.264 found in the headings, one level up.)
+
+### 11.255 The receiver's retention defaults — set at the owner's instruction, by age, and at startup — **Fixed**
+
+§11.194 and §11.195 left the two kinds of runtime state unbounded and recorded the choice as the owner's. The owner took
+it: bound them by **age**, not count, and **by default**. What that means in `server/store.mjs`:
+
+- **`JOURNAL_MAX_AGE_DAYS = 30`** — an `Idempotency-Key` older than a month is not a retry anyone is waiting on — and
+  **`UPLOAD_MAX_AGE_DAYS = 7`** — an unfinished upload is abandoned within hours, so a week is generous.
+- `trimJournal` applies the **age bound first**, then the count when `--gc-journal` gives one; an entry whose `date`
+  cannot be parsed is still never dropped, the rule both prunes already shared.
+- `gc`'s defaults are those constants, so a bare `--gc` bounds both. `journalMaxAgeDays: null` / `uploadsMaxAgeDays:
+  null` disable either at the API; the flags still tighten.
+- **`open()` applies both as well**, beside the temp-file sweep of §11.191 — so a deployment that never runs maintenance
+  bounds its own state, which is what "the receiver keeps" meant. Age is what makes it safe at startup: an unfinished
+  upload's chunks are inside the window by construction, which is the argument the store's own docstring made when it
+  explained why it collected nothing.
+
+**Four tests pinned the old policy, and each was rewritten rather than silenced** — the cost a policy change should have:
+- the test named *"only when given a count or an age"* became the new policy's: recent dates, so the **count** half is
+  what runs, and the bound switched off explicitly where the test means "count only";
+- *"both prunes keep what they cannot order"* moved its two dated fixtures inside the window, because its subject is
+  ordering, not age;
+- two tests that plant **past-dated** chunk sessions and then `open()` a second store — the undeletable one and the
+  corrupt-record one — were being collected by the startup sweep *before* the `gc` they were testing. Their fixtures sit
+  three days old now, and the tests pass an age of one day, so the age they name is what collects them.
+
+**Verified**: `node --test server/*.test.mjs` → **81 pass, 0 fail**. The two runs that failed first
+(`maintenance.test.mjs:369` and `:404`) were the change working — each was a fixture the startup sweep correctly
+collected — not a defect.
+
+**And the documents that stated the old policy**: `README.md`'s options row and `server/README.md`'s *"no retention
+policy here"* bullet now name both ages, say where they are applied, and say that the flags tighten rather than enable.
+
+### 11.256 `aria-expanded`: the check the catalogue required and the code never made — **Fixed**
+
+§11.238 corrected the *claim* (the audit read no such attribute) and §11.243 recorded the gap as a capability the owner
+might want. What kept it there was the risk that adding it would fail the applications; reading them settles that. The
+editor's outline **already sets it** — `editor-outline.html:68`, `[attr.aria-expanded]="row.hasChildren ?
+!isCollapsed(row) : null"`, which is the right semantics including the `null` that omits it for a leaf. So there was
+nothing to fix in the app, only a check missing from the audit — and the catalogue's line could go back to being a
+requirement instead of a correction.
+
+**Implemented**, as rule 7's other half:
+- the probe counts the treeitems that **have children** and carry no `aria-expanded`. Children are read from the
+  **levels**, not the DOM, because the outline flattens its rows: a parent is an item whose next treeitem is deeper —
+  the same reading `flattenOutline` gives the rows to begin with;
+- the judge reports `${n} treeitem(s) with children have no aria-expanded — a branch that never says whether it is open
+  reads as open`, inside `runs(7)` like the rest of the rule;
+- `a11y.md` and the audit's header state it as checked again, with the flattened-tree reading spelled out.
+
+**The fixture plants it**: `plant-violations.js`'s tree gains a level-1 parent and a level-2 child with no
+`aria-expanded` between them, placed *before* the existing level-less item so that one is not mistaken for a parent. The
+CI's assertion list gains the message — nineteen strings became twenty.
+
+**Verified**, with the editor dev server and Chrome (both stopped afterwards):
+- the **editor's own outline** (`/project/Demo1/script/1245/edit`, no fixture) → **exit 0** and zero messages about
+  `aria-expanded` — the application passes the restored check, which is what made adding it safe;
+- the fixture on the library route → exactly **1** finding, the new message;
+- the other nineteen asserted strings still hold on that page; the workflow parses and the step passes `bash -n`.
+
+### 11.257 Rule 3's scope: the whole page's ARIA relationships, not only the controls the pass walks — **Fixed**
+
+§11.238 recorded that rule 3 examined the controls the pass walks and nothing else, and corrected the catalogue to say
+so. Reading the *applications* shows what that scope was missing: the editor labels its **sections, asides and dialogs**
+with `aria-labelledby` — `library-title`, `draws-title`, `rule-heading`, `picker-heading`, `preview-title`,
+`publish-dialog-title` and more — and the controls loop reaches none of them. A heading renamed out from under one of
+those references would have gone unnoticed, which is the fault the rule exists to catch.
+
+**Implemented**: the probe collects every *other* element that carries `aria-labelledby`/`aria-describedby` — visible,
+not `aria-hidden`, and not matching the controls loop's own selector, so nothing is judged twice — with the same computed
+texts; the judge checks them inside `runs(3)`. Same shape as §11.256: a check the catalogue implied, an application that
+already satisfies it, and nothing that verified it.
+
+**The fixture plants it** — a `<section>` naming a heading that is not on the page — and the CI's list gains that exact
+message (`section.planted-violation aria-labelledby points at nothing with text`), the one assertion that can tell the
+widened scope from the controls-only one.
+
+**Verified** (editor dev server and Chrome, both stopped afterwards): **all eight** editor routes the CI audits —
+library, editor, source, preview, bank, draws, the bank + draw-rule screen and the project draws — exit 0 with **zero**
+references-at-nothing, so the application satisfies the widened rule; the fixture reports the section case beside the two
+input ones; and all twenty CI strings still hold.
+(**Annotated:** the *theme* audit runs the same fixture page. Measured with the section and the two treeitems planted:
+its eleven asserted strings still hold and it exits 1 as it must — so the shared fixture is green on both audits.)
+
+### 11.258 Rule 9's last two branches: why neither fires on Chrome — **Measured, no change**
+
+§11.240–§11.243 proved a case for every rule, and for every branch in the accessibility audit, except two in the
+accessibility-tree cross-check. Measured across every run saved here: `the accessibility tree has N treeitem(s) without
+a level` and `a radio in the accessibility tree has no checked state` appear **zero** times, while the *markup* versions
+of the same rules do fire — `1 treeitem(s) have no aria-level` from the planted level-less item, and the radiogroup
+messages from the unmarked group.
+
+Two runs settle why, without a new probe. In the empty-tree state (§11.243) the audit reports *"a tree with no
+treeitem"*, so Chrome's tree **is** read and a tree without items is seen; in the fixture run the tree holds items and
+that branch does not fire — so those items **are** in the tree. They carry no `aria-level`, and no branch complains of a
+missing level, so Chrome supplies one: it reports a **level** for a treeitem that never declares it, and a **checked**
+state for a radio that never declares one (`Accessibility.getFullAXTree`). Neither state is constructible on this engine.
+
+So the two branches are unproven **on Chrome** — the only engine CI drives — and are *not* dead: the audit can be aimed
+at WebDriver's Safari, the same idea as `layout_probe.mjs`'s `--browser safari`, where the tree is another
+implementation's and may omit both. Recorded rather than removed, and recorded rather than counted as proven.
+
+### 11.259 What the applications actually draw a state marker with — the measurement §11.241's decision needs — **Measured, no change**
+
+§11.241 left the non-text rule's model as the owner's decision, because widening it to a state element's descendants
+would also sweep the recorder cell's decorative hairline, measured at 1.06:1. Whether that is avoidable depends on what
+the applications actually use to mark a state, which nothing had measured:
+
+| where | the marker |
+|---|---|
+| editor, draws table (`draws-table.scss:54`) | `background` on the `tr` carrying `aria-current` |
+| editor, bank picker (`bank-picker.scss:56`) | `border-color` **and** `box-shadow: inset 3px 0 0` on `.bank-row.selected` |
+| editor, centre row (`editor-centre.scss:162`) | `background` + `box-shadow: inset 3px 0 0` on `.fixed-row[aria-current='true']` |
+| editor, outline row (`editor-outline.scss:105`) | `background` + `box-shadow: inset 3px 0 0` on `.row-main[aria-current='true']` |
+| recorder, progress rail (`progress.ts:118-130`) | `border-bottom-color` on `.selRow td`, **and** `box-shadow: inset 4px 0 0 0` on `.selRow td:first-child` |
+
+The pattern is uniform: the applications mark a state with an **inset box-shadow** — on the element that carries the
+state everywhere in the editor, and one level down in the recorder, where that same cell also carries a table-border
+colour. So the evidence points at a *narrow* rule — a state element's descendants' `box-shadow` and `outline`
+boundaries, leaving `border` out — rather than a broad one.
+
+**Not implemented here, deliberately.** Its only gain would be future-proofing a marker that already passes (4.79:1,
+§11.241), against a heuristic that can still fire on a descendant's unrelated shadow; and the audit would then be
+asserting a *style convention* — "states are drawn with box-shadows" — that no document states. That is the owner's to
+decide, and this is the measurement it needs.
+
+### 11.260 The non-text rule's model: a state's mark on a descendant — and the recorder's row finally measured — **Fixed**
+
+§11.241 measured the fault and left the decision; §11.259 measured what the applications draw a marker *with*; the owner
+took the decision. This is it.
+
+**The rule** now reads, for an element that announces a state, the boundaries on itself **and on its descendants** —
+`box-shadow` and `outline` on a descendant only, because the concrete false positive §11.241 measured was the recorder
+cell's *table border* at 1.06:1, which is structure, not the state. The state test moved into one `stateOfEl` per element
+so both fields read the same answer, and the judge walks `[...boundaries, ...stateDescendants]` in one pass through the
+same colour and ratio code.
+
+**And the recorder's own name is recognised.** `selRow` means only "the selected row" — unlike `active`, which §11.62
+excluded because it means a selection in the editor *and* a layout flag in the recorder — so the class test lowercases
+the class and includes `selrow`. Without that, the widened model would still have found nothing on the recorder: the
+element carrying the boundary has no state class.
+
+**Verified, and the marker is now measured rather than invisible:**
+- the **editor**, all eight routes the CI audits → exit 0 with **zero** state-marker findings: the widening changed
+  nothing there, since its markers already sit on the state element;
+- the **fixture** → the new plant fires — a state element whose child carries the bar — as
+  `div.planted-violation.is-selected state marker (is-selected) box-shadow contrast 1.10:1`, and the theme audit's
+  eleven asserted strings still hold;
+- the **recorder**, a row selected the application's way → **exit 0**: the marker *passes*, which is what §11.241
+  computed by hand (4.79:1);
+- a **control** proving that is not merely invisibility: painting that bar the row's own colour gives
+  `tr.selRow state marker (selrow) box-shadow contrast 1.00:1 < 3:1 (42,71,101 on rgb(42,71,101))` — the rule sees the
+  state, reads the descendant's box-shadow, and compares it against the row's background;
+- `bin/audit/select-row.js` plus a CI line select a row in the dry-run job — nothing there ever did — so the marker is
+  measured on every run instead of never.
+
+**One slip of mine on the way**: I first ran the recorder checks with the receiver started as a shell background job,
+which died with the command, so I was auditing Chrome's `ERR_CONNECTION_REFUSED` page and briefly read its complaints as
+a regression. The receiver has to be a managed service, which is how every other verification here runs it.
+
+### 11.261 `a11y.md` — the fifth document's claim pass, and the one that matters most for a human — **Fixed**
+
+§11.248 audited four design documents; `a11y.md` was never in that pass, only patched (§11.228, §11.238, §11.250). That
+matters more than for the others, because the two *manual screen-reader passes* rest on it: a drifted control or state in
+its script leaves the person running it floundering, with no way to tell a broken app from a stale document.
+
+A read-only scout extracted **76 claims about what exists or happens today**; **71 hold**, one is false, two partial,
+two are historical measurements that no code can confirm. What was wrong:
+
+- **The fixture's count**: *"plants a violation for ten of the rules below"* — stale since §11.242 and the entries after
+  it. Measured: the CI asserts twenty-one fragments from that fixture, and it plants a case for **fifteen of the
+  sixteen** rules. **Rule 1 is the exception, and that is itself worth knowing**: its planted nameless button has the
+  text `*` as its `textContent`, so the DOM name heuristic sees a name, and rule 9 — the accessibility-tree cross-check —
+  is what reports it. The sentence now says that, rather than listing ten rules and implying the rest are unproven.
+- **A CI claim that was a one-off**: *"CI checks that it stays so: removing one `aria-label` … makes it fail with that
+  button named"*. No step does that; it was a measurement taken when rule 1 was written, and it is now labelled as one
+  beside the fixture half, which *is* a CI step.
+- **What the checks panel announces** (a *manual* step's claim, and the one that would have cost a human real time):
+  the script told the reader to listen for `"Error, E02, …"`. The card renders the severity chip, then the line, then
+  the subject and the consequence message — **the check's id is not in it**. A person listening for "E02" would have
+  concluded the panel was broken. The step now says what is announced.
+- **A second stale count, in the editor's own README** (`doc/script-editor/README.md:619`): *"nine of the accessibility
+  rules"* → fifteen of sixteen, with the same exception named.
+
+**Not wrong, and left alone**: the two claims that only a screen reader can settle (the announcements themselves) and
+the two historical measurements the document reports as measurements.
+
+### 11.262 A gap the script pass turned up: `posinset`/`setsize` are drawn, relied on and unchecked — **Recorded**
+
+While auditing §11.261's manual script, one of its expectations turned out to rest on markup the audit never reads. Step 2
+tells a person to listen for VoiceOver announcing *"level 2, **2 of 5**"* in the outline; that count comes from
+`aria-posinset`/`aria-setsize`, which the outline sets from `flattenOutline`'s `posInSet`/`setSize`
+(`editor-outline.html:65-66`) — and the accessibility-tree cross-check reads `level`, `name` and `checked` but **not those
+two**. So a refactor of the flattening that got a position or a size wrong would change what a screen-reader user hears
+from "2 of 5" to "1 of 1", with every gate green and only a human pass — if anyone runs one — to notice.
+
+**Why it is recorded rather than implemented**: §11.258 established that Chrome's accessibility tree *supplies* a level and
+a checked state for markup that declares neither, so a check for these two may be equally unprovable on the only engine CI
+the way to add it is to write it, run it against the planted tree and keep it only if the planted fault actually
+reports — the measurement first, the gate second. That is the owner's to place, and this is what it needs to know.
+(**§11.263 did it, and the measurement moved the check**: the attributes are read in the markup, not the tree.)
+
+### 11.263 The position check — written, measured, and moved to where the attributes live — **Fixed**
+
+§11.262 recorded the gap (the outline's `posinset`/`setsize` drawn, relied on by the manual script, unchecked) and said
+the first move was to measure whether Chrome's tree exposes them, since §11.258 showed it supplies `level` and `checked`
+by itself. Measured, in that order:
+
+1. Written into the **accessibility-tree** cross-check → the **editor's own outline failed**, *"50 treeitem(s) with no
+   position"*.
+2. So the markup was measured directly, with a `--prepare` that throws the attributes: the outline's treeitems **do** carry
+   `aria-posinset`/`aria-setsize` — `"1"`, `"5"`, exactly the "2 of 5" the script tells a human to listen for. Chrome's
+   tree simply does not expose position as a *property*, the way it does not supply `checked` for a radio.
+3. So the first version was a **false positive on correct markup**, and it moved to where the attributes live: rule 7's
+   markup reading, beside `aria-level`. There the discriminator works — the real outline passes, the planted tree reports
+   *"3 treeitem(s) carry no aria-posinset/aria-setsize — a reader hears no \"2 of 5\""* — and the CI asserts that message.
+
+**Verified**: the editor's outline (`/project/Demo1/script/1245/edit`) → **exit 0**; the fixture on the library route →
+that one new finding, exit 1, with all the other asserted strings holding.
+
+So §11.262's gap is closed as a gate over the attributes, and the manual step's "2 of 5" now has a machine-checked half.
+What still needs the human is whether it is *spoken* as expected — which no DOM-reading audit can settle.
+
+**Verified on every callsite the gate now bites on**, not just the one: the recorder carries no `role="tree"` at all —
+grep finds the workspace's only tree in the editor's outline — so the branch is a no-op there by both the markup and its
+`tree !== null` guard; and all **15** audit invocations the CI job runs against the editor were extracted from the
+workflow and run verbatim — `/script`, the editor, the preview, the bank-draw editor (both fixture states), the bank, the
+draws, the per-bank view, the JSON source, and the dark-scheme and 390x844 repeats — **exit 0, no position finding, on
+every one**. The two fixture states that constrain it were measured too: with every rule excluded the planted page still
+**passes**, because the branch sits inside `runs(7)` (the property §11.239's check exists to protect), and the empty-tree
+state still names its two strings with **no** position finding (no treeitems, so no false positive). No assertion in that
+block counts findings, so one more message breaks none of the twenty-one it makes.
+
+### 11.264 The register's headings, audited — one was stale, and the rule that catches it cannot be gated — **Measured, no change**
+
+The closing claim that "nothing else is open" was itself a claim, so the register was audited rather than asserted: every
+`### 11.` heading classified by its status word. 263 entries — 109 `**Done**`, 61 `**Fixed**`, 22 `**Measured, no
+change**`, 15 `**Corrected**`, 5 `**Verified**`, 4 `**Built**`, and the rest narrowly annotated. Eleven were not
+*obviously* closed; ten of those resolve in their own bodies (answered by §11.176, or deliberately `**Recorded**`).
+
+**One was genuinely stale, and it is the one a reader would have misread**: §11.204's heading said *"Found, not changed"*
+while its own later paragraph said *"**Fixed** … Verified"* with an `i18n validation sensitivity` step that exists in
+`tests.yml`. The heading now carries the convention §11.173 already uses — the status, then the parenthesis naming what
+closed it.
+
+**Why this is measured rather than gated.** The rule that found it — and the widest one that stays sane — is narrow: a
+heading still reading **Recorded** or **Found, not changed** whose body contains **Fixed** or **Verified**. Even that
+cannot block a job, because a status word appears in prose all over the register (*"**Verified**: `grep …` lists seven
+steps"*, entries quoting each other's statuses): this entry is itself one of those quotations — it cites §11.204's
+**Fixed** under a `**Measured, no change**` heading — so the wider form of the rule would name a reader's citation as a
+defect, and the narrower form would miss the very entry it was written for the moment its wording changed.
+
+**Both forms were then run against the corrected register, and both cry.** The narrower one names §11.204 *still* — its
+heading now leads with the old status and carries the parenthetical that explains it, which is the form §11.173 sanctions
+— and the wider one names **66** entries, every `**Done**` whose body happens to mention a fix. A rule that reports the
+sanctioned form and four dozen healthy entries is not a gate; it is an audit run by hand.
+
+This session spent its effort removing exactly that kind of gate — the position check's
+first version, which fired on correct markup, and the UTF-8 probe written while auditing this very question, which
+reported 9,267 invalid sequences in a file of em-dashes and section signs because it counted each character's lead byte.
+Both were *probes*, not the file. A register pass runs this audit by hand at the end, the way §11.248 and §11.261 ran the
+document claim passes by hand: measure the 263 the register had when this ran, correct the one it names, and say what the
+rule cannot see.
+
+**Also measured on the way, and clean**: every design document, workflow and `bin/a11y_audit.mjs` decodes as valid UTF-8
+(0 of 11 files invalid) — worth knowing for files edited this heavily.
+
+### 11.265 "Every gate under `bin/` is proved to bite" — audited by execution, not by reading — **Verified**
+
+§11.244 closes with that claim, and a claim about *every* gate is the kind that quietly stops being true. It was
+measured instead: the fifteen tools under `bin/` were enumerated against the nine CI steps named sensitivity and the two
+audits' planted-fixture blocks.
+
+**Eleven are checkers, and all eleven bite — run here, not read.** The nine named steps each run their gate on a
+fixture and assert a non-zero exit (2–4 assertion branches each, so no step has §11.204's flaw of running the commands
+and asserting nothing); the two audits prove theirs by planting faults in the live page. Seven of the fixture steps had
+been run in this session's sweeps; the last two and the theme audit were run for this entry:
+
+| Gate | Bite proof, run here |
+|---|---|
+| dead_exports, orphan, workflow, package, editor_lint, route_check | fixture run → exit 1 |
+| docs_check | fixture pair → exit 1 |
+| docs_links | planted pair → exit 1, summary `2 broken link(s)`, both named, step's `^2 broken link` matches |
+| validate_i18n | `sv.json`'s `app` branch removed → exit 1 with **33** `sv.json is missing` messages; restore → exit 0, `git diff --exit-code` clean |
+| a11y_audit | planted fixture → exit 1, all twenty-one asserted strings including this session's position one |
+| theme_audit | planted fixture → exit 1, all **eleven** asserted strings; clean page → exit 0 |
+
+**Four are not checkers, and are documented as such.** `build_i18n.mjs` says in its own header that it *generates* —
+"The validator is the guard that runs in CI" — and runs nowhere in CI: correct for a generator. `serve_deploy.mjs` is
+the harness §11.24 asserts *about*. `ensure_env.mjs` and `layout_probe.mjs` are helpers the jobs use. Grepping for the
+wording "sensitivity" would have missed the audits' planted blocks; reading the job would have missed that only a
+*fixture* proves a checker.
+
+**One thing to know about the docs-links step, found by getting it wrong.** Its assertion is count-sensitive: `^2
+broken link` requires the tree to hold *no other* broken link, which is why it is stricter than it looks. My first
+two extractions of the step failed — a YAML `run:` line taken for shell, then a stray `docs-links-backup.md` of my own
+at the repository root, a copy of the README whose 36 relative links all break from the root, which made the planted run
+report 38 and left the clean run failing until it was deleted. Both were my plumbing, not the repository's: the step is
+sound, and the stray is gone. It is the third probe this session to fail on its own harness before measuring anything,
+which §11.264 records as the reason such a rule cannot be a gate.
+
+### 11.266 The enumerations' *content*, not just their headings — three lists were stale, two of them mine — **Corrected**
+
+§11.264 audited the register's headings; a heading is not a list. This audits the lists: every entry that enumerates what
+is left — §11.244's four, §11.254's "four decisions and one pass" — with each item checked against every entry *after*
+it. Thirty-five entries defer work by wording; about thirty are resolved or deliberately bounded, and the rest are these.
+
+**§11.254's list was three-quarters closed by the five entries that follow it.** Written at 254 entries, it says "four
+decisions and one pass, all of them the owner's". §11.255 set the retention defaults at the owner's instruction (age
+bounds, by default, applied at startup); §11.256 made the `aria-expanded` check; §11.257 widened rule 3 to the whole
+page's ARIA relationships; §11.260 took the non-text model's decision — "the owner took the decision. This is it." What
+stands is rule 10's label target, measured in §11.215 as a benign pattern and a scope choice rather than a defect, and
+the two manual screen-reader passes. Annotated in place.
+
+**Two of §11.244's item annotations, written earlier in this same pass, were themselves false** — the sharper finding.
+Item 1 read "**Still open at 264 entries:** no later entry sets a default"; §11.255 had, twenty entries earlier. Item 3
+read that rule 3's scope and rule 10's label target both stand; §11.257 had closed the first. Both were written by
+reading §11.244's own body, which is precisely the error the annotations existed to correct: **an enumeration must be
+checked against the entries *after* it, not the entry that contains it.** Corrected, and each correction says what it
+replaces rather than being quietly overwritten.
+
+**One false claim of the ordinary kind was found on the way.** §11.215 opens "Nothing checks it" about ui-spec's 44 px
+rule. `a11y_audit`'s rule 10 is that check — it measures the rendered height and fires on the fixture's planted target,
+`is 17 px high`, a string the CI asserts — so the sentence was false when written. What it meant is that the *lint* and
+the theme audit do not check it, and it named neither `a11y_audit` nor rule 10. Corrected in place.
+
+**Measured after the edits**: the eight gates and their seven sensitivities unchanged (exit 0 / exit 1), the heading
+audit still clean, and every correction names the entry that closed the item it annotates.
+
+**And the sources, once the lists were fixed.** A list is not the only place a reader lands: four entries carried the
+deferred claims those lists were built from, and not one referenced forward — §11.194 and §11.195, whose headings still
+read "Bounded on request" and "Collected on request"; §11.238, "three accessibility checks narrower"; and §11.241, "the
+marker is unmeasured". Each is closed by a later entry (§11.255; §11.256 with §11.257; §11.260), and each now says so
+where it makes the claim. Measured with a forward-reference count: **0** of the four referred to any entry numbered 255
+or higher before this pass, which is why a reader landing on them — rather than on the summary — would have taken four
+closed items for open ones.
+
+**And the backward direction: every absence claim, checked against the tree.** Thirty sentences in the register assert
+that something is *not* done — "nothing checks", "is never read", "has no test". Three were checkable and all three were
+measured: §11.84's "the server never reads `requestUUID`" holds (no hits in `server/*.mjs`); §11.17's "the N06 fix is not
+gated by `writesDisabled`" holds (`checkN06` pushes the fix and consults nothing); and §11.215's "Nothing checks it" — the
+one that did *not* hold — is corrected above. The rest are historical ("had never run at all"), stated limits ("What is
+not measured, and what would justify measuring it"), or already annotated. **One suspicion was measured and discarded**:
+§11.198 calls `validate_i18n` "**was** the exception" *and* names §11.204 closing it, so the pair agrees rather than
+conflicting — a grep-mate of the discards §11.244 records, and noted so it is not raised again.
+
+### 11.267 §11.254's table, row by row, from this machine — every row it claims as *content* reproduces — **Verified**
+
+§11.254 records one pass over every job's content and names its own limit ("the two browser jobs as CI runs them"). Three
+of its rows had never been re-run in this session's sweeps — the two suites and the builds — and a suite count is exactly
+the number that drifts quietly (§11.177's lesson). Run today:
+
+| row | §11.254 records | today |
+|---|---|---|
+| server | 81 pass, 0 fail | **81 pass, 0 fail** (`node --test server/*.test.mjs`) |
+| library | 148/148; build exit 0; the regenerated version file matches what is committed | **148 SUCCESS**; `build_module` exit 0 in 4.9 s; **`git status` and `git diff` show no version file**, so it matches |
+| editor | 496/496; lint exit 0; the production bundle with no budget error | **496 SUCCESS**; `editor_lint` exit 0; `build_editor` complete in **6.5 s** with no budget error (the entry's 8.7 s is a wall-clock reading, not a claim) |
+
+**And why the builds matter to a gate**: `package_check` audits what `dist/` holds, so the sweeps that ran it earlier in
+this work were reading whatever the last build had left there. Re-run over the freshly built package it is still exit 0 —
+the first time in this session that check has been pointed at output *this* tree produced.
+
+**Not re-run, and named rather than implied**: the dry-run row (it needs the built recorder, a seeded receiver and
+Chrome; §11.245 and §11.246 own it, and its new fail-closed assertions were verified there) and the detail-view row
+(the recorder's dev server on port 8391). §11.254's own limit stands beside both: this is each job's *content*, not a
+runner's plumbing.
+
+**Measured after**: 8 gates exit 0, 7 sensitivities exit 1, 266 register entries, nothing listening.
+
+### 11.268 §11.254's detail-view row, run end to end — and the audits' one carve-out proved load-bearing — **Verified**
+
+§11.267 named two rows it had not re-run. This is the first of them, run from the job's own steps: the recorder's
+development build (`ng build --configuration development` → `/tmp/devapp`), a seeded receiver on 8391 serving it
+(`--app /tmp/devapp/browser --project Demo1 --script playback`), Chrome headless on 9333, and the four audit invocations
+against `/recorder/session/1`.
+
+- theme and accessibility with `bin/audit/open-detail-view.js` → both **exit 0**; the fixture reports "detail view open
+  (app-audiorecorder)", the theme pass "5 distinct rendered background colours", the accessibility pass "Accessibility
+  audit passed (universal rules)".
+- theme and accessibility with `bin/audit/open-error-dialog.js` → both **exit 0**; the fixture reports "error dialog open
+  (app-audiorecorder)", the accessibility pass in its `--rules universal --except 6` form.
+
+**And the carve-out was measured rather than taken on trust.** The job's comment says rule 6 cannot tell Angular
+Material's modal pattern from a real violation and "would report the framework". Run without `--except 6`, the same page
+and the same fixture **fail**, naming exactly that: *"app-root.mat-typography is aria-hidden but contains focusable
+content"* — one finding, the framework's own focus trap. So the exclusion written into the command is load-bearing; a
+carve-out that did not bite would be the dead weight §11.204 removed.
+
+**Measured**: all four invocations exit 0 with the exclusion in place; the run without it exits 1 with that one rule-6
+finding.
+
+### 11.269 The documents' code citations — 78 of them, unchecked; and the fixture directory that never existed — **Fixed**
+
+§11.267 and §11.268 verified §11.254's rows. This is the other direction — what the *documents* claim about the code —
+and it began with a measurement rather than a suspicion: every `path/to/file.ext:NN` in a backtick span across the
+twelve documents, resolved by the path as written and then by basename when the sentence names the directory once and
+the file afterwards. **All 78 resolve, and every line number is inside its file** — 0 unresolvable, 0 ambiguous, 0 out of
+range. So the documents are sound today, and *nothing* read them: `docs_check` compares the receiver's flags,
+`dead_exports` reads symbols, and the link check reads markdown links, not prose.
+
+**One claim was not sound.** `bin/docs_links.mjs`'s header said `bin/docs_links_fixtures/` holds "a document whose links
+all resolve and one that links to a missing file and to a missing anchor, each planted so the sensitivity step asserts
+they are the *only* findings", and that `bin/docs_links_fixtures/small/` "is the case that proves it [`--min-links`]
+fires". **That directory has never existed** — only that header mentions it, while the step in fact proves the check the
+audit jobs' way: by planting into the live README and by pointing `--root` at `bin/audit`, a real directory holding
+almost no markdown. The paragraph now says so, and says that §11.269 corrected it.
+
+**The rule is in `docs_links.mjs` now**, where "the markdown itself" is already the subject: a citation resolves by path,
+then by basename; it fails when the file is absent, and when the last cited line is past the end of the file. A name
+several files share is skipped rather than guessed. The count prints on every run — the reason `--min-links` exists, one
+level down — and the CI's plain step now fails when it reports **zero** citations, so a walk that examined nothing cannot
+pass quietly.
+
+**Proved by output, both branches**: the real tree passes with **78 citations in range**, a number an independent scan
+agrees on; the sensitivity step plants two — a file that never existed, `no-such-file.ts` cited at its line 12, and
+`README.md` cited at its line 99999 — and both are named alongside the link half's exact two broken links. The floor
+still exits 1 and the workflow still parses. `workflow_check` validates the amended step's shape.
+
+**And the first run of the rule flagged this entry**, which is worth keeping: quoting a planted fault as a citation is
+indistinguishable from making one, so the two examples above are written the long way round and the scan skips fenced
+blocks — an example is not a claim, the same rule the link scan already follows. The check caught its own documentation
+before it caught anything else, which is §11.266's lesson about status words in prose, one kind of claim over.
+
+(**Its coverage, measured rather than assumed**: the extension list is what decides whether a token is a citation at all,
+so the documents were swept for `path.ext:NN` with any extension — **125** candidates, two of them outside the list, and
+both are `127.0.0.1:8080`, a host and a port that the rule is right not to read as a citation. My audit probe *did* read
+it, being the looser of the two by exactly one character class, which is the useful direction for this rule to be wrong in.)
+
+### 11.270 The register's own navigation — 269 entries, 813 cross-references, none dangling — **Measured, no change**
+
+§11.269 gated the documents' citations to *files*. This is the same claim one document over: the register leans on its
+numbering for everything — "§11.255 set the retention defaults", "(§11.260 closed it)" — and a `§11.N` naming no entry is
+a dead end for the maintainer, which is exactly what §11.266 spent a pass repairing by hand.
+
+**Measured**: the register holds **269** entries, numbered **1 to 269 with no gap and no duplicate**, every heading
+carrying a status. Across the twelve documents there are **813** `§11.NNN` references over **206** distinct entries, and
+**none is dangling** — not one points at an entry that does not exist. The navigation is sound, and nothing read it.
+
+**And it is checked now**, in `docs_links.mjs` beside the citations and for the same reason: when the plan is one of the
+documents walked, every `§11.N` in the set must name an existing entry, and a fenced block is skipped because an example
+is not a claim. The count prints on every run — `813 register reference(s)` today — and the CI's plain step fails when it
+reports **zero**, so a walk that examined nothing cannot pass quietly. The sensitivity step plants a dangling reference
+beside its two broken links and two stale citations; all five are named, and the link half still reports exactly its two.
+**This entry's first version wrote that planted entry number out as a reference**, so the rule — run over its own
+documentation — named it as the sixth: quoting a fault is indistinguishable from committing one. That is now three times
+in this register — §11.264's status words, §11.269's citations, and here — and it is why the scan skips fenced blocks: an
+example is not a claim, and prose that must mention a fault has to write it the long way round.
+
+**Proved by output**: the real tree exits 0 with 813 references resolving and 78 citations in range; the planted run
+exits 1 naming all three kinds of fault; the floor (`--root bin/audit`) still exits 1; the workflow still parses.
+
+(**Its coverage too**: the rule reads `§11.<digits>`, so the documents were swept for *every* `§11.` form — 805 numeric
+ones and **six** that are not: `§11.N` four times and `§11.x` once, each a *placeholder* describing the convention rather
+than a reference, in this entry, §11.216's and §11.264's. None names an entry and none should resolve, which is the one
+thing the rule cannot know and does not need to.)
+
+### 11.271 What the range check cannot see: four citations that drifted, all into files that grew — **Corrected**
+
+§11.269 gated a citation's *file* and its *line range*, and said plainly that its *content* is not machine-checkable.
+This is the content half, sampled rather than gated: for each of the 78, the identifiers named on the citing line were
+looked for in a window around the cited line. Eleven came back with nothing in common — a reading list, not a verdict,
+since the proxy also takes words like "answers" and "carry".
+
+**Read, four were genuinely wrong, and every one had the same cause: the file grew under the citation.**
+`bin/theme_audit.mjs:496` now holds contrast code, not the one-pixel tolerance, which is at `548`; `api.mjs:350-352` holds
+`getVersion`, while `draft/_restore`'s dispatch is at `196-200`; the component's shuffle code moved from `333-345` to
+`387`; and `audio_display.ts`'s `standalone: false` from `53` to `62`. **The other seven were sound** — including
+`server/etag.mjs:26-28`, where the comment at those lines *does* describe the 411/412 semantics the sentence claims, and
+`normalise.ts:276-286`, `draft.test.mjs:29`, `store.mjs:1191`, `maintenance.test.mjs:369` and the rest — which is the
+proxy's characteristic error: it looks for a symbol, and a doc comment does not name one.
+
+**All four are fixed in place**, with the theme-audit paragraph saying that its numbers have moved, because that entry
+records a *defect it found* and its second line still refers to the pre-fix numbering.
+
+**Why not a gate**: the proxy is a reading aid, not a verdict — one of its eleven candidates was correct and the
+difference is prose. What *is* enforceable stays enforced: the file exists, the range is inside it, and the count is
+printed. The lesson is for whoever writes the next citation into a file that is still being edited, which is what all
+four of these were.
+
+**The two `.md` citations were read as well**, being the only ones whose target is a document: `validation.md:50` is
+exactly the W08 row it is cited for, and `doc/script-editor/README.md:619` is the stale count §11.261 corrected, which is
+what its entry says it is. **Scope of this sample, stated**: the eleven the proxy flagged were read one by one; the other
+sixty-seven matched at least one identifier in both places and were not read individually — a positive signal from a
+proxy whose *negative* signal was wrong four times out of eleven.
+
+### 11.272 §11.254's dry-run row — M1's own gate, run end to end, and the receiver-side audits with it — **Verified**
+
+§11.267 named two rows it had not re-run; §11.268 took the first. This is the second, and it is the project's M1 gate:
+the driver that drives the recorder in Chrome and asks *the recorder*, not the document, where each clip played.
+
+Run from the job's steps — `npm run build` to the production bundle `dist/cavox/browser`, a seeded receiver on 8391
+serving it (`--project Demo1 --script playback`), Chrome headless on 9333 with a fake media stream, then the driver
+against session 1 on a fresh data directory, nothing loaded yet.
+
+**It reproduces §11.245's record in every particular**: exit **0**; the placement table lists all **7** items — P1–P5 and
+the two *drawn* bank items D001 and D002, in the group the rule drew; `rows: 7/7 reached, 6 marked done`; `session:
+status=COMPLETED`; the start/stop/window audit trail, with the start control and the headphone reminder named; and it ends
+`Dry run passed.` with **zero** `unverified` — so the audio clock advanced and this was not the degraded branch §11.245's
+fail-closed assertions exist to catch.
+
+**And the receiver-side audits the row also covers**, which had not been run here: **18 invocations** — theme and
+accessibility, the latter with `--rules universal`, over `/spr/session/1`, `/` and `/spr/respondent/1`, at 1366x768 and
+390x844 and again in the dark scheme — **all exit 0**. (**§11.274** then ran the whole step as one unit, which adds the
+two planted driver faults and the theme rules for the recorder's own chrome.)
+
+**One more repetition of this session's own lesson**: extracting those commands by grep took the first line of the
+two-line continuations, so five returned `unterminated escape sequence` — plumbing, not the commands. Four of the five
+belonged to the detail-view job, already run in §11.268, and the fifth was its pair. That is the fifth time in this work a
+probe failed on its own harness before measuring anything, which is §11.264's argument for keeping such rules out of a
+gate rather than in one.
+
+### 11.273 Every path the workflow files name — 160 of them, all resolving — **Fixed**
+
+§11.265 established that every gate under `bin/` is proved to bite. This asks a different question of the same files: do
+the paths their *commands name* exist? A step pointing at a deleted tool or fixture is a job that fails when CI reaches
+it — the slowest way to find out — and nothing checked it, while `workflow_check` checked only the YAML's shape.
+
+**Measured first**: 160 paths named across `tests.yml`, `codeql.yml` and `osv-scanner.yml` — `bin/…`, `server/…`, `src/…`,
+`projects/…`, `doc/…` and their wildcards — and **every one resolves**. (The first pass reported three misses; they were
+mine: `sv.json` matched as `sv.js`, because `js` came before `json` in the alternation. That is the seventh time in this
+work a probe failed on its own plumbing, and this one is a classic.)
+
+**And it is a rule in `workflow_check.mjs` now**, where the subject already is those files: every path a command names
+must exist, wildcards expanded against their directory, `{...}` alternatives left alone because the workflows use none.
+The fixture gains its ninth planted case — a step running a tool that is not there — and the sensitivity step asserts the
+new message beside its eight.
+
+**Proved by output**: the real file passes, naming its six jobs; the fixture fails, naming **every** rule it plants —
+nine when the path rule went in, ten now that the script rule is beside it; `node --check` is clean.
+
+### 11.274 The dry-run step itself, run verbatim — 16 of its 17 assertions hold here, and the seventeenth is a platform difference — **Verified**
+
+§11.272 ran the driver and the audits by hand. The *step* was then extracted from `tests.yml` and executed as one unit —
+with two shims on `PATH`, `pactl` and `google-chrome`, for the two things macOS does not have — which exercises the parts
+the hand run did not: the two planted driver faults, the layout probe's four failure modes, the transport-bar and rail
+rules, and the selected-row marker.
+
+**Sixteen of the seventeen assertions hold here.** The driver passes on session 1 (`Dry run passed.`); it *bites* on both
+planted faults — the run that cannot proceed and the clip it cannot see, §11.246's pair; the layout probe reports all four
+failure modes; the transport-bar and rail rules are proved to bite; the selected row's marker is measured and passes.
+
+**The seventeenth does not fire on this machine — and the run's own output says why, rather than my reasoning about it.**
+It asserts the driver's 90-second deadline on the run whose prompt clips are blocked at the network: the Linux behaviour,
+where Chrome's audio clock is frozen, the driver waits for a state it never reaches, and the deadline is the right ending.
+Here the clock advances — the fact that made the first run clean, with §11.245's degraded branch untriggered — so:
+
+- the fixture reports what it planted: *"every `/media/` and `.wav` request from the page now fails at once"*;
+- the driver **runs the session to its end anyway** — `rows: 7/7 reached, 6 marked done`, `session: status=COMPLETED`,
+  windows up to `t+44646ms`, well inside the 90-second bound §11.246 added;
+- and it fails with **7 dry-run problems**, each naming the block: *"item 6 (D001, DURING) never played its clip"*, *"item 7
+  (D002, DURING) never played its clip"*, *"the drawn items never played their own bank recordings"*, and the console
+  errors for the two prompt clips.
+
+So the driver is not merely not hanging here; it does the job and reports the right seven faults. What it does not do is
+name a deadline, which is the one thing the seventeenth assertion requires — the assertion is right for its runner, and
+this machine takes the other road to the same non-zero exit. A platform difference, now quoted rather than inferred, and
+the same kind as `google-chrome`: the sixth probe in this work that had to be fixed before it could measure its subject.
+
+### 11.275 What the screen-reader script asks for against what the audit reads — a fourth residual, and a claim corrected — **Corrected**
+
+The one register item that is not the owner's is §11.2's two manual passes, and §11.261 made their *script* accurate. This
+asks the other half of that question: of its nine steps, which does a machine already settle? `a11y.md`'s own title
+promises the answer — *"what is automated, and what a person must do"* — and its opening sentence gave the wrong one:
+"`bin/a11y_audit.mjs` for **everything that is a property of the DOM**".
+
+**Measured, and it is not everything**: the audit's sixteen rules say **nothing** about `table`, `row`, `columnheader` or
+`cell` — grep, zero hits — while steps 1 and 9 ask for exactly that ("the list reads rows as a table"; "the table announces
+session, speaker, drawn/recorded and status"). A list read as a table *is* a DOM property, so the sentence over-reached.
+It and the missing mapping are both corrected in `a11y.md` now: four steps are the audit's own (2, 5, 6, 7), two are
+*partly* (3 and 8 — the announcement's wiring is checked, the keystroke and the reader's voice are not), and three are the
+person's (1, 4, 9).
+
+**The gap is recorded rather than closed here, and it is a fourth residual of §11.238's family**: those two steps describe
+checks a headless pass *could* make — a table's rows, and what each row announces — and none was made. Nothing in the
+catalogue claimed otherwise, so this was a capability gap rather than a false claim. (**§11.276 then closed it**: the
+tables are real markup, the row check is in the audit, and the "owner's call" I wrote here was an assumption a measurement
+settled.)
+
+**Proved by output**: `a11y.md` now maps its nine steps onto what the audit settles; the eight gates and seven fixture
+sensitivities are unchanged by a document edit.
+
+### 11.276 The two table steps are machine-checkable after all — a residual closed, and a probe that read the wrong property — **Fixed**
+
+§11.275 recorded the table steps as a residual and called closing it "the owner's call, like the three beside it". **That
+was an assumption a measurement settles**: what *is* the editor's list in the DOM? Probed on the two routes those steps
+name — `/project/Demo1/script` and `/…/bank-draw/draws` — the answer is plain markup: **1 real `<table>` with 13 rows, 18
+`<th>` and 60 `<td>`**, and on the draws route **2 tables, 6 rows, 10 headers, 20 cells**. Not a `div` grid, not a
+`role="table"` imitating one: real tables, so what a reader is handed is exactly the cells.
+
+**The check is in `a11y_audit` now**, sharing the idiom of the live-region rule beside it — a row is announced by its
+*cells*, so a row with no text below it announces nothing. **The first version read the wrong property**: it asked the tree
+for the row's `name`, and Chrome gives a `row` none — measured, 13 of 13 rows on the library and 6 of 6 on the draws came
+back "unnamed", which is a probe fault rather than an application one, exactly as §11.262 found for a treeitem's position.
+Reading the cells discriminates: both real routes **pass**, and the fixture's planted empty row is named alone — *"1 table
+row(s) with no name"*.
+
+**So the manual script's first and ninth steps have a machine half**, and `a11y.md`'s mapping is corrected with them: of
+the nine, five are the audit's own (1, 2, 5, 6, 7), two are *partly* (3 and 8), and **one** is the person's alone — 4, the
+filter's behaviour, which no property expresses.
+
+**Proved by output**: both routes exit 0; the fixture names the planted row, and all **22** strings the CI asserts are
+present with none missing.
+
+(**And this entry's own "one is yours alone" was wrong, one measurement later — the third over-claim in this family.**
+Step 4's mechanics are in the editor's own suite: `editor-outline.spec.ts` names "focuses the filter on / from anywhere on
+the route", "never steals / while the operator is typing in a field" and "leaves other keys alone", and `outline.spec.ts`
+"keeps the ancestors of an itemcode match" — this step's four behaviours, exactly. So the true split is not
+audit-against-person but **properties against behaviour against speech**: the audit reads the DOM, the specs drive the
+keystrokes, and what the reader adds is the announcement. §11.273 called a measurable DOM question the owner's call, this
+entry called spec'd behaviour the person's alone, and §11.271's first probe read the wrong property — three over-claims,
+each settled by a single measurement, which is the argument for taking one before writing the word "alone".)
+
+(**The mapping's four quoted titles were then verified the same way** — `editor-outline.spec.ts` holds all three it is
+credited with, `outline.spec.ts` the fourth — as was the register's own quote in its rule-5 sentence: "the four inspector
+variants the deep link chooses" *is* in `editor-screen.spec.ts`'s comment, where that entry says it is. The probe which
+raised the question had attributed quotes by *line*, and a sentence naming two spec files defeated it — another failure of
+this family. **The ordinals scattered through this register ("the fifth time", "the seventh", "the tenth") were
+impressions, so they were tallied instead.** A probe failure is *a tool I wrote failing on its own plumbing or input before
+it could measure its subject*; a sweep for the passages that say so finds **25 entries** in this file, **ten of them in
+this pass alone** — the position check asking its tree for a property it does not expose, the UTF-8 probe counting lead
+bytes, the citation scan flagging its own documentation, the `X.md §N` pattern missing the form the prose uses, the two
+`README.md` keys collapsing into one, `sv.json` matched as `sv.js`, the grep that took the first line of a two-line
+continuation, `google-chrome` absent on a Mac, the row check asking for a `name` a `row` never has, and the quote
+attribution a two-file sentence defeated. Ten failures, ten measurements eventually taken, and not one of them changed the
+subject — only the tool.)
+
+### 11.277 Rule 10's label target — the last narrower check, measured out of existence — **Verified**
+
+§11.238 corrected three claims that were narrower than the catalogue implied, and two were closed by widening the checks
+(§11.256, §11.257). The third stayed open: rule 10 measures a control inside a `<label>` *as that label* only for an
+`<input>`, so a `select` or a custom widget wrapped in a label would be measured as itself.
+
+**Measured, and the case does not exist here.** On the three screens that have labels — the editor's inspector form, the
+bank picker, and the preview — the counts are 3, 6 and 0, and **every interactive element inside any of them is an
+`<input>`**: the probe's `nonInput` map is empty on all three, and nothing wrapped came back under 44 px. Rule 10's scope
+is therefore exactly the DOM's — no case it misses, none it misfires on — so the third narrower check is moot rather than
+open, and §11.244's item 3 is closed.
+
+**Which leaves the register's outstanding set at one** — and it is outside every check: rule 10's target is answered, and
+what remains is the two manual screen-reader passes, whose document (§11.275, §11.276) now says which parts a machine
+proves and that the *speech* is the part the person is there for. (This paragraph first said "two", which is the number of
+*passes* rather than of items — the kind of count §11.177 exists to catch, made in the sentence that closes the set.)
+
+**Proved by output**: three routes probed, the `nonInput` map empty on each; the eight gates and seven fixture
+sensitivities unchanged.
+
+### 11.278 What remains, at 277 entries — one item, and it is not engineering — **Summary**
+
+§11.244 enumerated this at 243 entries, and §11.254 restated it as four decisions and a pass. Thirty-four entries have
+landed since, so it is enumerated again the same way: from every entry that records something as left rather than doing it.
+
+- **The receiver's two retention defaults** (§11.194, §11.195) — **closed** by §11.255, at the owner's instruction: bounded
+  by age, by default, applied at startup.
+- **The non-text rule's state/boundary model** (§11.241) — **closed** by §11.260: "the owner took the decision. This is it."
+- **Three accessibility checks narrower than the catalogue implied** (§11.238) — **closed**: `aria-expanded` by §11.256, rule
+  3's scope by §11.257, and rule 10's label target by §11.277, which looked for the DOM case it would miss and found none.
+- **The two table steps no machine could settle** (§11.275) — **closed** by §11.276: the tables are real markup, and the row
+  check is in the audit.
+- **The dry-run driver's lack of a planted-fault proof** (§11.244's §11.245 annotation) — **closed** by §11.246.
+
+**And the one that is left**: the two manual screen-reader passes (§11.2) — VoiceOver on Safari and NVDA on Firefox, on
+`a11y.md`'s script, which §11.275 and §11.276 have made accurate in both directions: five steps are the audit's own, two
+are partly, one belongs to the editor's own suite, and what the person adds is the *speech*.
+
+**Nothing else of that kind**, checked as §11.244 checked it: every gate under `bin/` is proved to bite by execution
+(§11.265); every rule both audits document has a case; and the pointers between documents resolve — 89 relative links, 88
+code citations and **888** register references when this sentence was drafted, gated in `docs_links`, with the workflows'
+own paths and npm scripts gated in `workflow_check`. (**A count here is one entry out of date the moment it is written,
+because the sentence that states it — this one, and the correction that put 888 in place of §11.177's 855 — adds to it.
+For a number that is never stale, run the check: the summary is a reading, not a reading's replacement.**)
+
+**One thing worth recording, because it happened three times in the entries above**: the audits opened while writing them
+— the docs' `§` cross-references, the fixtures' reach, the root README's claims — were **already recorded**, and in two
+cases better than the probe that re-found them: §11.216 knew three conventions where my probe knew one, and §11.139 with
+§11.146 had taken the same measurement *with* the correction it later needed. That is the register working as designed,
+and it is the honest answer to "what is left": everything a check, a fixture or a measurement can close is closed, and
+audits in this range now confirm rather than find.
+
+(**And the other half of the same class**, measured the same way when the path rule went in: **15** `npm run <name>`
+invocations across the workflows and the documents — `test_module`, `test_editor`, `build_module`, `build_editor`,
+`validate:i18n`, `serve:api`, `pack_pi_module`, `start_prod` and the rest — **every one defined** in `package.json`'s 24
+scripts. It is a rule in the same check now, with a tenth planted case in the fixture: a renamed script is a job that
+fails at the last step rather than at the edit.)
+
+(**The path rule's own limit, measured rather than assumed**: it matches a path *with an extension*, and the workflows
+name **13** directory-valued ones — the four fixture roots, `--seed src/test`, `--app dist/cavox/browser`, `--data` and
+`--output-path` targets — **all present**. Widening it to bare directories was tried and rejected on the evidence: the
+same probe reports `--app none`, which is how the receiver says "serve no application", so the rule would accuse a
+sentinel of being a missing path. The limit is in the check's header for whoever widens it next.)
 
 
