@@ -517,8 +517,21 @@ jobs:
             sudo apt-get update -qq && sudo apt-get install -y -qq pulseaudio > /dev/null 2>&1 || true
           fi
           pulseaudio --start --exit-idle-time=-1 --disallow-exit > /dev/null 2>&1 || true
-          pactl load-module module-null-sink sink_name=null_out > /dev/null 2>&1 || true
-          pactl set-default-sink null_out > /dev/null 2>&1 || true
+          # The sink is what makes the clip-relative checks possible, and its absence used to be silent: every line here
+          # discarded its output behind `|| true`, so a runner that could not create it said nothing, and the first word
+          # was the driver's degraded branch five minutes later — a symptom, not a cause (§11.283). Retry it, then say.
+          for attempt in 1 2 3; do
+            pactl load-module module-null-sink sink_name=null_out > /dev/null 2>&1 || true
+            pactl set-default-sink null_out > /dev/null 2>&1 || true
+            if pactl list short sinks 2>/dev/null | grep -q null_out; then
+              break
+            fi
+            sleep 2
+          done
+          if ! pactl list short sinks 2>/dev/null | grep -q null_out; then
+            echo "the null sink could not be created on this runner, so the clip-relative checks cannot run — that is the"
+            echo "one thing this job exists to check (§11.245), so it fails here rather than five minutes into a session"; exit 1
+          fi
           node server/server.mjs --port 8391 --data /tmp/dryrun --seed src/test \
             --app dist/cavox/browser --project Demo1 --script playback --quiet > /tmp/receiver.log 2>&1 &
           google-chrome --headless=new --remote-debugging-port=9333 --user-data-dir=/tmp/cdp-dry \

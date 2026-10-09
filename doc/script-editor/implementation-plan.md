@@ -8314,7 +8314,7 @@ who runs one now lands on the version whose results the checks report.
 and seven fixture sensitivities are unchanged. Whether Node 22 would have been green for §11.281 is not claimed: that entry
 is diagnosed by its log, not by this one.
 
-### 11.283 The tip's two red checks, diagnosed — a missing audio sink and a spec's stale expectation — **Observed, not reproduced**
+### 11.283 The tip's two red checks, diagnosed — a missing audio sink, and a transient the helper rules out — **Observed, not reproduced**
 
 §11.281 kept the evidence for the editor job; this is what it says, with the dry-run's failure beside it. Neither is a
 defect in the product.
@@ -8346,6 +8346,25 @@ bytes) and not a mechanism, because no mechanism has been shown.
 this browser cannot play a clip"* — the degraded branch, then failed on two console errors. The step's `pulseaudio` install
 is best-effort by design (`|| true`), and §11.245's fail-closed assertion then did exactly what it was written for: a run
 whose clip-relative claims were never checked fails the job instead of passing it green.
+
+**Both jobs were re-run on the same commit**, which is the test of both readings: the transient passed, and the sink's
+absence — an environment fact, not a defect in the product — is what §11.284 now reports where it happens.
+
+### 11.284 The dry-run's silent sink — a best-effort install that failed and said nothing until minute five — **Fixed**
+
+§11.283 diagnosed the dry-run job's red: the driver took its degraded branch and §11.245's fail-closed assertion failed the
+step, which is what that assertion is for. What it leaves is *how* a runner's missing audio sink is discovered: silently,
+five minutes later.
+
+Every line of the sink's setup discarded its output behind `|| true` — the `apt-get` install, `pulseaudio --start`, the
+`load-module`, the `set-default-sink`. A runner where any of them fails says nothing at all; the first word is the driver's,
+after a whole session has been driven, and it names the *symptom* (a browser that cannot play a clip) rather than the cause.
+
+**Changed**: the sink is created in **three attempts** and then **asserted**, with a message that says which thing failed and
+why it matters — *"the null sink could not be created on this runner, so the clip-relative checks cannot run — that is the one
+thing this job exists to check (§11.245), so it fails here rather than five minutes into a session"*. The step still fails
+when the sink is absent, so §11.245's intent is untouched; it now fails where the cause is rather than where the symptom
+surfaces.
 
 **Both jobs were re-run on the same commit**, which is the test of both readings: a race and a missing sink pass on a second
 attempt, while a real defect does not.
