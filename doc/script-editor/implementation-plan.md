@@ -8381,4 +8381,19 @@ surfaces.
 **Verified**: `workflow_check` passes the amended file — six jobs — the broken fixture still names all ten rules, `bash -n`
 parses the amended step's shell, and the eight gates are unchanged.
 
+### 11.285 The sink failure is not a transient — the re-run failed at the same step — **Observed, not reproduced**
+
+§11.283 diagnosed two reds and could not tell flakes from facts; the re-run separated them. **`Editor (karma + build)`
+passed again** on the same commit with nothing changed, so the round-trip failure is the transient its own spec's comment
+describes. **`Recorder dry run` failed again, at the same step** — `Drive a session end to end` — so the missing audio sink
+is not a flake but something about that runner image, and §11.284's retry-and-assert is aimed exactly at it.
+
+**What that changes**: the fix's value is not "it will pass now" but "it will *say*". If `pactl load-module` cannot create
+a sink on this image, the step fails in seconds with that sentence rather than five minutes into a session; if the three
+attempts do succeed, the clip-relative checks run as §11.245 intended. The run triggered by the push of `0b9632ab` decides
+which — and if it fails *at the sink*, the finding is a runner dependency rather than anything in this repository, which is
+worth knowing precisely and reporting as such.
+
+**And the branch is current**: nine commits pushed, with local, `origin` and the pull request's head all at `0b9632ab`.
+
 
