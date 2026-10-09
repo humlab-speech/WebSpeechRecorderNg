@@ -8299,6 +8299,21 @@ cannot erase the question it would otherwise answer.
 **Not a finding yet, and not pushed**: the entry is committed locally so the tip under test stays fixed, and it follows the
 log rather than preceding it.
 
+### 11.282 The version CI runs and the version a developer runs — pinned in six places, nowhere they would look — **Fixed**
+
+Chasing §11.281 turned up the condition that makes such a chase likely in the first place: **the repository pins Node in six
+workflow places and nowhere a developer would find it.** Every job names `node-version: 22`; there is no `.nvmrc`, no
+`.node-version`, and no `engines` field — while this machine runs **v26.8.2**, four majors past CI. A local green run and a
+red one in CI differed on a variable the tree never mentioned.
+
+**A `.nvmrc` holding `22`** is added. It is advisory and can break nothing: `actions/setup-node` is given its version
+explicitly in all six jobs, so CI does not read it, and a machine without a version manager ignores it — but a developer
+who runs one now lands on the version whose results the checks report.
+
+**Verified**: `node --version` is v26.8.2 here, the workflows say 22 in six places, and with the file added the eight gates
+and seven fixture sensitivities are unchanged. Whether Node 22 would have been green for §11.281 is not claimed: that entry
+is diagnosed by its log, not by this one.
+
 (**And the other half of the same class**, measured the same way when the path rule went in: **15** `npm run <name>`
 invocations across the workflows and the documents — `test_module`, `test_editor`, `build_module`, `build_editor`,
 `validate:i18n`, `serve:api`, `pack_pi_module`, `start_prod` and the rest — **every one defined** in `package.json`'s 24
