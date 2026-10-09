@@ -8222,6 +8222,12 @@ cases better than the probe that re-found them: §11.216 knew three conventions 
 and it is the honest answer to "what is left": everything a check, a fixture or a measurement can close is closed, and
 audits in this range now confirm rather than find.
 
+(**A fourth came after this entry was written**: the deployment sample, `apache_www_htaccess_sample.txt`, and whether
+anything outside `.github/workflows` could be a loose end. Nothing could — that directory holds nothing but workflows, and
+the sample is named by `server/README.md`, the design README and the register, which covers it in an entry of its own.
+Confirmed rather than found, again, and the count in the paragraph above was an impression of the three before it — the
+class it describes.)
+
 ### 11.279 The branch's work, committed — nine commits, and the tree clean for the first time in this pass — **Done**
 
 §11.126 and §11.170 recorded this work's git state before; this records it again, because the state had drifted exactly the
