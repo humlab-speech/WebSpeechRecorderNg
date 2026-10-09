@@ -8477,7 +8477,11 @@ are clean now: `9e5b5d5f` carries the two `--deadline-ms` flags.)
 
 (**And the run that followed passed with the bound in place**: `9cff5476` finished all six jobs green — including the dry
 run, whose first invocation fit inside the five minutes — and the pull request showed ten checks passing and none failing.
-The bound is not merely present; it is short enough for a healthy run and long enough to have caught nothing.)
+The bound is not merely present; it is short enough for a healthy run and long enough to have caught nothing.
+
+(**And the tip carrying four held corrections passed too**: `92ce88ae` finished all six jobs green — the dry run among them,
+second consecutive time — with the pull request's ten checks passing and none failing. Two green runs on the same tree, one
+of them with the corrections on top, is the answer to whether the fixes were the fixes.)
 
 ### 11.289 Claims of mine that did not survive their check, and where they were made — **Recorded**
 
