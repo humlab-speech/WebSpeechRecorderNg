@@ -8074,6 +8074,18 @@ new message beside its eight.
 **Proved by output**: the real file passes, naming its six jobs; the fixture fails, naming **every** rule it plants —
 nine when the path rule went in, ten now that the script rule is beside it; `node --check` is clean.
 
+(**And the other half of the same class**, measured the same way when the path rule went in: **15** `npm run <name>`
+invocations across the workflows and the documents — `test_module`, `test_editor`, `build_module`, `build_editor`,
+`validate:i18n`, `serve:api`, `pack_pi_module`, `start_prod` and the rest — **every one defined** in `package.json`'s 24
+scripts. It is a rule in the same check now, with a tenth planted case in the fixture: a renamed script is a job that
+fails at the last step rather than at the edit.)
+
+(**The path rule's own limit, measured rather than assumed**: it matches a path *with an extension*, and the workflows
+name **13** directory-valued ones — the four fixture roots, `--seed src/test`, `--app dist/cavox/browser`, `--data` and
+`--output-path` targets — **all present**. Widening it to bare directories was tried and rejected on the evidence: the
+same probe reports `--app none`, which is how the receiver says "serve no application", so the rule would accuse a
+sentinel of being a missing path. The limit is in the check's header for whoever widens it next.)
+
 ### 11.274 The dry-run step itself, run verbatim — 16 of its 17 assertions hold here, and the seventeenth is a platform difference — **Verified**
 
 §11.272 ran the driver and the audits by hand. The *step* was then extracted from `tests.yml` and executed as one unit —
@@ -8366,19 +8378,7 @@ thing this job exists to check (§11.245), so it fails here rather than five min
 when the sink is absent, so §11.245's intent is untouched; it now fails where the cause is rather than where the symptom
 surfaces.
 
-**Both jobs were re-run on the same commit**, which is the test of both readings: a race and a missing sink pass on a second
-attempt, while a real defect does not.
-
-(**And the other half of the same class**, measured the same way when the path rule went in: **15** `npm run <name>`
-invocations across the workflows and the documents — `test_module`, `test_editor`, `build_module`, `build_editor`,
-`validate:i18n`, `serve:api`, `pack_pi_module`, `start_prod` and the rest — **every one defined** in `package.json`'s 24
-scripts. It is a rule in the same check now, with a tenth planted case in the fixture: a renamed script is a job that
-fails at the last step rather than at the edit.)
-
-(**The path rule's own limit, measured rather than assumed**: it matches a path *with an extension*, and the workflows
-name **13** directory-valued ones — the four fixture roots, `--seed src/test`, `--app dist/cavox/browser`, `--data` and
-`--output-path` targets — **all present**. Widening it to bare directories was tried and rejected on the evidence: the
-same probe reports `--app none`, which is how the receiver says "serve no application", so the rule would accuse a
-sentinel of being a missing path. The limit is in the check's header for whoever widens it next.)
+**Verified**: `workflow_check` passes the amended file — six jobs — the broken fixture still names all ten rules, `bash -n`
+parses the amended step's shell, and the eight gates are unchanged.
 
 
