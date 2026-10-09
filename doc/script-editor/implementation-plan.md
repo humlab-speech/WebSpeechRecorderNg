@@ -8460,4 +8460,10 @@ step that takes about five. A gate may fail; it may not sit.
 §11.245 records: on a machine with no audio device the driver takes its degraded branch, and this entry does not claim to
 have run them.
 
+(**And the change itself went up late, which belongs in the record**: this entry was committed and pushed with the *plan*
+staged and the workflow left in the working tree, so for three commits and two runs the register described a bound the
+branch did not carry. What hid it is that `git status --short` and `git rev-list --left-right --count @{u}...HEAD` answer
+different questions — the second said "in sync" while the first had a file in it, and I read the second as the first. Both
+are clean now: `9e5b5d5f` carries the two `--deadline-ms` flags.)
+
 
