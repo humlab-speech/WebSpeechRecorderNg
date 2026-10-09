@@ -8254,6 +8254,11 @@ the sample is named by `server/README.md`, the design README and the register, w
 Confirmed rather than found, again, and the count in the paragraph above was an impression of the three before it — the
 class it describes.)
 
+(**And a fifth**: §11.92's changelog check — that no changelog exists anywhere and what that leaves as the release record — was
+re-opened this session by measuring the same absence a second time and landing on the same answer. That is the pattern this
+paragraph describes rather than a fault in either audit, and it is the fifth entry to join a list the paragraph began with
+three.)
+
 ### 11.279 The branch's work, committed — nine commits, and the tree clean for the first time in this pass — **Done**
 
 §11.126 and §11.170 recorded this work's git state before; this records it again, because the state had drifted exactly the
