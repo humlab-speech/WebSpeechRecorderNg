@@ -8491,6 +8491,10 @@ was looked at.
   tree, so the branch described a change it did not carry, through three commits and two runs. What hid it is that I read
   `git rev-list --left-right --count @{u}...HEAD` as a clean tree: it answers about *commits*, `git status` answers about the
   *tree*, and they are different questions.
+- **"The dry run has been going far longer than its predecessors"** — it had been running **four minutes**, against
+  predecessors that take about ten, and it was inside its sixth step. The impression came from reading the same run across
+  several turns rather than from a clock; the run's own `run_started_at` settled it in one line, and the step-level timeout I
+  was about to add on that evidence was never needed.
 
 **All three were caught by looking, and none reached this register** — which is the distinction worth drawing, rather than
 the mistakes themselves. Everything written here was checked against something; the failures were in the *narration of the
