@@ -14,6 +14,7 @@
  *   GET    {base}project/{p}/session/{s}/recfile/{id}                 recording audio
  *   GET    {base}project/{p}/session/{s}/recfile/{itemcode}/{version} recording audio (v1)
  *   GET    {base}recordingfile/{id}                                   metadata, or WAVE with Accept: audio/wav
+ *   GET    {base}version                                             recorder version the deployment serves
  *   POST   {base}recordingfile/{id}                                   metadata
  *   PATCH  {base}recordingfile/{id}                                   edit selection
  *   POST   {base}session/{s}/recfile/{itemcode}                       upload a recording (v1, raw WAVE)
@@ -29,13 +30,21 @@
  * Uploads answer `{"stored":true,...}`: the client accepts any 2xx but can be configured to
  * require that body (`uploadConfig.requireStoredAck`). Every upload POST is idempotent: the
  * `Idempotency-Key` header of a request that was already answered returns the stored answer,
- * so a retry after a client side timeout cannot store a recording twice.
+ * so a retry after a client side timeout cannot store a recording twice. `POST script/{id}/publish`
+ * honours the same header (§11.193), so a retry there cannot freeze a second version carrying the
+ * same text; the header is answered from `uploads/journal.json` and echoed as
+ * `Idempotency-Replayed: true` on the replayed response.
  */
 import {createReadStream, existsSync, statSync, unlinkSync} from 'node:fs';
 import {unlink} from 'node:fs/promises';
 import {extname, join} from 'node:path';
 import {randomBytes} from 'node:crypto';
-import {RequestError, readJsonBody, streamToFile} from './body.mjs';
+import {RequestError, readJsonBody, readTextBody, streamToFile} from './body.mjs';
+import {bankIdFor, csvToItems, queryBank} from './bank.mjs';
+import {checkIfMatch, etagOf} from './etag.mjs';
+import {minRecorderVersionFor} from './feature-versions.mjs';
+import {durationMsOf, MEDIA_DIR, mimeTypeFor, sanitiseMediaName} from './media.mjs';
+import {validateScript} from './validate.mjs';
 import {multipartBoundary, readMultipart} from './multipart.mjs';
 import {concatWavFiles, probeWav, readWavSection, WavError} from './wav.mjs';
 
@@ -60,7 +69,12 @@ export function createApiHandler({store, base, maxBody, log, autoCreateSession, 
       // 404 is the documented answer of several endpoints (no recording yet, chunk not stored).
       log(`${req.method} ${req.url} rejected with ${status}: ${message}`);
     }
-    sendJson(res, status, {error: message});
+    sendJson(res, status, {
+      error: message,
+      message,
+      ...(err instanceof RequestError && err.code !== undefined ? {code: err.code} : {}),
+      ...(err instanceof RequestError && err.details !== undefined ? {details: err.details} : {}),
+    });
   }
 
   /** @returns true when the request was handled by the API. */
@@ -91,6 +105,10 @@ export function createApiHandler({store, base, maxBody, log, autoCreateSession, 
           return sessionRoutes(req, res, url, rest);
         case 'recordingfile':
           return recordingFileRoutes(req, res, url, rest);
+        case 'version':
+          // What the deployment runs, so the editor's W10/N04 can compare against the recorder the
+          // receiver actually serves (B7) instead of a hard-coded value.
+          return await sendJson(res, 200, {recorderVersion: store.recorderVersion});
         default:
           throw new RequestError(404, `unknown API resource "${head ?? ''}"`);
       }
@@ -111,12 +129,713 @@ export function createApiHandler({store, base, maxBody, log, autoCreateSession, 
         if (rest.length > 4 && rest[3] === 'recfile') {
           return recFileItem(req, res, url, projectId, sessionId, rest.slice(4));
         }
+        if (rest.length === 4 && stripJsonSuffix(rest[3]) === 'draws') {
+          if (req.method === 'GET') {
+            return await sendJson(res, 200, sessionTrace(sessionId));
+          }
+          throw new RequestError(405, `${req.method} is not supported on session/{s}/draws`);
+        }
+        if (rest.length === 5 && stripJsonSuffix(rest[3]) === 'draws' && stripJsonSuffix(rest[4]) === '_redraw') {
+          if (req.method === 'POST') {
+            return await sendJson(res, 200, redrawSession(sessionId));
+          }
+          throw new RequestError(405, `${req.method} is not supported on session/{s}/draws/_redraw`);
+        }
         if (rest.length === 3 && (req.method === 'PATCH' || req.method === 'PUT')) {
           return sessionPatch(req, res, sessionId, projectId);
         }
         throw new RequestError(404, `unsupported session route ${rest.join('/')}`);
       }
+      if (rest[1] === 'script') {
+        return await scriptRoutes(req, res, url, rest.slice(2), projectId);
+      }
+      if (rest[1] === 'bank') {
+        return await bankRoutes(req, res, url, rest.slice(2), projectId);
+      }
+      if (rest[1] === 'media') {
+        return await mediaRoutes(req, res, rest.slice(2), projectId);
+      }
       return await sendProjectResource(projectId, rest.slice(1).join('/'));
+    }
+
+    // -------------------------------------------------------------- scripts (editor)
+
+    /**
+     * The editor's script endpoints, project scoped. `GET script/{id}` (the recorder's view) stays
+     * untouched; these add the library list, create/patch and the draft with its ETag rules.
+     */
+    async function scriptRoutes(req, res, url, rest, projectId) {
+      if (rest.length === 0) {
+        if (req.method === 'GET') {
+          return await sendJson(res, 200, store.listScripts(projectId));
+        }
+        if (req.method === 'POST') {
+          return await createScript(req, res, projectId);
+        }
+        throw new RequestError(405, `${req.method} is not supported on project/{p}/script`);
+      }
+      const scriptId = stripJsonSuffix(rest[0]);
+      if (rest.length === 1) {
+        if (req.method === 'GET') {
+          return await sendJson(res, 200, requireFound(store.script(scriptId), `script ${scriptId}`));
+        }
+        if (req.method === 'PATCH' || req.method === 'PUT') {
+          return await patchScript(req, res, scriptId);
+        }
+        throw new RequestError(405, `${req.method} is not supported on project/{p}/script/{id}`);
+      }
+      if (stripJsonSuffix(rest[1]) === 'draft' && rest.length === 2) {
+        if (req.method === 'GET') {
+          return getDraft(res, scriptId);
+        }
+        if (req.method === 'PUT') {
+          return await putDraft(req, res, scriptId);
+        }
+        throw new RequestError(405, `${req.method} is not supported on script/{id}/draft`);
+      }
+      if (stripJsonSuffix(rest[1]) === 'draft' && rest.length === 3 && stripJsonSuffix(rest[2]) === '_restore') {
+        if (req.method === 'POST') {
+          return await restoreDraft(req, res, scriptId);
+        }
+        throw new RequestError(405, `${req.method} is not supported on script/{id}/draft/_restore`);
+      }
+      if (stripJsonSuffix(rest[1]) === 'publish' && rest.length === 2) {
+        if (req.method === 'POST') {
+          return await publishScript(req, res, scriptId);
+        }
+        throw new RequestError(405, `${req.method} is not supported on script/{id}/publish`);
+      }
+      if (stripJsonSuffix(rest[1]) === 'preview-session' && rest.length === 2) {
+        if (req.method === 'POST') {
+          return await createPreviewSession(req, res, scriptId, projectId);
+        }
+        throw new RequestError(405, `${req.method} is not supported on script/{id}/preview-session`);
+      }
+      if (stripJsonSuffix(rest[1]) === 'draws' && rest.length === 2) {
+        if (req.method === 'GET') {
+          return await scriptDraws(req, res, url, scriptId, projectId);
+        }
+        throw new RequestError(405, `${req.method} is not supported on script/{id}/draws`);
+      }
+      if (stripJsonSuffix(rest[1]) === 'version') {
+        if (req.method === 'GET' && rest.length === 2) {
+          return await sendJson(res, 200, store.versionsIndex(scriptId));
+        }
+        if (req.method === 'GET' && rest.length === 3) {
+          return getVersion(res, scriptId, stripJsonSuffix(rest[2]));
+        }
+        throw new RequestError(405, `${req.method} is not supported on script/{id}/version`);
+      }
+      throw new RequestError(404, `unsupported script route ${rest.join('/')}`);
+    }
+
+    /** Serves the stored draft bytes verbatim, so the ETag is a byte comparison (D-S). */
+    function getDraft(res, scriptId) {
+      const bytes = store.draftBytes(scriptId);
+      if (bytes === null) {
+        throw new RequestError(404, `script ${scriptId} has no draft`);
+      }
+      return sendBytes(res, 200, bytes, etagOf(bytes));
+    }
+
+    /**
+     * Enforces the draft precondition. A script without a draft has no validator, so the client may
+     * assert emptiness with `If-None-Match: *`; otherwise `If-Match` is required (428) and must
+     * match the stored bytes (412 with the current draft, so the editor can retry once).
+     */
+    function requireDraftPrecondition(req, scriptId, provided = null) {
+      const bytes = store.draftBytes(scriptId);
+      const currentEtag = bytes === null ? null : etagOf(bytes);
+      if (currentEtag === null && req.headers['if-none-match'] === '*') {
+        return {bytes: null, currentEtag: null, value: null};
+      }
+      // The client asserted emptiness and a draft has appeared since: that is the precondition *failing*, which RFC 9110
+      // answers 412 for, with the current draft so the editor can retry. Answering 428 would say a precondition is
+      // missing when the request carried one, and the client's create-if-absent path — the one the migration uses for
+      // legacy flat scripts — reads a 412 and nothing else (§11.252).
+      if (req.headers['if-none-match'] === '*') {
+        throw new RequestError(412, 'The draft changed since you loaded it.', {
+          code: 'SCRIPT_DRAFT_CONFLICT',
+          details: {current: JSON.parse(bytes.toString('utf8')), currentEtag},
+        });
+      }
+      // The header's verdicts come from `etag.mjs`, so the module R1 documents — with `*` and
+      // multi-value lists per RFC 9110 — is the one the API enforces. A caller-supplied validator
+      // (the body's own ETag) is compared exactly: it is an internal value, not a client header.
+      const candidate = provided ?? null;
+      if (candidate === null) {
+        const verdict = checkIfMatch(req, currentEtag);
+        if (verdict === 'missing') {
+          throw new RequestError(428, 'If-Match is required for a draft write', {code: 'PRECONDITION_REQUIRED'});
+        }
+        if (verdict === 'stale') {
+          throw new RequestError(412, 'The draft changed since you loaded it.', {
+            code: 'SCRIPT_DRAFT_CONFLICT',
+            details: {current: bytes === null ? null : JSON.parse(bytes.toString('utf8')), currentEtag},
+          });
+        }
+      } else if (candidate !== currentEtag) {
+        throw new RequestError(412, 'The draft changed since you loaded it.', {
+          code: 'SCRIPT_DRAFT_CONFLICT',
+          details: {current: bytes === null ? null : JSON.parse(bytes.toString('utf8')), currentEtag},
+        });
+      }
+      return {bytes, currentEtag, value: bytes === null ? null : JSON.parse(bytes.toString('utf8'))};
+    }
+
+    async function putDraft(req, res, scriptId) {
+      const text = await readTextBody(req, {maxBytes: maxBody});
+      let value;
+      try {
+        value = JSON.parse(text);
+      } catch {
+        throw new RequestError(400, 'draft is not valid JSON');
+      }
+      if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+        throw new RequestError(400, 'draft must be a JSON object');
+      }
+      requireDraftPrecondition(req, scriptId);
+      const stored = store.writeDraft(scriptId, text, value);
+      res.setHeader('ETag', stored.etag);
+      return await sendJson(res, 200, {scriptId, draftVersion: stored.draftVersion, etag: stored.etag});
+    }
+
+    /** Publishes the draft: precondition, the error gate, the feature floor, then the freeze. */
+    async function publishScript(req, res, scriptId) {
+      // The fourth remembered write (§11.193). The recording, chunk and concat routes already took an
+      // idempotency key; publish did not, so a lost response or a double submit froze a second version
+      // carrying the same text — and versions are immutable and never pruned.
+      return await idempotent(req, res, `publish script ${scriptId}`, async () => {
+        const body = await readJsonBody(req).catch(() => ({}));
+        if (store.draftBytes(scriptId) === null) {
+          throw new RequestError(409, `script ${scriptId} has no draft to publish`, {code: 'NO_DRAFT'});
+        }
+        const provided = typeof body.fromDraftEtag === 'string' && body.fromDraftEtag !== '' ? body.fromDraftEtag : null;
+        const {bytes} = requireDraftPrecondition(req, scriptId, provided);
+        const text = bytes.toString('utf8');
+        const value = JSON.parse(text);
+        const findings = validateScript(value, {lookupBank: (bankId) => store.bank(bankId)});
+        if (findings.length > 0) {
+          throw new RequestError(409, 'The script has errors and was not published.', {
+            code: 'PUBLISH_REJECTED',
+            details: {checks: findings},
+          });
+        }
+        const {minRecorderVersion, unknownFeatures} = minRecorderVersionFor(value);
+        if (unknownFeatures.length > 0) {
+          throw new RequestError(409, `The script uses features with no recorder floor: ${unknownFeatures.join(', ')}`, {
+            code: 'FEATURE_FLOOR_UNKNOWN',
+            details: {features: unknownFeatures},
+          });
+        }
+        return {
+          status: 201,
+          body: store.publish(scriptId, {
+            text,
+            note: typeof body.note === 'string' ? body.note : null,
+            minRecorderVersion,
+            // The frozen document owns the name: a rename made in the editor is a draft edit, so the
+            // entity (the library list, session creation, PATCH) follows it at this commit point.
+            name: typeof value.name === 'string' && value.name.trim() !== '' ? value.name : null,
+          }),
+        };
+      });
+    }
+
+    /** Serves one published version verbatim, with its own strong validator. */
+    function getVersion(res, scriptId, version) {
+      const text = store.versionText(scriptId, version);
+      if (text === null) {
+        throw new RequestError(404, `version ${version} of script ${scriptId} does not exist`);
+      }
+      return sendBytes(res, 200, Buffer.from(text), etagOf(text));
+    }
+
+    async function restoreDraft(req, res, scriptId) {
+      const body = await readJsonBody(req).catch(() => ({}));
+      if (body.version === undefined || body.version === null || body.version === '') {
+        throw new RequestError(400, 'version is required');
+      }
+      requireDraftPrecondition(req, scriptId);
+      const stored = store.restoreVersion(scriptId, String(body.version));
+      res.setHeader('ETag', stored.etag);
+      return await sendJson(res, 200, {scriptId, draftVersion: stored.draftVersion, etag: stored.etag});
+    }
+
+    // -------------------------------------------------------------- item banks
+
+    /** Library and query endpoints, plus item CRUD; only project-owned banks are writable. */
+    async function bankRoutes(req, res, url, rest, projectId) {
+      if (rest.length === 0) {
+        if (req.method === 'GET') {
+          const visible = store.banks().filter((bank) => bank.source === 'BUILTIN'
+            || bank.project === null
+            || bank.project === undefined
+            || bank.project === projectId);
+          return await sendJson(res, 200, visible);
+        }
+        if (req.method === 'POST') {
+          return await createBank(req, res, projectId);
+        }
+        throw new RequestError(405, `${req.method} is not supported on project/{p}/bank`);
+      }
+      const bankId = stripJsonSuffix(rest[0]);
+      const bank = store.bank(bankId);
+      if (bank === null) {
+        throw new RequestError(404, `bank ${bankId} does not exist`);
+      }
+      if (rest.length === 1) {
+        if (req.method === 'GET') {
+          return await sendJson(res, 200, bank);
+        }
+        throw new RequestError(405, `${req.method} is not supported on bank/{b}`);
+      }
+      const leaf = stripJsonSuffix(rest[1]);
+      if (leaf === 'item') {
+        if (rest.length === 2 && req.method === 'GET') {
+          return await sendJson(res, 200, queryBank(bank, filterFromQuery(url), {
+            limit: numberParam(url, 'limit', 50),
+            offset: numberParam(url, 'offset', 0),
+          }));
+        }
+        if (rest.length === 2 && req.method === 'POST') {
+          return await writeBankItem(req, res, bank, projectId, null);
+        }
+        if (rest.length === 3 && req.method === 'PUT') {
+          return await writeBankItem(req, res, bank, projectId, stripJsonSuffix(rest[2]));
+        }
+        if (rest.length === 3 && req.method === 'DELETE') {
+          return await deleteBankItem(res, bank, projectId, stripJsonSuffix(rest[2]));
+        }
+        throw new RequestError(405, `${req.method} is not supported on bank/{b}/item`);
+      }
+      if (leaf === '_import' && rest.length === 2 && req.method === 'POST') {
+        return await importBankCsv(req, res, bank, projectId);
+      }
+      throw new RequestError(404, `unsupported bank route ${rest.join('/')}`);
+    }
+
+    function filterFromQuery(url) {
+      const params = url.searchParams;
+      const filter = {};
+      const category = params.get('category');
+      if (category !== null && category !== '') {
+        filter.category = category;
+      }
+      const minWords = params.get('minWords');
+      const maxWords = params.get('maxWords');
+      if ((minWords !== null && minWords !== '') || (maxWords !== null && maxWords !== '')) {
+        filter.words = [
+          minWords === null || minWords === '' ? undefined : Number(minWords),
+          maxWords === null || maxWords === '' ? undefined : Number(maxWords),
+        ];
+      }
+      const hasAudio = params.get('hasAudio');
+      if (hasAudio !== null && hasAudio !== '') {
+        filter.hasAudio = hasAudio === 'true';
+      }
+      const tags = params.getAll('tag').filter((tag) => tag !== '');
+      if (tags.length > 0) {
+        filter.tags = tags;
+      }
+      const q = params.get('q');
+      if (q !== null && q !== '') {
+        filter.q = q;
+      }
+      return filter;
+    }
+
+    function numberParam(url, name, fallback) {
+      const raw = url.searchParams.get(name);
+      if (raw === null || raw === '') {
+        return fallback;
+      }
+      const value = Number(raw);
+      return Number.isFinite(value) && value >= 0 ? value : fallback;
+    }
+
+    /** Builtin banks and other projects' banks are read-only here. */
+    function requireWritableBank(bank, projectId) {
+      if (bank.source === 'BUILTIN') {
+        throw new RequestError(405, 'builtin banks are read-only', {code: 'BANK_READ_ONLY'});
+      }
+      if (bank.project === undefined || bank.project === null) {
+        throw new RequestError(405, 'the bank is not owned by a project', {code: 'BANK_READ_ONLY'});
+      }
+      if (bank.project !== projectId) {
+        throw new RequestError(403, `bank ${bank.bankId} belongs to project ${bank.project}`);
+      }
+      return bank;
+    }
+
+    async function createBank(req, res, projectId) {
+      const body = await readJsonBody(req).catch(() => ({}));
+      const title = typeof body.title === 'string' && body.title.trim() !== '' ? body.title.trim() : null;
+      const taken = new Set(store.banks().map((bank) => String(bank.bankId)));
+      if (body.copyFrom !== undefined && body.copyFrom !== null) {
+        const source = store.bank(String(body.copyFrom));
+        if (source === null) {
+          throw new RequestError(404, `bank ${body.copyFrom} does not exist`);
+        }
+        const copyTitle = title ?? `${source.title} copy`;
+        const copy = {
+          title: copyTitle,
+          source: 'PROJECT',
+          project: projectId,
+          copiedFrom: source.bankId,
+          copiedFromRelease: source.shippedWith ?? null,
+          updated: new Date().toISOString(),
+          items: (source.items ?? []).map((item) => ({...item})),
+        };
+        return await sendJson(res, 201, store.writeBank(bankIdFor(copyTitle, taken), copy));
+      }
+      if (title === null) {
+        throw new RequestError(400, 'title is required');
+      }
+      return await sendJson(res, 201, store.writeBank(bankIdFor(title, taken), {
+        title,
+        source: 'PROJECT',
+        project: projectId,
+        updated: new Date().toISOString(),
+        items: [],
+      }));
+    }
+
+    async function writeBankItem(req, res, bank, projectId, itemId) {
+      requireWritableBank(bank, projectId);
+      // One item or an array (rest-api §3.3), so the body is parsed here rather than as an object.
+      const raw = await readTextBody(req, {maxBytes: maxBody});
+      let body;
+      try {
+        body = raw.trim() === '' ? {} : JSON.parse(raw);
+      } catch {
+        throw new RequestError(400, 'item body is not valid JSON');
+      }
+      const candidates = Array.isArray(body) ? body : [body];
+      if (candidates.length === 0) {
+        throw new RequestError(400, 'no items given');
+      }
+      const items = [...(bank.items ?? [])];
+      const saved = [];
+      for (const candidate of candidates) {
+        const patch = sanitiseBankItem(candidate);
+        if (itemId === null) {
+          const at = patch.bankItemId === undefined
+            ? -1
+            : items.findIndex((entry) => String(entry.bankItemId) === String(patch.bankItemId));
+          if (at >= 0) {
+            items[at] = {...items[at], ...patch};
+            saved.push(items[at]);
+          } else {
+            const item = {bankItemId: patch.bankItemId ?? store.nextBankItemId({items}), ...patch};
+            items.push(item);
+            saved.push(item);
+          }
+        } else {
+          const at = items.findIndex((entry) => String(entry.bankItemId) === String(itemId));
+          if (at < 0) {
+            throw new RequestError(404, `bank item ${itemId} does not exist`);
+          }
+          items[at] = {...items[at], ...patch, bankItemId: items[at].bankItemId};
+          saved.push(items[at]);
+        }
+      }
+      store.writeBank(bank.bankId, {...bank, items, updated: new Date().toISOString()});
+      return await sendJson(res, 200, Array.isArray(body) ? saved : saved[0]);
+    }
+
+    function sanitiseBankItem(candidate) {
+      const allowed = ['bankItemId', 'text', 'promptDoc', 'src', 'mimetype', 'alt', 'audioSrc', 'audioMimetype', 'category', 'words', 'tags'];
+      const out = {};
+      for (const key of allowed) {
+        if (candidate?.[key] !== undefined) {
+          out[key] = candidate[key];
+        }
+      }
+      if (typeof out.tags === 'string') {
+        out.tags = out.tags.split(/[|;]/).map((tag) => tag.trim()).filter((tag) => tag !== '');
+      }
+      return out;
+    }
+
+    async function deleteBankItem(res, bank, projectId, itemId) {
+      requireWritableBank(bank, projectId);
+      const items = (bank.items ?? []).filter((entry) => String(entry.bankItemId) !== String(itemId));
+      if (items.length === (bank.items ?? []).length) {
+        throw new RequestError(404, `bank item ${itemId} does not exist`);
+      }
+      store.writeBank(bank.bankId, {...bank, items, updated: new Date().toISOString()});
+      return await sendJson(res, 200, {bankId: bank.bankId, itemCount: items.length});
+    }
+
+    async function importBankCsv(req, res, bank, projectId) {
+      requireWritableBank(bank, projectId);
+      const contentType = String(req.headers['content-type'] ?? '');
+      const text = contentType.includes('text/csv')
+        ? await readTextBody(req, {maxBytes: maxBody})
+        : String((await readJsonBody(req).catch(() => ({}))).csv ?? '');
+      const {items: imported, errors} = csvToItems(text, bank);
+      store.writeBank(bank.bankId, {...bank, items: [...(bank.items ?? []), ...imported], updated: new Date().toISOString()});
+      return await sendJson(res, 200, {imported: imported.length, skipped: errors.length, errors});
+    }
+
+    // -------------------------------------------------------------- project media
+
+    /** Playback clips and image prompts: list with usage, upload (raw or multipart) and delete. */
+    async function mediaRoutes(req, res, rest, projectId) {
+      if (rest.length === 0) {
+        if (req.method === 'GET') {
+          return await sendJson(res, 200, listMediaWithUsage(projectId));
+        }
+        if (req.method === 'POST') {
+          return await uploadMedia(req, res, projectId);
+        }
+        throw new RequestError(405, `${req.method} is not supported on project/{p}/media`);
+      }
+      const name = rest[0];
+      if (rest.length === 1 && req.method === 'GET') {
+        const path = store.mediaPath(projectId, name);
+        if (!existsSync(path) || !statSync(path).isFile()) {
+          throw new RequestError(404, `media ${name} does not exist`);
+        }
+        return sendFile(res, 200, path, mimeTypeFor(name));
+      }
+      if (rest.length === 1 && req.method === 'DELETE') {
+        return await deleteMedia(res, projectId, name);
+      }
+      throw new RequestError(405, `${req.method} is not supported on project/{p}/media/{name}`);
+    }
+
+    function listMediaWithUsage(projectId) {
+      const references = store.resourceReferences(projectId);
+      return store.listMedia(projectId).map((entry) => ({...entry, usedBy: references.get(entry.src) ?? []}));
+    }
+
+    /** Uploads a clip; a file a published version uses cannot be replaced. */
+    async function uploadMedia(req, res, projectId) {
+      const contentType = String(req.headers['content-type'] ?? '');
+      let tmpPath;
+      let name;
+      let declared;
+      if (multipartBoundary(contentType) !== null) {
+        const {files} = await readMultipart(req, {tmpDir: store.tmpDir, maxBytes: maxBody});
+        const file = [...files.values()][0];
+        if (file === undefined) {
+          throw new RequestError(400, 'no file part in the request');
+        }
+        tmpPath = file.path;
+        // The part's own type, not the multipart envelope's.
+        declared = String(file.contentType ?? '').split(';')[0].trim();
+        name = sanitiseMediaName(file.filename, declared);
+      } else {
+        const requested = req.headers['x-filename'];
+        if (typeof requested !== 'string' || requested.trim() === '') {
+          throw new RequestError(400, 'X-Filename is required for a raw media upload');
+        }
+        declared = contentType.split(';')[0].trim();
+        name = sanitiseMediaName(requested, declared);
+        tmpPath = tmpFile('media');
+        await streamToFile(req, tmpPath, {maxBytes: maxBody});
+      }
+      const src = `${MEDIA_DIR}/${name}`;
+      const published = (store.resourceReferences(projectId).get(src) ?? []).filter((owner) => owner.version !== undefined);
+      if (published.length > 0) {
+        unlinkSync(tmpPath);
+        throw new RequestError(409, `${src} is in use by a published script`, {code: 'MEDIA_IN_USE', details: {usedBy: published}});
+      }
+      try {
+        store.ensureMediaDir(projectId);
+        store.move(tmpPath, store.mediaPath(projectId, name));
+      } catch (err) {
+        unlinkSync(tmpPath);
+        throw err;
+      }
+      const mimetype = declared === '' || declared === 'application/octet-stream' || declared.startsWith('multipart/')
+        ? mimeTypeFor(name)
+        : declared;
+      let durationMs = null;
+      if (mimetype === 'audio/wav' || name.toLowerCase().endsWith('.wav')) {
+        try {
+          durationMs = durationMsOf(probeWav(store.mediaPath(projectId, name)));
+        } catch (err) {
+          if (!(err instanceof WavError)) {
+            throw err;
+          }
+        }
+      }
+      const entry = store.recordMedia(projectId, {
+        name,
+        mimetype,
+        durationMs,
+        bytes: statSync(store.mediaPath(projectId, name)).size,
+        updated: new Date().toISOString(),
+      });
+      return await sendJson(res, 201, {src, mimetype: entry.mimetype, durationMs, bytes: entry.bytes});
+    }
+
+    async function deleteMedia(res, projectId, name) {
+      const target = store.mediaPath(projectId, name);
+      if (!existsSync(target) || !statSync(target).isFile()) {
+        throw new RequestError(404, `media ${name} does not exist`);
+      }
+      const src = `${MEDIA_DIR}/${name}`;
+      const usedBy = store.resourceReferences(projectId).get(src) ?? [];
+      const published = usedBy.filter((owner) => owner.version !== undefined);
+      if (published.length > 0) {
+        throw new RequestError(409, `${src} is in use by a published script`, {code: 'MEDIA_IN_USE', details: {usedBy}});
+      }
+      unlinkSync(target);
+      store.removeMedia(projectId, name);
+      return await sendJson(res, 200, {src, deleted: true, usedBy});
+    }
+
+    /** Tier-2 dry run: an ephemeral session over a materialised draft or version. */
+    async function createPreviewSession(req, res, scriptId, projectId) {
+      const body = await readJsonBody(req).catch(() => ({}));
+      const version = body.version === undefined || body.version === null || body.version === '' ? 'draft' : String(body.version);
+      const session = store.createPreviewSession({project: projectId, scriptId, version});
+      return await sendJson(res, 201, {sessionId: session.sessionId, expires: session.expires});
+    }
+
+    // -------------------------------------------------------------- draw record
+
+    /** The session's trace: shipped `prefills` for list sources plus `bankDraws` for bank sources. */
+    function sessionTrace(sessionId) {
+      const session = requireFound(store.session(sessionId), `session ${sessionId}`);
+      return {
+        sessionId: session.sessionId,
+        script: session.scriptSource ?? session.script ?? null,
+        scriptVersion: (session.bankDraws ?? [])[0]?.drawnForVersion ?? null,
+        drawnDate: session.drawnDate ?? null,
+        redraw: session.redraw ?? 0,
+        prefills: session.prefills ?? {},
+        bankDraws: session.bankDraws ?? [],
+      };
+    }
+
+    /** Re-draws a session that has not started: a new seed, a new trace, the same session. */
+    function redrawSession(sessionId) {
+      const session = requireFound(store.session(sessionId), `session ${sessionId}`);
+      if (session.status !== 'CREATED') {
+        throw new RequestError(409, `session ${sessionId} has started; its draw is fixed`, {code: 'SESSION_ALREADY_STARTED'});
+      }
+      const candidate = {...session, redraw: (session.redraw ?? 0) + 1};
+      const resolved = store.resolveSessionDraws(candidate);
+      if (resolved === null) {
+        throw new RequestError(409, `session ${sessionId} has no bank sources to redraw`, {code: 'NO_BANK_SOURCES'});
+      }
+      store.patchSession(sessionId, {...resolved, redraw: candidate.redraw, drawnDate: new Date().toISOString()});
+      return sessionTrace(sessionId);
+    }
+
+    /** Draw rows across the sessions of one script, for the record view and the CSV export. */
+    function collectDrawRows(url, scriptId, projectId) {
+      const includePreview = url.searchParams.get('includePreview') === 'true';
+      const versionParam = url.searchParams.get('version');
+      const rows = [];
+      for (const id of store.sessionIdsExceptPreview(includePreview)) {
+        const session = store.session(id);
+        if (session === null) {
+          continue;
+        }
+        if (projectId !== null && session.project !== undefined && session.project !== null && String(session.project) !== String(projectId)) {
+          continue;
+        }
+        const source = session.scriptSource ?? session.script;
+        if (String(source) !== String(scriptId)) {
+          continue;
+        }
+        const recorded = new Set(store.recordingFilesOfSession(id)
+          .map((meta) => meta.recording?.itemcode)
+          .filter((itemcode) => itemcode !== undefined && itemcode !== null));
+        for (const draw of session.bankDraws ?? []) {
+          if (versionParam !== null && versionParam !== '' && String(draw.drawnForVersion ?? '') !== String(versionParam)) {
+            continue;
+          }
+          const items = (draw.items ?? []).map((item) => ({...item, recorded: recorded.has(item.itemcode)}));
+          rows.push({
+            sessionId: session.sessionId,
+            speaker: session.speaker ?? null,
+            status: session.status,
+            preview: session.type === 'TEST',
+            scriptVersion: draw.drawnForVersion ?? null,
+            drawnDate: session.drawnDate ?? null,
+            bank: draw.bank,
+            bankSource: draw.bankSource ?? null,
+            drawn: items.length,
+            recorded: items.filter((item) => item.recorded).length,
+            items,
+          });
+        }
+      }
+      return rows;
+    }
+
+    async function scriptDraws(req, res, url, scriptId, projectId) {
+      const rows = collectDrawRows(url, scriptId, projectId);
+      if (String(req.headers.accept ?? '').includes('text/csv')) {
+        return sendBuffer(res, 200, Buffer.from(drawCsv(rows), 'utf8'), 'text/csv; charset=utf-8');
+      }
+      const offset = numberParam(url, 'offset', 0);
+      const limit = numberParam(url, 'limit', 50);
+      return await sendJson(res, 200, {total: rows.length, offset, rows: rows.slice(offset, offset + limit)});
+    }
+
+    function drawCsv(rows) {
+      const lines = ['sessionId,speaker,itemcode,bankItemId,recorded'];
+      for (const row of rows) {
+        for (const item of row.items) {
+          lines.push([row.sessionId, row.speaker ?? '', item.itemcode, item.bankItemId ?? '', item.recorded ? 'true' : 'false']
+            .map(csvField).join(','));
+        }
+      }
+      return `${lines.join('\n')}\n`;
+    }
+
+    async function createScript(req, res, projectId) {
+      const body = await readJsonBody(req).catch(() => ({}));
+      const source = duplicateSource(body.from);
+      const requestedName = typeof body.name === 'string' && body.name.trim() !== '' ? body.name : null;
+      const name = requestedName
+        ?? (source?.name === null || source?.name === undefined ? null : `${source.name} (copy)`);
+      const text = source?.text ?? `${JSON.stringify(seedScript(name), null, 2)}\n`;
+      const value = source?.value ?? JSON.parse(text);
+      const created = store.createScript({name, project: projectId, value, text});
+      res.setHeader('ETag', created.etag);
+      res.setHeader('Location', `project/${projectId}/script/${created.scriptId}/draft`);
+      return await sendJson(res, 201, {scriptId: created.scriptId, draftVersion: created.draftVersion, etag: created.etag});
+    }
+
+    /** `{from: {scriptId, version?}}` duplicates a version, the published script or the draft. */
+    function duplicateSource(from) {
+      if (from === undefined || from === null || typeof from !== 'object' || from.scriptId === undefined) {
+        return null;
+      }
+      const sourceId = String(from.scriptId);
+      const name = store.scriptMeta(sourceId)?.name ?? store.script(sourceId)?.name ?? null;
+      if (from.version !== undefined && from.version !== null && from.version !== '') {
+        const text = store.versionText(sourceId, String(from.version));
+        if (text === null) {
+          throw new RequestError(404, `version ${from.version} of script ${sourceId} does not exist`);
+        }
+        return {text, value: JSON.parse(text), name};
+      }
+      const published = store.publishedText(sourceId);
+      if (published !== null) {
+        const text = published.toString('utf8');
+        return {text, value: JSON.parse(text), name};
+      }
+      const draft = store.draftBytes(sourceId);
+      if (draft !== null) {
+        const text = draft.toString('utf8');
+        return {text, value: JSON.parse(text), name};
+      }
+      throw new RequestError(404, `script ${sourceId} has nothing to duplicate`);
+    }
+
+    async function patchScript(req, res, scriptId) {
+      const patch = await readJsonBody(req).catch(() => ({}));
+      return await sendJson(res, 200, store.patchScriptMeta(scriptId, patch));
     }
 
     function sessionRoutes(req, res, url, rest) {
@@ -196,6 +915,7 @@ export function createApiHandler({store, base, maxBody, log, autoCreateSession, 
 
     async function recFileItem(req, res, url, projectId, sessionId, segments) {
       requireFound(store.session(sessionId), `session ${sessionId}`);
+      requireRecordingWritable(sessionId, req.method);
       if (segments.length === 1) {
         return await sendRecordingAudio(req, res, url, resolveRecordingInSession(segments[0], sessionId));
       }
@@ -220,7 +940,18 @@ export function createApiHandler({store, base, maxBody, log, autoCreateSession, 
 
     // -------------------------------------------------------------- uploads
 
+    /** A preview (`TEST`) session is a dry run: nothing may be stored for it. */
+    function requireRecordingWritable(sessionId, method) {
+      if (method === 'GET' || method === 'HEAD') {
+        return;
+      }
+      if (store.session(sessionId)?.type === 'TEST') {
+        throw new RequestError(409, `session ${sessionId} is a preview session and does not accept recordings`, {code: 'TEST_SESSION_READ_ONLY'});
+      }
+    }
+
     async function recFileUploadOrAudio(req, res, url, sessionId, segments) {
+      requireRecordingWritable(sessionId, req.method);
       if (segments.length === 0) {
         throw new RequestError(404, 'recording file id missing');
       }
@@ -650,6 +1381,23 @@ function sendJson(res, status, body, headers = {}) {
   return status;
 }
 
+function sendBytes(res, status, payload, etag) {
+  res.writeHead(status, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Content-Length': payload.length,
+    'Cache-Control': 'no-store',
+    ...(etag === null || etag === undefined ? {} : {ETag: etag}),
+  });
+  res.end(payload);
+  return status;
+}
+
+/** Quotes a CSV field when it contains a comma, a quote or a newline. */
+function csvField(value) {
+  const text = String(value ?? '');
+  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
 function sendFile(res, status, path, contentType) {
   const size = statSync(path).size;
   res.writeHead(status, {
@@ -698,6 +1446,37 @@ function two(segments, index, what) {
 function splitSuffix(segment) {
   const match = /^(.*)\.(json|wav)$/.exec(segment);
   return match === null ? {id: segment, suffix: null} : {id: match[1], suffix: match[2]};
+}
+
+/** Strips the `.json` suffix the files-mode client appends to editor GETs. */
+function stripJsonSuffix(segment) {
+  return segment.endsWith('.json') ? segment.slice(0, -'.json'.length) : segment;
+}
+
+/** The body a newly created script starts as: one section, one group, one item (so E10 holds). */
+function seedScript(name) {
+  const script = {
+    type: 'script',
+    sections: [{
+      mode: 'MANUAL',
+      promptphase: 'IDLE',
+      order: 'SEQUENTIAL',
+      training: false,
+      groups: [{
+        order: 'SEQUENTIAL',
+        promptItems: [{
+          itemcode: '1',
+          prerecdelay: 1000,
+          postrecdelay: 500,
+          mediaitems: [{mimetype: 'text/plain', text: ''}],
+        }],
+      }],
+    }],
+  };
+  if (name !== null) {
+    script.name = name;
+  }
+  return script;
 }
 
 function wantsAudio(req) {

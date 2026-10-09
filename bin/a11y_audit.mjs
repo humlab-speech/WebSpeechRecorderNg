@@ -1,0 +1,591 @@
+#!/usr/bin/env node
+/**
+ * Accessibility audit for the editor (and any route that renders like it).
+ *
+ * A screen-reader pass cannot be automated — nothing headless announces a tree — but most of
+ * ui-spec §8 is a property of the DOM, and those properties are what regress silently. This drives
+ * an already-running Chrome over the DevTools Protocol, like `theme_audit.mjs` and
+ * `layout_probe.mjs`, and checks:
+ *
+ *   1. every interactive element resolves an accessible name (text, `aria-label`, `aria-labelledby`)
+ *      — a `title` alone is not a name for an icon-only control;
+ *   2. every form control has a label, and an invalid one wires its message through
+ *      `aria-describedby` (never colour alone);
+ *   3. `aria-labelledby`/`aria-describedby` point at elements that exist and have text — on every element that carries
+ *      them, the sections, asides and dialogs the editor labels this way as much as the controls the pass walks
+ *      (§11.257);
+ *   4. ids are unique (a duplicate silently breaks the two above);
+ *   5. images carry `alt` unless they are explicitly decorative;
+ *   6. nothing focusable sits inside `aria-hidden="true"`;
+ *   7. a `role="radiogroup"` marks its children with `aria-checked`, and a `role="tree"` contains
+ *      `treeitem`s carrying `aria-level`, `aria-posinset`/`aria-setsize` (the "2 of 5" a reader announces), and
+ *      `aria-expanded` on every item that has children — the children of a flattened tree are the items following at a
+ *      deeper level (§11.256, §11.262);
+ *   8. tab order never jumps back up within one column (document order against the elements' boxes);
+ *   9. the browser's own **accessibility tree** agrees: every treeitem carries a level, a tree has
+ *      treeitems, a radiogroup has radios with a checked state, and no node whose role requires a
+ *      name (button, link, textbox, treeitem, …) is nameless;
+ *  10. every interactive target is at least 44 px high (ui-spec §8's house rule). An `<input>` inside a
+ *      `<label>` is measured as that label; any other control inside one is measured as itself, a link
+ *      flowing inline in text is exempt (WCAG 2.5.8), and so is a disabled control;
+ *  11. `<html>` declares a `lang`, so the reader does not guess the language;
+ *  12. the route names itself with exactly one `h1`, and the heading levels never jump by more than
+ *      one (they are the screen reader's outline);
+ *  13. exactly one `main` landmark;
+ *  14. no positive `tabindex`: it reorders the document for every keyboard user;
+ *  15. no control inside another control (`<button>` in `<button>`, a link in a link): the inner one
+ *      is usually unreachable and a click on it fires the outer action;
+ *  16. the route loads without console errors, warnings or uncaught exceptions. Angular's own
+ *      development-build performance hints (the NG-coded advice about image priority, NG0913) are not
+ *      judged: they are emitted asynchronously, so whether a run catches one is timing, and they say
+ *      nothing about the faults this rule is for. The list is named in `IGNORED_CONSOLE` with the
+ *      measurement behind it.
+ *
+ * Usage:
+ *   # terminal 1
+ *   npm run start_editor -- --port 4300
+ *   # terminal 2
+ *   "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+ *     --headless=new --remote-debugging-port=9333 --user-data-dir=/tmp/cdp about:blank
+ *   # terminal 3
+ *   node bin/a11y_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script/1245/edit \
+ *     --viewports 1366x768
+ *
+ * `--prepare <file>` runs a page script after load, to reach a state behind an interaction
+ * (`bin/audit/*.js`). Exits non-zero when a check fails; `--verbose` prints what passed too.
+ *
+ * `--rules universal` runs everything but the editor's own house rules (10, and the "exactly one
+ * `h1`" and "exactly one `main`" halves of 12 and 13), so the *recorder's* screens — the app the
+ * plan extends, which predates those house rules — can be checked for the rules that hold anywhere:
+ * names, labels, ids, alt, ARIA, the tree, tab order, nesting and a quiet console.
+ * `--except <n>[,<n>]` skips a rule by its number, for a state where it cannot tell a legitimate pattern
+ * from a violation; the caller names the number and the reason in the command it runs, where the exemption
+ * is visible. Every rule is gated: each judge consults `runs(n)`, which §11.238 measured to be true of rule 6
+ * alone until §11.239 wired the rest. Rule 9 is gated by judging no nodes — the pass line still reads the
+ * summary it returns.
+ */
+
+const args = process.argv.slice(2);
+const opt = (name, fallback) => {
+  const i = args.indexOf('--' + name);
+  return i >= 0 && args[i + 1] ? args[i + 1] : fallback;
+};
+const PORT = Number(opt('port', '9333'));
+const URL_TO_TEST = opt('url', 'http://127.0.0.1:4200/project/Demo1/script');
+const VIEWPORTS = opt('viewports', '1366x768').split(',').map((v) => v.split('x').map(Number));
+const VERBOSE = args.includes('--verbose');
+const PREPARE_FILE = opt('prepare', null);
+const SETTLE_MS = Number(opt('settle-ms', '3000'));
+const RULE_SET = opt('rules', 'all');
+if (RULE_SET !== 'all' && RULE_SET !== 'universal') {
+  console.error(`--rules must be "all" or "universal", not "${RULE_SET}".`);
+  process.exit(2);
+}
+/**
+ * Rules to skip, by the numbers in the list above (`--except 6`). For states where a rule cannot tell
+ * a legitimate pattern from a violation — with a modal open, Angular Material marks the application
+ * root `aria-hidden` while its focus trap keeps Tab inside the dialog, so rule 6 reports the
+ * framework — and the caller says so in the command it runs, where the exemption is visible. Every judge
+ * consults `runs()`; a rule added without it is §11.238's gap again, and a rule whose exemption silently
+ * does nothing is worse than one that cannot be exempted.
+ */
+const EXCEPT = new Set(opt('except', '')
+  .split(',')
+  .map((value) => Number(value.trim()))
+  .filter((number) => Number.isInteger(number) && number > 0));
+const runs = (rule) => !EXCEPT.has(rule);
+/** The editor's own house rules (ui-spec §8): skipped for screens that predate them (the recorder). */
+const HOUSE_RULES = RULE_SET === 'all';
+
+/**
+ * Collects the raw material for the rules; the judging happens in Node so every failure can name
+ * its own reason. One expression, evaluated in the page.
+ */
+const PAGE_PROBE = `(() => {
+  const trim = (value) => (value ?? '').replace(/\\s+/g, ' ').trim();
+  const visible = (el) => {
+    const rect = el.getBoundingClientRect();
+    const style = getComputedStyle(el);
+    return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+  };
+  const textOfIdList = (ids) => ids
+    .split(/\\s+/)
+    .filter(Boolean)
+    .map((id) => document.getElementById(id))
+    .filter(Boolean)
+    .map((el) => trim(el.textContent))
+    .filter(Boolean)
+    .join(' ');
+  const name = (el) => {
+    const labelledBy = el.getAttribute('aria-labelledby');
+    // An image's alt is text: it names the image and any container that holds nothing else, which
+    // is what the accessibility tree computes (the logo links are named by their plates).
+    const altOf = (node) => node.getAttribute('alt') ?? '';
+    const imageAlts = Array.from(el.querySelectorAll('img[alt]')).map(altOf);
+    return trim(
+      el.getAttribute('aria-label')
+      || (labelledBy ? textOfIdList(labelledBy) : '')
+      || (el.tagName === 'IMG' ? altOf(el) : '')
+      || imageAlts.join(' ')
+      || trim(el.textContent)
+      || '',
+    );
+  };
+  const labelFor = (el) => {
+    if (el.id) {
+      const explicit = document.querySelector('label[for="' + CSS.escape(el.id) + '"]');
+      if (explicit && trim(explicit.textContent)) return trim(explicit.textContent);
+    }
+    const wrapping = el.closest('label');
+    if (wrapping && trim(wrapping.textContent)) return trim(wrapping.textContent);
+    return '';
+  };
+  const describe = (el) => {
+    const cls = el.className;
+    return typeof cls === 'string' ? cls.split(/\\s+/).filter(Boolean).slice(0, 2).join('.') : '';
+  };
+  const where = (el) => [el.tagName.toLowerCase(), el.id ? '#' + el.id : '', describe(el) ? '.' + describe(el) : ''].join('');
+
+  const controls = [];
+  for (const el of document.querySelectorAll('button, a[href], input, select, textarea, [role="button"], [role="link"], [role="checkbox"], [role="switch"], [role="radio"], [tabindex]:not([tabindex="-1"])')) {
+    if (!visible(el) || el.getAttribute('aria-hidden') === 'true') continue;
+    const tag = el.tagName.toLowerCase();
+    const type = (el.getAttribute('type') || '').toLowerCase();
+    if (tag === 'input' && type === 'hidden') continue;
+    const kind = el.getAttribute('role') || (tag === 'input' || tag === 'select' || tag === 'textarea' ? 'field' : 'control');
+    const named = name(el);
+    const titleOnly = named === '' && trim(el.getAttribute('title')) !== '' && (tag === 'button' || tag === 'a');
+    const filled = el.value !== undefined && trim(el.value) !== '' ? 'value' : '';
+    // Rule 10: a control inside a label is targeted through the label, so that box is measured; a
+    // link that flows inline in text is exempt (WCAG 2.5.8), as is a disabled control.
+    const wrapper = el.closest('label');
+    const target = tag === 'input' && kind === 'field' && wrapper !== null ? wrapper : el;
+    const targetBox = target.getBoundingClientRect();
+    const style = getComputedStyle(el);
+    const inlineInText = tag === 'a'
+      && style.display === 'inline'
+      && el.closest('p, li, td, dd, dt, dl, .note, .legend, caption') !== null;
+    controls.push({
+      where: where(el),
+      kind,
+      name: named,
+      titleOnly,
+      filled,
+      targetHeight: Math.round(targetBox.height),
+      targetInline: inlineInText,
+      disabled: el.disabled === true,
+      label: kind === 'field' ? labelFor(el) : '',
+      ariaLabel: trim(el.getAttribute('aria-label')),
+      invalid: el.getAttribute('aria-invalid'),
+      describedBy: trim(el.getAttribute('aria-describedby')),
+      describedText: textOfIdList(el.getAttribute('aria-describedby') || ''),
+      labelledBy: trim(el.getAttribute('aria-labelledby')),
+      labelledByText: textOfIdList(el.getAttribute('aria-labelledby') || ''),
+    });
+  }
+
+  // Every element that carries an ARIA relationship, not only the controls the pass walks (§11.257): the editor labels
+  // its sections, asides and dialogs this way, and a renamed heading there would otherwise go unnoticed. The controls
+  // loop's selector, inverted, so nothing is judged twice.
+  const ariaRefs = Array.from(document.querySelectorAll('[aria-labelledby], [aria-describedby]'))
+    .filter((el) => visible(el) && el.getAttribute('aria-hidden') !== 'true')
+    .filter((el) => !el.matches('button, a[href], input, select, textarea, [role="button"], [role="link"], '
+      + '[role="checkbox"], [role="switch"], [role="radio"], [tabindex]:not([tabindex="-1"])'))
+    .map((el) => ({
+      where: where(el),
+      labelledBy: trim(el.getAttribute('aria-labelledby')),
+      labelledByText: textOfIdList(el.getAttribute('aria-labelledby') || ''),
+      describedBy: trim(el.getAttribute('aria-describedby')),
+      describedText: textOfIdList(el.getAttribute('aria-describedby') || ''),
+    }));
+
+  const images = [];
+  for (const el of document.querySelectorAll('img')) {
+    if (!visible(el)) continue;
+    const decorative = el.getAttribute('aria-hidden') === 'true' || el.getAttribute('role') === 'presentation' || el.getAttribute('role') === 'none';
+    if (el.getAttribute('alt') === null && !decorative) images.push(where(el));
+  }
+
+  const hiddenFocusable = [];
+  for (const el of document.querySelectorAll('[aria-hidden="true"]')) {
+    if (el.querySelector('button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])')) {
+      hiddenFocusable.push(where(el));
+    }
+  }
+
+  const radiogroups = [];
+  for (const group of document.querySelectorAll('[role="radiogroup"]')) {
+    const children = Array.from(group.querySelectorAll('[role="radio"], input[type="radio"]'));
+    const missing = children.filter((child) => child.getAttribute('aria-checked') === null && child.checked === undefined).length;
+    radiogroups.push({where: where(group), children: children.length, missing});
+  }
+
+  const tree = document.querySelector('[role="tree"]');
+  const treeInfo = tree === null ? null : {
+    treeitems: tree.querySelectorAll('[role="treeitem"]').length,
+    rows: tree.querySelectorAll('button, a[href]').length,
+    missingLevel: Array.from(tree.querySelectorAll('[role="treeitem"]')).filter((el) => el.getAttribute('aria-level') === null).length,
+    // Where each item sits, which a reader announces as "2 of 5": required of treeitem in ARIA and set by the editor's
+    // own flattening. It is read here, in the markup, because measured on Chrome the accessibility tree does not expose
+    // position as a property even when the attribute is there (§11.262).
+    missingPosition: Array.from(tree.querySelectorAll('[role="treeitem"]'))
+      .filter((el) => el.getAttribute('aria-posinset') === null || el.getAttribute('aria-setsize') === null).length,
+    // A treeitem with children must say whether it is expanded. The outline flattens its rows, so "has children" is
+    // read from the levels — the next treeitem is deeper — rather than from the DOM (§11.256).
+    missingExpanded: (() => {
+      const items = Array.from(tree.querySelectorAll('[role="treeitem"]'));
+      const levels = items.map((el) => Number(el.getAttribute('aria-level')));
+      return items.filter((el, index) => levels[index + 1] > levels[index]
+        && el.getAttribute('aria-expanded') === null).length;
+    })(),
+    rowsMissingRole: Array.from(tree.querySelectorAll('button')).filter((el) => el.getAttribute('role') === null).length,
+  };
+
+  const ids = Array.from(document.querySelectorAll('[id]')).map((el) => el.id);
+  const headings = Array.from(document.querySelectorAll('h1, h2, h3, h4, h5, h6'))
+    .map((heading) => ({level: Number(heading.tagName[1]), text: trim(heading.textContent).slice(0, 40)}));
+  const documentFacts = {
+    lang: document.documentElement.getAttribute('lang') ?? '',
+    headings,
+    mainCount: document.querySelectorAll('main, [role="main"]').length,
+    positiveTabindex: Array.from(document.querySelectorAll('[tabindex]'))
+      .filter((el) => Number(el.getAttribute('tabindex')) > 0)
+      .map((el) => where(el) + ' tabindex=' + el.getAttribute('tabindex')),
+    // A control inside another control is unreachable or ambiguous: the inner one is often not
+    // focusable, and a click on it bubbles into the outer action.
+    nestedControls: Array.from(document.querySelectorAll(
+      'button, a[href], input, select, textarea, [role="button"], [role="link"], [tabindex]:not([tabindex="-1"])'))
+      .map((el) => {
+        const parent = el.parentElement === null ? null : el.parentElement.closest(
+          'button, a[href], [role="button"], [role="link"]');
+        return parent === null ? null : where(el) + ' inside ' + where(parent);
+      })
+      .filter((entry) => entry !== null),
+  };
+  const focusOrder = Array.from(document.querySelectorAll('a[href], button, input, select, textarea, [tabindex]'))
+    .filter((el) => el.tabIndex >= 0 && visible(el))
+    .map((el) => {
+      const rect = el.getBoundingClientRect();
+      return {where: where(el), x: Math.round(rect.x), right: Math.round(rect.right), y: Math.round(rect.y)};
+    });
+
+  return JSON.stringify({controls, images, hiddenFocusable, radiogroups, tree: treeInfo, ids, focusOrder, documentFacts, ariaRefs});
+})()`;
+
+const list = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
+const page = list.find((t) => t.type === 'page');
+if (!page) {
+  console.error(`No Chrome page target on port ${PORT}. Start Chrome with --remote-debugging-port=${PORT}.`);
+  process.exit(2);
+}
+const ws = new WebSocket(page.webSocketDebuggerUrl);
+let seq = 0;
+const pending = new Map();
+/** Console errors, warnings and uncaught exceptions seen since the last reset (one rule per run). */
+const consoleProblems = [];
+/**
+ * Console messages the route's health is *not* judged on. Angular's development build emits NG-coded
+ * performance hints asynchronously — NG0913 is "this image is the LCP element but was not given
+ * priority" — and they land after a load has settled, so catching one is a matter of timing: measured
+ * on the recorder's error-dialog state, one run in four reported it with nothing changed. That is a
+ * flaky gate rather than a diagnostic one: rule 16 is about a broken binding, a missing asset or an
+ * unhandled rejection, and advice about image-loading priority is none of those. Named here, with the
+ * measurement, rather than left to chance.
+ */
+const IGNORED_CONSOLE = [/NG0913\b/];
+const ignoredConsole = (text) => IGNORED_CONSOLE.some((pattern) => pattern.test(text));
+ws.addEventListener('message', (event) => {
+  const message = JSON.parse(event.data);
+  if (message.id && pending.has(message.id)) {
+    pending.get(message.id)(message);
+    pending.delete(message.id);
+    return;
+  }
+  // A screen that looks right can still log every load; those messages are the route's health.
+  if (message.method === 'Runtime.exceptionThrown') {
+    consoleProblems.push('EXCEPTION ' + String(message.params?.exceptionDetails?.exception?.description ?? '').split('\n')[0].slice(0, 140));
+    return;
+  }
+  if (message.method === 'Runtime.consoleAPICalled' && (message.params?.type === 'error' || message.params?.type === 'warning')) {
+    const text = (message.params.args ?? [])
+      .map((arg) => String(arg.value ?? arg.description ?? ''))
+      .join(' ')
+      .split('\n')[0]
+      .slice(0, 140);
+    if (ignoredConsole(text)) return;
+    consoleProblems.push(message.params.type.toUpperCase() + ' ' + text);
+    return;
+  }
+  if (message.method === 'Log.entryAdded' && (message.params?.entry?.level === 'error' || message.params?.entry?.level === 'warning')) {
+    const entry = message.params.entry;
+    if (ignoredConsole(String(entry.text ?? ''))) return;
+    consoleProblems.push('LOG-' + entry.level.toUpperCase() + ' ' + String(entry.text ?? '').slice(0, 140)
+      + ' ' + String(entry.url ?? '').slice(-40));
+  }
+});
+await new Promise((resolve) => ws.addEventListener('open', resolve));
+const send = (method, params = {}) => new Promise((resolve) => {
+  const id = ++seq;
+  pending.set(id, resolve);
+  ws.send(JSON.stringify({id, method, params}));
+});
+
+await send('Page.enable');
+await send('Runtime.enable');
+await send('Log.enable');
+await send('Accessibility.enable');
+
+/**
+ * Judging the browser's own accessibility tree: the roles and names a screen reader is handed, as
+ * the engine computes them, rather than the attributes this file looks up in the DOM. It is a
+ * cross-check of the same contract from the consumer's side — a human pass still catches the
+ * quality of the announcements.
+ */
+const NAME_REQUIRED_ROLES = new Set([
+  'button', 'link', 'checkbox', 'radio', 'tab', 'treeitem', 'textbox', 'searchbox', 'combobox',
+  'slider', 'switch', 'menuitem', 'option', 'spinbutton', 'heading',
+]);
+const judgeAxTree = (nodes, at) => {
+  const live = (nodes ?? []).filter((node) => node.ignored !== true);
+  const byId = new Map(live.map((node) => [node.nodeId, node]));
+  const roleOf = (node) => node.role?.value ?? '';
+  const nameOf = (node) => (node.name?.value ?? '').trim();
+  const property = (node, wanted) => (node.properties ?? []).find((entry) => entry.name === wanted)?.value?.value;
+  /** The node and everything below it the accessibility tree exposes. */
+  const descendants = (node) => {
+    const out = [];
+    const walk = (current) => {
+      for (const id of current.childIds ?? []) {
+        const child = byId.get(id);
+        if (child === undefined) {
+          continue;
+        }
+        out.push(child);
+        walk(child);
+      }
+    };
+    walk(node);
+    return out;
+  };
+
+  for (const node of live) {
+    const role = roleOf(node);
+    if (NAME_REQUIRED_ROLES.has(role) && nameOf(node) === '') {
+      failures.push(at(`the accessibility tree exposes a ${role} with no name`));
+    }
+  }
+  // A live region is announced by its *contents*, not by a name, so it must have text below it.
+  for (const node of live.filter((candidate) => ['alert', 'status'].includes(roleOf(candidate)))) {
+    const hasText = descendants(node).some((child) => nameOf(child) !== '');
+    if (!hasText) {
+      failures.push(at(`the accessibility tree exposes a ${roleOf(node)} with nothing to announce`));
+    }
+  }
+  // A table is named row by row, and the manual script's first and ninth steps ask a person to hear "the script name, its
+  // id, the counts and the status chip". **A row is announced by its *cells*, not by a name**: measured here, Chrome's
+  // tree gives a `row` no `name` at all — 13 of 13 on the library, 6 of 6 on the draws — the same way it gives a treeitem
+  // no position property (§11.262). So the question is the live region's, one paragraph up: does anything below it carry
+  // text? An empty row is a row that announces nothing (§11.276).
+  const rows = live.filter((node) => roleOf(node) === 'row');
+  const empty = rows.filter((row) => !descendants(row).some((cell) => nameOf(cell) !== '')).length;
+  if (empty > 0) {
+    failures.push(at(`the accessibility tree has ${empty} table row(s) with no name — their cells carry no text`));
+  }
+  const treeItems = live.filter((node) => roleOf(node) === 'treeitem');
+  if (live.some((node) => roleOf(node) === 'tree')) {
+    if (treeItems.length === 0) {
+      failures.push(at('the accessibility tree has a tree with no treeitem'));
+    }
+    const withoutLevel = treeItems.filter((node) => property(node, 'level') === undefined).length;
+    if (withoutLevel > 0) {
+      failures.push(at(`the accessibility tree has ${withoutLevel} treeitem(s) without a level`));
+    }
+    // Not `posinset`/`setsize` here: measured, Chrome's tree does not expose them as properties even when the markup
+    // carries them (the outline does), so a check for them belongs in rule 7's attribute reading, where it is (§11.262).
+  }
+  // Radios may sit directly under the group or inside a wrapper the tree exposes, so look below it.
+  for (const group of live.filter((node) => roleOf(node) === 'radiogroup')) {
+    const radios = descendants(group).filter((node) => roleOf(node) === 'radio');
+    if (radios.length === 0) {
+      failures.push(at('the accessibility tree has a radiogroup with no radio'));
+    } else if (radios.some((radio) => property(radio, 'checked') === undefined)) {
+      failures.push(at('a radio in the accessibility tree has no checked state'));
+    }
+  }
+  return {live: live.length, treeItems: treeItems.length};
+};
+
+let prepareSource = null;
+if (PREPARE_FILE) {
+  const {readFileSync} = await import('node:fs');
+  prepareSource = readFileSync(PREPARE_FILE, 'utf8');
+}
+
+const failures = [];
+const notes = [];
+
+for (const [width, height] of VIEWPORTS) {
+  consoleProblems.length = 0;
+  await send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: false});
+  await send('Page.navigate', {url: URL_TO_TEST});
+  await new Promise((resolve) => setTimeout(resolve, SETTLE_MS));
+  if (prepareSource) {
+    const prepared = await send('Runtime.evaluate', {expression: prepareSource, awaitPromise: true, returnByValue: true});
+    if (prepared.result?.exceptionDetails) {
+      failures.push(`${width}x${height}: --prepare script failed: ${prepared.result.exceptionDetails.exception?.description || ''}`);
+    } else {
+      console.log(`  prepared(${PREPARE_FILE}): ${String(prepared.result?.result?.value ?? '').slice(0, 120)}`);
+    }
+  }
+  const out = await send('Runtime.evaluate', {expression: PAGE_PROBE, returnByValue: true});
+  const raw = out.result?.result?.value;
+  if (!raw) {
+    failures.push(`${width}x${height}: probe returned nothing (${JSON.stringify(out.result?.exceptionDetails?.exception?.description || out.result)})`);
+    continue;
+  }
+  const {controls, images, hiddenFocusable, radiogroups, tree, ids, focusOrder, documentFacts, ariaRefs} = JSON.parse(raw);
+  const at = (message) => `${width}x${height}: ${message}`;
+
+  // The browser's accessibility tree — what a screen reader is actually handed.
+  const ax = await send('Accessibility.getFullAXTree', {});
+  // Rule 9 is excluded the same way as every other: judged against no nodes, which finds nothing and still
+  // returns the summary the pass line below reads (§11.239).
+  const axSummary = judgeAxTree(runs(9) ? (ax.result?.nodes ?? []) : [], at);
+
+  // 1 + 2: names and labels.
+  let named = 0;
+  for (const control of controls) {
+    if (control.kind === 'field') {
+      const hasLabel = control.label !== '' || control.name !== '';
+      if (runs(2) && !hasLabel) failures.push(at(`${control.where} has no label (add <label for>, a wrapping label or aria-label)`));
+      else named += 1;
+    } else {
+      if (runs(1) && control.name === '' && !control.titleOnly) {
+        failures.push(at(`${control.where} has no accessible name`));
+      } else if (runs(1) && control.titleOnly) {
+        failures.push(at(`${control.where} is named only by title — an icon-only control needs aria-label`));
+      } else named += 1;
+    }
+  }
+
+  // 3: referential integrity of the ARIA relationships.
+  for (const control of controls) {
+    if (runs(3) && control.labelledBy !== '' && control.labelledByText === '') failures.push(at(`${control.where} aria-labelledby points at nothing with text`));
+    if (runs(3) && control.describedBy !== '' && control.describedText === '') failures.push(at(`${control.where} aria-describedby points at nothing with text`));
+    if (runs(3) && control.invalid === 'true' && control.describedBy === '') failures.push(at(`${control.where} is aria-invalid but has no aria-describedby message`));
+  }
+
+  // 10: every interactive target is at least 44 px high (ui-spec §8's house rule; editor-scoped).
+  if (runs(10) && HOUSE_RULES) {
+    for (const control of controls) {
+      if (control.disabled || control.targetInline || control.targetHeight >= 44) continue;
+      failures.push(at(`${control.where} is ${control.targetHeight} px high — ui-spec §8 asks for 44`));
+    }
+  }
+
+  // 11-14: what a screen reader relies on before it reads anything else.
+  if (runs(11) && documentFacts.lang === '') {
+    failures.push(at('<html> has no lang attribute — the reader has to guess the language'));
+  }
+  const h1s = documentFacts.headings.filter((heading) => heading.level === 1);
+  if (runs(12) && HOUSE_RULES && h1s.length !== 1) {
+    failures.push(at(`${h1s.length} h1 heading(s) — a route names itself exactly once`));
+  }
+  let previousLevel = 0;
+  for (const heading of documentFacts.headings) {
+    if (runs(12) && previousLevel !== 0 && heading.level > previousLevel + 1) {
+      failures.push(at(`heading level jumps h${previousLevel} to h${heading.level} at "${heading.text}"`));
+    }
+    previousLevel = heading.level;
+  }
+  if (runs(13) && HOUSE_RULES && documentFacts.mainCount !== 1) {
+    failures.push(at(`${documentFacts.mainCount} main landmark(s) — exactly one per route`));
+  }
+  if (runs(14)) for (const element of documentFacts.positiveTabindex) {
+    failures.push(at(`${element} — a positive tabindex reorders the document for every keyboard user`));
+  }
+  if (runs(15)) for (const element of documentFacts.nestedControls) {
+    failures.push(at(`${element} — a control inside a control: unreachable or ambiguous for a reader`));
+  }
+
+  // 16: the route loads quietly. A broken binding, a missing asset or an unhandled rejection can
+  // leave a screen that looks right and logs on every load, which nothing else would notice.
+  if (runs(16)) for (const problem of [...new Set(consoleProblems)].slice(0, 6)) {
+    failures.push(at(`console: ${problem}`));
+  }
+
+  // 4: duplicate ids.
+  const seen = new Map();
+  for (const id of ids) seen.set(id, (seen.get(id) ?? 0) + 1);
+  for (const [id, count] of seen) {
+    if (runs(4) && count > 1) failures.push(at(`id "${id}" appears ${count} times — aria-labelledby/describedby resolve to the first only`));
+  }
+
+  // 3, continued (§11.257): the same integrity question for the elements the controls loop does not reach — a labelled
+  // section, an aside, a dialog. It sits outside that loop because the probe's list is disjoint from it.
+  if (runs(3)) {
+    for (const el of ariaRefs) {
+      if (el.labelledBy !== '' && el.labelledByText === '') failures.push(at(`${el.where} aria-labelledby points at nothing with text`));
+      if (el.describedBy !== '' && el.describedText === '') failures.push(at(`${el.where} aria-describedby points at nothing with text`));
+    }
+  }
+
+  // 5: images.
+  if (runs(5)) for (const image of images) failures.push(at(`${image} has no alt and is not marked decorative`));
+
+  // 6: focusable inside aria-hidden. Skipped where the caller has said the state makes it ambiguous
+  // (a modal: the framework marks the root `aria-hidden` and traps focus inside the dialog).
+  if (runs(6)) {
+    for (const host of hiddenFocusable) failures.push(at(`${host} is aria-hidden but contains focusable content`));
+  }
+
+  // 7: radiogroups and the tree.
+  if (runs(7)) for (const group of radiogroups) {
+    if (group.children === 0) failures.push(at(`${group.where} is a radiogroup with no radios`));
+    else if (group.missing > 0) failures.push(at(`${group.where} has ${group.missing} radio(s) without aria-checked`));
+  }
+  if (runs(7) && tree !== null) {
+    if (tree.treeitems === 0 && tree.rows > 0) {
+      failures.push(at(`role="tree" contains ${tree.rows} row(s) with no role="treeitem" — a screen reader loses the tree semantics`));
+    }
+    if (tree.treeitems > 0 && tree.missingLevel > 0) {
+      failures.push(at(`${tree.missingLevel} treeitem(s) have no aria-level`));
+    }
+    if (tree.missingExpanded > 0) {
+      failures.push(at(`${tree.missingExpanded} treeitem(s) with children have no aria-expanded — a branch that never says whether it is open reads as open`));
+    }
+    if (tree.missingPosition > 0) {
+      failures.push(at(`${tree.missingPosition} treeitem(s) carry no aria-posinset/aria-setsize — a reader hears no "2 of 5"`));
+    }
+  }
+
+  // 8: tab order against visual order. Comparing a full sort is too brittle — one row's items sit a
+  // few pixels apart, their boxes differ in height, and the layout has side-by-side columns that a
+  // document-order walk legitimately leaves and re-enters. The rule that matters to a keyboard user
+  // is: focus must not jump back up *within the same column*.
+  const UPWARD_JUMP_PX = 30;
+  const overlapsHorizontally = (a, b) => Math.min(a.right, b.right) - Math.max(a.x, b.x) > 0;
+  if (runs(8)) for (let i = 1; i < focusOrder.length; i++) {
+    const previous = focusOrder[i - 1];
+    const current = focusOrder[i];
+    if (current.y < previous.y - UPWARD_JUMP_PX && overlapsHorizontally(previous, current)) {
+      failures.push(at(`tab order jumps back up the same column: ${previous.where} (y=${previous.y}) is followed by ${current.where} (y=${current.y})`));
+      break;
+    }
+  }
+
+  if (VERBOSE) {
+    notes.push(at(`${controls.length} interactive element(s), ${named} named, ${tree === null ? 'no tree' : `${tree.treeitems} treeitem(s)`}; accessibility tree: ${axSummary.live} node(s), ${axSummary.treeItems} treeitem(s)`));
+  }
+}
+
+ws.close();
+
+if (VERBOSE) notes.forEach((note) => console.log('  ' + note));
+
+if (failures.length) {
+  console.log(`\n${failures.length} accessibility problem(s):`);
+  failures.forEach((failure) => console.log('  ✗ ' + failure));
+  process.exit(1);
+}
+console.log(`\nAccessibility audit passed${HOUSE_RULES ? '' : ' (universal rules)'}.`);

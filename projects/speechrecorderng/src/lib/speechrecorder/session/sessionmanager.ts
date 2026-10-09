@@ -2,6 +2,8 @@ import {AudioCapture, AudioCaptureListener} from '../../audio/capture/capture';
 import {AudioPlayer, AudioPlayerEvent, EventType} from '../../audio/playback/player'
 import {WavWriter, SampleSize} from '../../audio/impl/wavwriter'
 import {Group, Mediaitem, PromptItem, PromptitemUtil, Script, Section} from '../script/script';
+import {DEFAULT_POST_REC_DELAY, effectiveTiming, playbackPlan, playbackStart, playbackTiming, promptVisibleAt, replayAllowed, sectionNeedsHeadphones} from '../script/phases';
+import type {PlaybackPlan} from '../script/phases';
 import {RecordingFileDescriptorImpl, SprRecordingFile} from '../recording'
 import {Upload, UploadHolder} from '../../net/uploader';
 import {
@@ -33,7 +35,7 @@ import {RecordingService} from "../recordings/recordings.service";
 import {AudioClip} from "../../audio/persistor";
 import {Item} from "./item";
 import {LevelBar, State as LiveLevelState} from "../../audio/ui/livelevel";
-import {BasicRecorder, ChunkAudioBufferReceiver, MAX_RECORDING_TIME_MS, RECFILE_API_CTX} from "./basicrecorder";
+import {BasicRecorder, ChunkAudioBufferReceiver, RECFILE_API_CTX} from "./basicrecorder";
 import {ArrayAudioBuffer} from "../../audio/array_audio_buffer";
 import {SprTranslator} from "../../i18n/translate";
 import {AudioBufferSource, AudioDataHolder, AudioSource} from "../../audio/audio_data_holder";
@@ -43,9 +45,6 @@ import {AudioStorageFormatEncoding, AudioStorageType} from "../project/project";
 import {NetAudioBuffer} from "../../audio/net_audio_buffer";
 import {BreakpointObserver} from "@angular/cdk/layout";
 import {SprLogger} from "../../utils/logger";
-
-const DEFAULT_PRE_REC_DELAY=1000;
-const DEFAULT_POST_REC_DELAY=500;
 
 export const enum Status {
   BLOCKED, IDLE, STARTING, PRE_RECORDING, RECORDING, POST_REC_STOP, POST_REC_PAUSE, STOPPING_STOP, STOPPING_PAUSE, NON_RECORDING_WAIT,ERROR
@@ -236,6 +235,13 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
    * (and the traffic light) of the item the sound belongs to.
    */
   private promptAudioPending: {preDelay: number, maxRecordingTimeMs: number}|null = null;
+  /** The placement of the current item's sound (D-V = C). */
+  private promptAudioPlan: PlaybackPlan|null = null;
+  /** Operator replays of the current item, and the per-itemcode log sent to the session. */
+  private promptAudioReplays = 0;
+  private readonly replayLog: {[itemcode: string]: number} = {};
+  /** The section whose headphone reminder the operator has already dismissed. */
+  private headphonesConfirmedFor: Section|null = null;
   private postDelay:number=DEFAULT_POST_REC_DELAY;
   private postRecTimerId: number|null=null;
   private postRecTimerRunning: boolean|null=null;
@@ -681,6 +687,37 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
     }
   }
 
+  /**
+   * Shows the headphone reminder once per section when the script asks for it (D-V = C). The take
+   * starts when the operator dismisses the dialog, and not before.
+   */
+  private requireHeadphonesBeforeStart(): boolean {
+    if (!sectionNeedsHeadphones(this.section) || this.headphonesConfirmedFor === this.section) {
+      return false;
+    }
+    const section = this.section;
+    this.dialog.open(MessageDialog, {
+      data: {
+        type: 'warning',
+        title: this.i18n.t('spr.dialog.headphonesTitle'),
+        msg: this.i18n.t('spr.dialog.headphonesMsg'),
+        advice: '',
+      }
+    }).afterClosed().subscribe(() => {
+      if (this.section !== section) {
+        return;   // the operator moved on while the reminder was open
+      }
+      this.headphonesConfirmedFor = section;
+      this.startItem();
+    });
+    return true;
+  }
+
+  /** The message for a sound that could not be played; offline is called out (C2). */
+  private promptAudioFailureMessage(): string {
+    return this.i18n.t(navigator.onLine === false ? 'spr.status.promptAudioOffline' : 'spr.status.promptAudioError');
+  }
+
   startItem() {
     this.transportActions.fwdAction.disabled = true
     this.transportActions.fwdNextAction.disabled = true
@@ -712,6 +749,9 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
       this.status=Status.NON_RECORDING_WAIT;
       this.transportActions.stopNonrecordingAction.disabled = false;
     }else {
+      if (this.requireHeadphonesBeforeStart()) {
+        return;
+      }
       this.status = Status.STARTING;
       super.startItem();
       if (this.readonly) {
@@ -1079,6 +1119,8 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
     //this.selectedItemIdx = this.promptIndex;
 
     this.cancelPromptAudio();
+    this.promptAudioReplays = 0;
+    this.promptAudioPlan = playbackPlan(this.promptItem);
     this.prefetchPromptAudio();
 
     if(this.audioFetchSubscription){
@@ -1095,7 +1137,7 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
 
     const isNonrecording=(this.promptItem.type==='nonrecording');
 
-    if (isNonrecording || !this.section.promptphase || this.section.promptphase === 'IDLE') {
+    if (promptVisibleAt(this.section.promptphase, 'SELECTED', this.promptItem.type)) {
       this.applyPrompt();
     }
 
@@ -1168,6 +1210,8 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
        if(newPrIdx<0){
          newPrIdx=this.promptItemCount-1;
        }
+       // Moving to another item must not leave this item's sound playing (L3/D-V = C).
+       this.cancelPromptAudio();
        this.promptIndex=newPrIdx;
       //this.updateNavigationActions()
     }
@@ -1179,6 +1223,8 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
     if(newPrIdx>=this.promptItemCount){
       newPrIdx=0;
     }
+    // Moving to another item must not leave this item's sound playing (L3/D-V = C).
+    this.cancelPromptAudio();
     this.promptIndex=newPrIdx;
     //this.updateNavigationActions();
   }
@@ -1266,39 +1312,19 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
         this.sessionService.patchSessionObserver(this._session, body).subscribe()
       }
     }
-    if (this.section.promptphase === 'PRERECORDING' || this.section.promptphase === 'PRERECORDINGONLY') {
+    // A phase that hides the prompt until the take starts (PRERECORDING/PRERECORDINGONLY) shows it now.
+    if (promptVisibleAt(this.section.promptphase, 'PRE_RECORDING', this.promptItem.type)
+      && !promptVisibleAt(this.section.promptphase, 'SELECTED', this.promptItem.type)) {
       this.applyPrompt();
     }
     this.statusAlertType = 'info';
 
-    let preDelay = DEFAULT_PRE_REC_DELAY;
-    if (this.promptItem.prerecdelay!=null) {
-      preDelay = this.promptItem.prerecdelay;
-    }else if (this.promptItem.prerecording!=null) {
-      preDelay = this.promptItem.prerecording;
-    }
+    const timing = effectiveTiming(this.promptItem);
+    const preDelay = timing.preDelay;
+    this.postDelay = timing.postDelay;
+    const maxRecordingTimeMs = timing.maxRecordingTimeMs;
 
-    this.postDelay=DEFAULT_POST_REC_DELAY;
-    if(this.promptItem.postrecdelay!=null){
-      this.postDelay=this.promptItem.postrecdelay;
-    }else if(this.promptItem.postrecording!=null){
-      this.postDelay=this.promptItem.postrecording;
-    }
-
-    let maxRecordingTimeMs = MAX_RECORDING_TIME_MS;
-    if (this.promptItem.recduration!==null && this.promptItem.recduration!==undefined) {
-      maxRecordingTimeMs = preDelay+this.promptItem.recduration+this.postDelay;
-    }
-
-    const promptAudio = PromptitemUtil.autoplayAudioitem(this.promptItem);
-    if (promptAudio !== null) {
-      // The sound is the prompt: the item's clocks start when it has been played to the end, so
-      // neither the cue lamp nor the recording lamp can come up while the respondent is listening.
-      this.statusMsg = this.i18n.t('spr.status.promptAudio');
-      this.startPromptAudio(promptAudio, preDelay, maxRecordingTimeMs);
-    } else {
-      this.beginPrerecording(preDelay, maxRecordingTimeMs);
-    }
+    this.startItemPlayback(preDelay, maxRecordingTimeMs);
   }
 
   /**
@@ -1330,24 +1356,71 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
       } else {
         this.transportActions.stopAction.disabled = false;
       }
-      if (this.section.promptphase === 'RECORDING') {
+      // The prompt appears when a RECORDING phase enters this window, and leaves it when a
+      // PRERECORDINGONLY prompt is no longer shown.
+      const visibleNow = promptVisibleAt(this.section.promptphase, 'RECORDING', this.promptItem.type);
+      const visibleBefore = promptVisibleAt(this.section.promptphase, 'PRE_RECORDING', this.promptItem.type);
+      if (visibleNow && !visibleBefore) {
         this.applyPrompt();
-      }
-      if (this.section.promptphase === 'PRERECORDINGONLY'){
+      } else if (!visibleNow && visibleBefore) {
         this.clearPrompt();
       }
 
+      if (playbackTiming(playbackStart(this.promptAudioPlan)) === 'SOUND_AT_WINDOW') {
+        this.startPromptAudio(preDelay, maxRecordingTimeMs, false);
+      }
     }, preDelay);
     this.preRecTimerRunning = true;
   }
 
-  /** Plays the prompt sound of the running take and holds its clocks until the sound has ended. */
-  private startPromptAudio(mediaitem: Mediaitem, preDelay: number, maxRecordingTimeMs: number) {
+  /** Starts the item's sound according to its placement (D-V = C) and starts the clocks. */
+  private startItemPlayback(preDelay: number, maxRecordingTimeMs: number) {
+    const plan = playbackPlan(this.promptItem);
+    this.promptAudioPlan = plan;
+    switch (playbackTiming(playbackStart(plan))) {
+      case 'SOUND_GATES_CLOCKS':
+        // The sound is the prompt: the clocks start when it has been played to the end, so neither
+        // the cue lamp nor the recording lamp can come up while the respondent is listening.
+        this.statusMsg = this.i18n.t('spr.status.promptAudio');
+        this.startPromptAudio(preDelay, maxRecordingTimeMs, true);
+        return;
+      case 'SOUND_WITH_CLOCKS':
+        // The clocks run and the sound plays alongside them from the take start.
+        this.beginPrerecording(preDelay, maxRecordingTimeMs);
+        this.startPromptAudio(preDelay, maxRecordingTimeMs, false);
+        return;
+      case 'SOUND_AT_WINDOW':
+        // The clocks run; the sound waits for the recording window (see the pre-recording timer).
+        this.beginPrerecording(preDelay, maxRecordingTimeMs);
+        return;
+      case 'CLOCKS_ONLY':
+        this.beginPrerecording(preDelay, maxRecordingTimeMs);
+        return;
+    }
+  }
+
+  /**
+   * Plays the current item's sound. `gates` is true when the clocks wait for it: the take resumes
+   * from `finishPromptAudio`, and the operator's replay restarts the same wait.
+   */
+  private startPromptAudio(preDelay: number, maxRecordingTimeMs: number, gates: boolean) {
+    const plan = this.promptAudioPlan;
+    if (plan === null) {
+      if (gates) {
+        this.beginPrerecording(preDelay, maxRecordingTimeMs);
+      }
+      return;
+    }
     const token = ++this.promptAudioToken;
-    this.promptAudioPending = {preDelay: preDelay, maxRecordingTimeMs: maxRecordingTimeMs};
-    this.promptAudio.play(this.projectName, mediaitem).then((result) => {
-      this.finishPromptAudio(token, result);
-    });
+    this.promptAudioPending = gates ? {preDelay: preDelay, maxRecordingTimeMs: maxRecordingTimeMs} : null;
+    this.promptAudio.playSequence(this.projectName, plan.mediaitem, {repeats: plan.repeats, gap: plan.gap})
+      .then((result) => {
+        if (gates) {
+          this.finishPromptAudio(token, result);
+        } else {
+          this.finishSidecarAudio(token, result);
+        }
+      });
   }
 
   /** The prompt sound stopped playing: the take continues, with or without it. */
@@ -1362,7 +1435,30 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
     if (result === 'failed') {
       // The session must not stall on a broken or missing file; the operator sees why it was quiet.
       this.statusAlertType = 'error';
-      this.statusMsg = this.i18n.t('spr.status.promptAudioError');
+      this.statusMsg = this.promptAudioFailureMessage();
+    }
+  }
+
+  /** A sound that plays alongside the clocks ends on its own; only a failure is reported. */
+  private finishSidecarAudio(token: number, result: PromptAudioResult) {
+    if (token !== this.promptAudioToken) {
+      return;   // stopped, or the next item started
+    }
+    if (result === 'failed') {
+      this.statusAlertType = 'error';
+      this.statusMsg = this.promptAudioFailureMessage();
+    }
+  }
+
+  /** Sends the replay log to the session, so the count survives the take (C4). */
+  private recordReplay() {
+    const itemcode = this.promptItem?.itemcode;
+    if (itemcode === null || itemcode === undefined) {
+      return;
+    }
+    this.replayLog[itemcode] = this.promptAudioReplays;
+    if (this._session !== null && this._session !== undefined) {
+      this.sessionService.patchSessionObserver(this._session, {replayLog: {...this.replayLog}}).subscribe();
     }
   }
 
@@ -1371,18 +1467,25 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
    * The script decides whether an item offers it at all (`Mediaitem.replay`).
    */
   private playPromptAudio() {
-    const mediaitem = PromptitemUtil.replayAudioitem(this.promptItem);
-    if (mediaitem === null) {
+    const plan = this.promptAudioPlan ?? playbackPlan(this.promptItem);
+    if (!replayAllowed(plan, this.promptAudioReplays)) {
       return;
     }
+    this.promptAudioReplays += 1;
+    const item = this.items?.getItem(this.promptIndex);
+    if (item !== null && item !== undefined) {
+      item.replays = this.promptAudioReplays;
+    }
+    this.recordReplay();
+    this.updatePromptAudioActionState();
     const pending = this.promptAudioPending;
     if (pending !== null) {
       // The take is waiting for this sound: the replay restarts the sound and with it the wait,
       // with the clocks the take was started with, so it cannot shorten the recording window.
-      this.startPromptAudio(mediaitem, pending.preDelay, pending.maxRecordingTimeMs);
+      this.startPromptAudio(pending.preDelay, pending.maxRecordingTimeMs, true);
       return;
     }
-    this.promptAudio.play(this.projectName, mediaitem);
+    this.startPromptAudio(0, 0, false);
   }
 
   /**
@@ -1427,14 +1530,15 @@ export class SessionManager extends BasicRecorder implements AfterViewInit,OnDes
 
   /** The play action only exists where the script lets the operator play the sound. */
   private updatePromptAudioActionState() {
-    this.transportActions.playPromptAction.disabled = PromptitemUtil.replayAudioitem(this.promptItem) === null;
+    const plan = this.promptAudioPlan ?? playbackPlan(this.promptItem);
+    this.transportActions.playPromptAction.disabled = !replayAllowed(plan, this.promptAudioReplays);
   }
 
   /** Warms the cache for a sound the take will play or the operator may play. */
   private prefetchPromptAudio() {
-    const mediaitem = PromptitemUtil.autoplayAudioitem(this.promptItem) ?? PromptitemUtil.replayAudioitem(this.promptItem);
-    if (mediaitem !== null) {
-      this.promptAudio.prefetch(this.projectName, mediaitem);
+    const plan = playbackPlan(this.promptItem);
+    if (plan !== null) {
+      this.promptAudio.prefetch(this.projectName, plan.mediaitem);
     }
   }
 

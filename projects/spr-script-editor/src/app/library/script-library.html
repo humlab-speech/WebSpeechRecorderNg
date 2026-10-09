@@ -1,0 +1,117 @@
+<section class="library" [attr.aria-labelledby]="'library-title'">
+  <header class="library-header">
+    <h1 id="library-title">{{ strings.library.title }}</h1>
+    <div class="library-actions">
+      <button type="button" [disabled]="busy()" (click)="newScript()">{{ strings.library.newScript }}</button>
+      <button type="button" [disabled]="busy()" (click)="importInput.click()">{{ strings.library.importJson }}</button>
+      <input #importInput type="file" accept="application/json,.json" hidden (change)="onImport($event)">
+    </div>
+  </header>
+
+  @if (actionError(); as message) {
+    <p class="action-error" role="alert">{{ message }}</p>
+  }
+
+  <form class="filters" role="search" (submit)="$event.preventDefault()">
+    <div class="field">
+      <label for="library-search">{{ strings.library.searchLabel }}</label>
+      <input id="library-search" type="search" autocomplete="off"
+             [placeholder]="strings.library.searchPlaceholder"
+             [value]="search()" (input)="search.set($any($event.target).value)">
+    </div>
+    <div class="field">
+      <label for="library-status">{{ strings.library.statusLabel }}</label>
+      <select id="library-status" [value]="status()" (change)="status.set($any($event.target).value)">
+        <option value="ALL">{{ strings.library.statusAll }}</option>
+        <option value="DRAFT">{{ strings.library.statusDrafts }}</option>
+        <option value="PUBLISHED">{{ strings.library.statusPublished }}</option>
+        <option value="ARCHIVED">{{ strings.library.statusArchived }}</option>
+      </select>
+    </div>
+  </form>
+
+  @switch (state()) {
+    @case ('loading') {
+      <div class="state" role="status" aria-live="polite">
+        <p>{{ strings.library.loading }}</p>
+        <ul class="skeleton" aria-hidden="true">
+          <li></li>
+          <li></li>
+          <li></li>
+        </ul>
+      </div>
+    }
+    @case ('error') {
+      <div class="state state-error" role="alert">
+        <p>{{ error() }}</p>
+        <button type="button" (click)="retry()">{{ strings.library.retry }}</button>
+      </div>
+    }
+    @case ('empty') {
+      <div class="state">
+        <p>{{ strings.library.empty }}</p>
+      </div>
+    }
+    @default {
+      <table class="scripts">
+        <caption class="visually-hidden">{{ strings.library.caption }}</caption>
+        <thead>
+        <tr>
+          <th scope="col">{{ strings.library.columnName }}</th>
+          <th scope="col">{{ strings.library.columnSectionsItems }}</th>
+          <th scope="col">{{ strings.library.columnStatus }}</th>
+          <th scope="col">{{ strings.library.columnUsage }}</th>
+          <th scope="col">{{ strings.library.columnUpdated }}</th>
+          <th scope="col">{{ strings.library.columnActions }}</th>
+        </tr>
+        </thead>
+        <tbody>
+          @for (script of filtered(); track script.scriptId) {
+            <tr>
+              <th scope="row">
+                <a [routerLink]="['/project', p(), 'script', script.scriptId, 'edit']">{{ script.name }}</a>
+                @if (sectionNames(script); as names) {
+                  <span class="section-names">{{ names }}</span>
+                }
+                <span class="script-id">{{ strings.library.idPrefix }}{{ script.scriptId }}</span>
+              </th>
+              <td>
+                {{ script.sections ?? 0 }} {{ strings.library.sectionsWord }}
+                {{ strings.library.countSeparator }}
+                {{ script.fixedItems ?? 0 }} {{ strings.library.plus }} {{ script.drawnItems ?? 0 }} {{ strings.library.drawnWord }}
+              </td>
+              <td>
+                <span class="chip" [attr.data-status]="script.status">{{ strings.library.statusLabels[script.status] }}</span>
+              </td>
+              <td class="usage">{{ usageLabel(script) ?? strings.library.usageNone }}</td>
+              <td>{{ script.modified ?? strings.library.updatedPlaceholder }}</td>
+              <td class="row-actions">
+                <a [routerLink]="['/project', p(), 'script', script.scriptId, 'edit']">{{ strings.library.edit }}</a>
+                <button type="button" [disabled]="busy()" (click)="duplicate(script)">{{ strings.library.duplicate }}</button>
+                <button type="button" [disabled]="busy()" (click)="archive(script)">{{ script.archived ? strings.library.unarchive : strings.library.archive }}</button>
+                <button type="button" [disabled]="busy()" (click)="exportJson(script)">{{ strings.library.exportJson }}</button>
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="6">{{ strings.library.noMatch }}</td></tr>
+          }
+        </tbody>
+      </table>
+    }
+  }
+
+  <section class="legend" [attr.aria-label]="strings.library.legendLabel">
+    <article>
+      <h2>{{ strings.library.legendDraftTitle }}</h2>
+      <p>{{ strings.library.legendDraftBody }}</p>
+    </article>
+    <article>
+      <h2>{{ strings.library.legendPublishedTitle }}</h2>
+      <p>{{ strings.library.legendPublishedBody }}</p>
+    </article>
+    <article>
+      <h2>{{ strings.library.legendInUseTitle }}</h2>
+      <p>{{ strings.library.legendInUseBody }}</p>
+    </article>
+  </section>
+</section>

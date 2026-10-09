@@ -1,0 +1,268 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--spr-page);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: var(--spr-r-md);
+  min-height: 56px;
+  padding: 0 var(--spr-r-md);
+  background: var(--spr-chrome);
+  color: var(--spr-chrome-ink);
+}
+
+.brand {
+  /* ui-spec §8: every interactive target is at least 44 px high; the toolbar is 56 px, so it fits. */
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: var(--spr-type-section);
+  font-weight: 700;
+  color: var(--spr-chrome-ink);
+  text-decoration: none;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: var(--spr-type-label);
+  color: var(--spr-chrome-ink);
+}
+
+.breadcrumb a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: inherit;
+}
+
+.breadcrumb .here {
+  color: var(--spr-chrome-ink-muted);
+}
+
+.script-name {
+  min-height: 44px;
+  padding: 0 0.6rem;
+  font-size: var(--spr-type-label);
+  color: var(--spr-ink);
+  background: var(--spr-surface);
+  border: 1px solid var(--spr-border-strong);
+  border-radius: var(--spr-r-sm);
+}
+
+.spacer {
+  flex: 1 1 auto;
+}
+
+.save-state,
+.warning-count {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  font-size: var(--spr-type-caption);
+  color: var(--spr-chrome-ink-muted);
+}
+
+.save-state {
+  gap: 0.5rem;
+}
+
+.save-state .save-error {
+  color: var(--spr-chrome-ink);
+}
+
+.warning-count {
+  min-height: 44px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+button,
+.action-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 0.8rem;
+  font-family: inherit;
+  font-size: var(--spr-type-label);
+  color: var(--spr-primary-ink);
+  background: var(--spr-primary);
+  border: 1px solid var(--spr-border-strong);
+  border-radius: var(--spr-r-sm);
+  cursor: pointer;
+}
+
+.action-link {
+  text-decoration: none;
+}
+
+button.primary {
+  font-weight: 700;
+}
+
+button[disabled] {
+  background: var(--spr-disabled-bg);
+  color: var(--spr-ink-disabled);
+  cursor: not-allowed;
+}
+
+.content {
+  flex: 1 1 auto;
+  overflow: auto;
+}
+
+.banners {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+}
+
+.conflict-bar,
+.notice,
+.server-findings {
+  display: flex;
+  align-items: center;
+  gap: var(--spr-r-md);
+  padding: 0.4rem var(--spr-r-md);
+  font-size: var(--spr-type-label);
+  color: var(--spr-ink);
+  background: var(--spr-surface-2);
+  border-bottom: 1px solid var(--spr-divider);
+}
+
+.conflict-bar {
+  border-left: 4px solid var(--spr-caution);
+}
+
+.notice {
+  border-left: 4px solid var(--spr-alert);
+}
+
+.notice.ok {
+  border-left-color: var(--spr-ok);
+}
+
+.server-findings {
+  display: block;
+}
+
+.server-findings-toggle {
+  min-height: 44px;
+  padding: 0 0.8rem;
+  font-family: inherit;
+  font-size: var(--spr-type-label);
+  color: var(--spr-ink);
+  background: var(--spr-surface);
+  border: 1px solid var(--spr-border-strong);
+  border-radius: var(--spr-r-sm);
+  cursor: pointer;
+}
+
+.finding-list {
+  margin: 0.4rem 0 0;
+}
+
+.chip {
+  padding: 0 0.4rem;
+  font-size: var(--spr-type-caption);
+  font-weight: 700;
+  color: var(--spr-caution-ink);
+  background: var(--spr-caution);
+  border-radius: var(--spr-r-pill);
+}
+
+.chip-error {
+  color: var(--spr-alert-ink);
+  background: var(--spr-alert);
+}
+
+.read-only-note {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0.4rem var(--spr-r-md);
+  font-size: var(--spr-type-caption);
+  color: var(--spr-ink-muted);
+  background: var(--spr-surface-2);
+}
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spr-r-md);
+  background: var(--spr-scrim);
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spr-r-md);
+  width: 100%;
+  max-width: 34rem;
+  max-height: 80vh;
+  overflow: auto;
+  padding: var(--spr-r-lg);
+  color: var(--spr-ink);
+  background: var(--spr-surface);
+  border-radius: var(--spr-r-lg);
+  box-shadow: var(--spr-shadow-overlay);
+}
+
+.dialog h2,
+.dialog-warning-heading {
+  margin: 0;
+}
+
+.dialog h2 {
+  font-size: var(--spr-type-title);
+}
+
+.dialog-warning-heading {
+  font-size: var(--spr-type-label);
+}
+
+.note-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.note-field textarea {
+  min-height: 44px;
+  padding: 0.4rem;
+  font-family: inherit;
+  color: var(--spr-ink);
+  background: var(--spr-surface-2);
+  border: 1px solid var(--spr-border-strong);
+  border-radius: var(--spr-r-sm);
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+
+/* The legacy read-only line carries the route to the conversion; its link is a target like any
+   other (ui-spec §8's 44 px). */
+.read-only-note a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}

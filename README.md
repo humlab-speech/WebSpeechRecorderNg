@@ -9,7 +9,7 @@ For backwards compatibility to server REST API v1 set the property `apiVersion: 
 
 ### Install NPM package
 Speechrecorder module is available as NPM package.
-Add `"speechrecorderng": "3.11.26"` to the `dependencies` array property in the `package.json` file of your application. Run `npm install` to install the package.
+Install it with `npm install speechrecorderng`, which adds it to your `package.json`.
 ### Module integration
 Add SpeechRecorderNg module to 'imports' property of your `AppModule` annotation. The module main component `SpeechRecorder` should be activated by an Angular route.
 
@@ -263,6 +263,29 @@ The endpoint stays relative and the browser only ever talks to the origin it loa
 application from, so no cross origin configuration is needed. Without the receiver the proxy
 answers 504 — sessions, scripts and uploads all come from the API.
 
+#### The receiver's options
+
+`npm run serve:api` runs `node server/server.mjs` with the defaults below; each one has a flag.
+
+| Option | Meaning |
+|---|---|
+| `--host`, `--port` | interface and port to listen on (default `127.0.0.1:8080`) |
+| `--api-base <path>` | API base path (default `/api/v1`); must equal the application's `apiEndPoint` |
+| `--data <dir>` | data directory, seeded on first run (default `server/data`) |
+| `--seed <dir\|none>` | fixture tree copied into an empty data directory (default `src/test`) |
+| `--app <dir\|none>` | built application to serve (default `dist/cavox/browser`) |
+| `--project`, `--script` | project and script of sessions created on demand |
+| `--no-auto-create` | answer `404` for sessions that do not exist instead of creating them |
+| `--no-cors`, `--credentials` | cross-origin behaviour, for a development server on another port |
+| `--cors-origin <origin>` | an origin allowed to send credentials (repeatable). With `--credentials` the request's origin is **never reflected**: an origin not named here gets no CORS headers at all, because reflecting it while allowing credentials lets any site make credentialed requests and read the answers |
+| `--max-body <bytes>`, `--concat-wait-ms <n>` | upload size limit, and how long a concat request waits for chunks still in flight |
+| `--quiet`, `--verbose` | log uploads and errors only, or every request |
+| `--recorder-version <v>` | **the version this receiver reports.** A script whose `minRecorderVersion` is above it is refused when a session is created, so it must match the recorder build the deployment actually serves — otherwise the guard against a script running with a feature silently missing compares against the wrong number |
+| `--pseudonymise-speakers` | **store and return a stable per-deployment label** (`sp-<12 hex>`) instead of the caller's speaker id. The salt lives in the data directory, so labels survive restarts and the copy-to-production transfer and differ between installations. Off by default |
+| `--migrate` | create the per-script layout for legacy flat scripts, then exit |
+| `--gc`, `--gc-media` | prune draft revisions and expired preview sessions — and, with `--gc-media`, media that no draft or version references — then exit |
+| `--gc-journal <keep>`, `--gc-uploads <days>` | with `--gc`, tighten the two kinds of runtime state's retention: trim the idempotency journal to the newest `<keep>` entries, and collect unfinished chunk sessions older than `<days>`. **Both are bounded by age without these flags** — the journal at 30 days, abandoned sessions at 7 (`server/store.mjs`) — so a bare `--gc` bounds them and the flags tighten it |
+
 ## Configuration
 
 By default the API Endpoint ({apiEndPoint}) is an empty string, the API is then expected to be relative to the base path of the application. 
@@ -281,6 +304,10 @@ cp src/environments/environment.prod.sample.ts src/environments/environment.prod
 
 
 ## Cavox REST API description
+
+The entities below are the model, with the path each one is read at. The **complete endpoint reference** — the draft,
+publish and version routes, banks and draws, media upload/list/delete and the preview session, with request and
+response shapes and the error envelope — is [doc/script-editor/rest-api.md](doc/script-editor/rest-api.md).
 
 ### Entity Project
 
@@ -432,6 +459,48 @@ words, try-out pair and evaluated sentences are drawn together):
 If the source cannot be fetched, or holds no lists, the script load fails with
 `spr.status.scriptPrefillError` instead of presenting a half-filled session.
 
+### Drawing items from a bank
+
+A **bank** is the second source type of the same mechanism: instead of listing entries, a placeholder item asks for
+`count` items from an item bank. Like a list source it sits on a placeholder prompt item, and a placeholder carries
+exactly one of `source` (a list) or `bank`. It is resolved **server-side when the session is created**, because the
+draw needs project state — what the speaker has already recorded — and must be reproducible across reloads.
+
+```json
+{
+  "itemcode": "D",
+  "prefill": {
+    "bank": {
+      "bank": "std-passages",
+      "bankSource": "BUILTIN",
+      "filter": {"hasAudio": true, "q": "vowel"},
+      "count": 2,
+      "itemcodePrefix": "D",
+      "order": "RANDOM",
+      "fixedBy": "SESSION",
+      "playBankAudio": true
+    }
+  }
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `bank`, `bankSource` | the bank's id, and whether it belongs to the project (`PROJECT`) or ships with the application (`BUILTIN`) |
+| `filter`, `filterVersion` | which items are eligible: `category`, an inclusive word-count range `words`, `hasAudio` (only items with, or only those without, a model recording), a case-insensitive substring `q`, and `tags` (all must be present). The semantics are pinned by `filterVersion`, absent meaning version 1 |
+| `count` | how many items are drawn, 1–999 |
+| `itemcodePrefix` | the drawn items are numbered `PREFIX001`, zero-padded to three digits |
+| `order` | `RANDOM` (default: shuffled once, at resolution) or `SEQUENTIAL` |
+| `fixedBy` | what a draw is keyed to. `SESSION` (default): every session draws its own items. `SPEAKER`: a returning speaker gets the same items again, which suits repeated measurements. `SCRIPT`: one draw per script version, so everyone recorded with it gets the same items |
+| `skipRecordedBySpeaker` | leave out what this speaker has already recorded, refilling from it when the draw runs short |
+| `playBankAudio` | play each drawn item's own model recording (`BankItem.audioSrc`) |
+| `playback`, `itemDefaults` | applied to every drawn item — a `playback` plan, and the timing fields (`prerecdelay`, `recduration`, `postrecdelay`, `recinstructions`) |
+
+The receiver writes the drawn items into the session's script, so the recorder reads an ordinary script and needed no
+change for any of this; it also keeps the draw in the session record, which the draws screen and the CSV export read.
+Banks are edited in the editor's bank browser, or written as JSON under `project/{p}/bank`; a `BUILTIN` bank ships
+with the application and the server resolves its `audioSrc` for the client.
+
 ### Embedded entity Media item
 
 Properties (supported properties only):
@@ -505,6 +574,12 @@ Example script:
 }
            
 ```  
+
+A prompt item can also carry a **`playback` plan** — where its sound plays (`WITH_PROMPT`, `BEFORE`,
+`PRERECORDING`, `DURING`, `ONDEMAND`), how many times it repeats, the gap between repeats, whether the operator may
+replay it, a cap on replays and a headphone prompt — which the recorder follows instead of the media item's
+`autoplay`/`replay` flags. The [module README](projects/speechrecorderng/README.md) documents it under *Prompt
+audio*.
 
 ### Recording file
 
@@ -746,3 +821,26 @@ Run `npm run build_module` to build the module. The build artifacts will be stor
 ### Clean dist
 
 Remove folder `dist`.
+
+## Script editor (a second application in this repository)
+
+`projects/spr-script-editor` is an application for authoring the *scripts* the recorder runs: sections, groups and
+prompt items, the media played to a speaker, item banks and the draw rules that pick items from them, and the
+resolved draw of each session. It talks to the same REST API the recorder does and shares the library's script
+model rather than keeping a copy of it, so what it writes is what `SpeechrecorderngComponent` runs.
+
+```bash
+npm run start_editor    # ng serve, development configuration, http://127.0.0.1:4200
+npm run build_editor    # production bundle in dist/spr-script-editor
+npm run test_editor     # its karma suite
+```
+
+In the development configuration the editor reads the fixture tree by the `ApiType.FILES` path — the `seed` data
+under `src/test`, served as assets — where the write endpoints are unavailable and a draft therefore shows as
+locally modified. The design set is [doc/script-editor/](doc/script-editor/README.md): the [data
+model](doc/script-editor/data-model.md), the [REST API](doc/script-editor/rest-api.md) it needs, the [UI
+specification](doc/script-editor/ui-spec.md), the [check catalogue](doc/script-editor/validation.md), and an
+[implementation plan](doc/script-editor/implementation-plan.md) whose §11 register records every change and the
+evidence for it. `.github/workflows/tests.yml` builds and lints it, audits its routes for theme and accessibility,
+and drives the recorder end to end on the `playback` script, which uses the features the editor writes.
+

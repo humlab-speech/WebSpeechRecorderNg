@@ -1,0 +1,13 @@
+{
+  "name": "planted-package",
+  "version": "0.0.0",
+  "description": "Planted for bin/package_check.mjs: a built package whose manifest promises files it does not contain, whose bundle imports a package it does not declare, and which declares no licence.",
+  "main": "./fesm2022/planted.mjs",
+  "module": "./fesm2022/planted.mjs",
+  "types": "./planted.d.ts",
+  "exports": {
+    ".": {"types": "./planted.d.ts", "default": "./fesm2022/planted.mjs"},
+    "./theme": {"types": "./theme/planted-theme.d.ts", "default": "./theme/planted-theme.mjs"}
+  },
+  "dependencies": {"tslib": "~2.8.1"}
+}

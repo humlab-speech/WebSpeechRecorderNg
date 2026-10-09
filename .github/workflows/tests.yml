@@ -1,0 +1,748 @@
+# Tests for the receiver, the library and the editor, plus the theme audit on the editor's
+# routes. The jobs are independent so a receiver failure does not hide a library regression
+# (and the reverse).
+name: Tests
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  server:
+    name: Server (node --test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      # The receiver is Node builtins only: no install step is needed.
+      # The explicit file list, not `server/`: Node 22's runner treats a directory argument as an
+      # entry module (`MODULE_NOT_FOUND`) — it only learned to scan one in a later major — so the
+      # directory form passes on a new local Node and fails on the version this job pins. Verified
+      # on node 22.23.3: `node --test server/` is 1 test / 1 fail, the glob passes every one.
+      - name: Receiver tests
+        run: node --test server/*.test.mjs
+      # The two trees this project owns outright: an export nothing names is either wired up or
+      # deleted (bin/dead_exports.mjs). The recorder library is not scanned - it is upstream code,
+      # and public-api.ts makes its exports reachable for consumers rather than callers.
+      - name: No unreferenced exports
+        run: node bin/dead_exports.mjs --verbose
+      # And the dead-export check is held to biting: the fixture tree holds one export that no file names and
+      # one that its own file names, so a check that reported everything, or nothing, fails here instead.
+      - name: Dead-export sensitivity
+        run: |
+          dead_out=$(node bin/dead_exports.mjs --root bin/dead_export_fixtures 2>&1) && dead_status=0 || dead_status=$?
+          if [ "${dead_status:-0}" = "0" ]; then
+            echo "the dead-export check passed a tree with an unreferenced export"; echo "$dead_out"; exit 1
+          fi
+          echo "$dead_out" | grep -qF 'plantedUnusedExport' || {
+            echo "the dead-export check did not report the unreferenced export"; echo "$dead_out"; exit 1; }
+          if echo "$dead_out" | grep -qF 'plantedUsedExport'; then
+            echo "the dead-export check reported an export its own file names"; echo "$dead_out"; exit 1
+          fi
+          echo "the dead-export check reported the dead export and left the live one alone"
+      # Every file under bin/ is a tool or a fixture, so each must be referenced by something. §11.70 did this
+      # cross-check by hand and nothing re-ran it; §11.146 found five hand sweeps whose own inputs were wrong, and
+      # a hand sweep is exactly as good as its pattern.
+      - name: No orphaned tools
+        run: node bin/orphan_check.mjs --verbose
+      # And it is held to biting, both ways: the fixture directory holds one file nothing names (the check must
+      # report it) and one the fixture's own README names (the check must not). Naming the first one anywhere in
+      # this file would resolve it, which is why this step asserts a count rather than a filename.
+      - name: Orphan sensitivity
+        run: |
+          orphan_out=$(node bin/orphan_check.mjs --root bin/orphan_fixtures 2>&1) && orphan_status=0 || orphan_status=$?
+          if [ "${orphan_status:-0}" = "0" ]; then
+            echo "the orphan check passed a directory with an unreferenced file"; echo "$orphan_out"; exit 1
+          fi
+          reported=$(echo "$orphan_out" | grep -c 'referenced by nothing')
+          if [ "$reported" != "1" ]; then
+            echo "the orphan check reported $reported file(s), expected exactly one"; echo "$orphan_out"; exit 1
+          fi
+          if echo "$orphan_out" | grep -q 'used-fixture'; then
+            echo "the orphan check reported the file the fixture's README names"; echo "$orphan_out"; exit 1
+          fi
+          echo "the orphan check reported the unreferenced file and left the named one alone"
+      # The receiver's flags are documented where a deployment looks: every flag server/server.mjs accepts is named
+      # in the README's receiver section, and that section names no flag it does not accept (§11.166).
+      - name: Docs check
+        run: node bin/docs_check.mjs --verbose
+      # And it is held to biting in both directions. The fixture pair's parser accepts one flag its section never
+      # names, and the section names one the parser does not accept: exactly two problems, no more and no fewer, and
+      # a flag outside the section is not read at all.
+      - name: Docs check sensitivity
+        run: |
+          docs_out=$(node bin/docs_check.mjs --server bin/docs_fixtures/server.mjs --doc bin/docs_fixtures/README.md 2>&1) && docs_status=0 || docs_status=$?
+          if [ "${docs_status:-0}" = "0" ]; then
+            echo "the docs check passed a pair that disagrees in both directions"; echo "$docs_out"; exit 1
+          fi
+          if ! echo "$docs_out" | grep -qE '^2 documentation problem'; then
+            echo "the docs check did not report exactly two problems"; echo "$docs_out"; exit 1
+          fi
+          for expected in 'does not name — a setting nobody can discover' 'documentation for a flag that is not there'; do
+            echo "$docs_out" | grep -qF "$expected" || {
+              echo "the docs check did not report: $expected"; echo "$docs_out"; exit 1; }
+          done
+          echo "the docs check reported both directions and nothing else"
+      # Nothing in CI read a markdown link before this (§11.231): docs_check compares the receiver's flags against one
+      # README section, and the sweep that made the links safe (§11.216 — 91 across 12 documents) was done by hand, so
+      # it could not fail a pull request. Both directions are defects: a link to a file that moved, and a fragment that
+      # no longer matches its heading, which opens the page and leaves the reader hunting for what it meant to show.
+      - name: Docs links
+        run: |
+          out=$(node bin/docs_links.mjs --verbose 2>&1) && status=0 || status=$?
+          echo "$out"
+          if [ "${status:-0}" != "0" ]; then exit 1; fi
+          # The citation scan must not be vacuous: the documents carry dozens of `file.ts:120` citations, and a walk
+          # that examined none of them would otherwise pass quietly — the reason `--min-links` exists, one level down
+          # (§11.269).
+          if ! echo "$out" | grep -qE '[1-9][0-9]* code citation'; then
+            echo "the docs-links check reported no code citations — the scan examined nothing"; exit 1
+          fi
+          if ! echo "$out" | grep -qE '[1-9][0-9]* register reference'; then
+            echo "the docs-links check reported no register references — the scan examined nothing"; exit 1
+          fi
+      # And it is held to biting by injection, the way the i18n guard is: two broken links are appended to a document,
+      # the check must report exactly those two and nothing else, and the document is restored before the assertion
+      # runs so a step that fails cannot leave it modified. Its floor is held to biting too — pointed at a directory
+      # holding no markdown, the check must fail rather than report "0 links, none broken".
+      - name: Docs-links sensitivity
+        run: |
+          doc=doc/script-editor/README.md
+          cp "$doc" /tmp/docs-links-backup.md
+          printf '\n[planted: a file that moved](no-such-document.md)\n\n[planted: a heading that went](#no-such-heading)\n\nA planted citation to a file that never existed, `no-such-file.ts:12`, and one that outruns its file,\n`README.md:99999`, and a planted cross-reference to §11.99999.\n' >> "$doc"
+          link_out=$(node bin/docs_links.mjs 2>&1) && link_status=0 || link_status=$?
+          cp /tmp/docs-links-backup.md "$doc"
+          if [ "${link_status:-0}" = "0" ]; then
+            echo "the docs-links check passed with two broken links planted in $doc"; echo "$link_out"; exit 1
+          fi
+          if ! echo "$link_out" | grep -qE '^2 broken link'; then
+            echo "the docs-links check did not report exactly two broken links"; echo "$link_out"; exit 1
+          fi
+          for expected in 'no-such-document.md' 'no-such-heading' 'no-such-file.ts' 'cited at 99999' '§11.99999 names no entry'; do
+            echo "$link_out" | grep -qF "$expected" || {
+              echo "the docs-links check did not report: $expected"; echo "$link_out"; exit 1; }
+          done
+          floor_out=$(node bin/docs_links.mjs --root bin/audit 2>&1) && floor_status=0 || floor_status=$?
+          if [ "${floor_status:-0}" = "0" ]; then
+            echo "the docs-links floor passed on a directory holding no markdown"; echo "$floor_out"; exit 1
+          fi
+          echo "the docs-links check named both planted links, and its floor holds"
+      # The file all of this runs from. A job appended by hand with one wrong indent turns every check
+      # in the repository off without any of them reporting it, so its shape is checked here
+      # (bin/workflow_check.mjs).
+      - name: Workflow structure
+        run: node bin/workflow_check.mjs --verbose
+      # And the shape check is held to biting: bin/workflow_fixtures/broken.yml violates every rule the
+      # check states, one per rule, so a guard that stopped detecting fails here instead of passing the
+      # clean file above. This is the check whose silence would turn every other job off.
+      - name: Workflow structure sensitivity
+        run: |
+          wf_out=$(node bin/workflow_check.mjs --path bin/workflow_fixtures/broken.yml 2>&1) && wf_status=0 || wf_status=$?
+          if [ "${wf_status:-0}" = "0" ]; then
+            echo "the workflow check passed a file with planted violations"; echo "$wf_out"; exit 1
+          fi
+          for expected in 'contains a tab, which YAML forbids' 'no top-level `name:`' 'no top-level `on:`' \
+            'no `runs-on:`' 'is neither a job-level key this check knows' 'no steps' \
+            'a `run: |` block has no command' 'an empty step' 'names a file that is not there' \
+            'runs an npm script that is not defined'; do
+            echo "$wf_out" | grep -qF "$expected" || {
+              echo "the workflow check did not name: $expected"; echo "$wf_out"; exit 1; }
+          done
+          echo "the workflow check named every planted violation"
+
+  library:
+    name: Library (karma)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install
+        run: npm ci
+      # The runner image ships Chrome, which `ChromeHeadless` picks up.
+      - name: Library suite
+        run: npm run test_module -- --watch=false --browsers=ChromeHeadless
+      # The library is the deliverable the recorder consumes, and ng-packagr is the pipeline that
+      # breaks on a bad `public-api`, an entry point or a budget — none of which karma compiles.
+      # The version file it regenerates must match what is committed (plan §11.30).
+      - name: Library package build
+        run: |
+          npm run build_module
+          git diff --exit-code -- projects/speechrecorderng/src/lib/spr.module.version.ts
+      # What the built package promises its consumers, which nothing here does: every path the
+      # manifest names exists in the package — the theme subpath is one this work had to add — and
+      # every external import in the shipped bundle is a declared dependency or peer (plan §11.44).
+      - name: Package shape
+        run: node bin/package_check.mjs
+      # And the packaging invariants are held to biting: bin/package_fixtures is a package whose manifest
+      # promises files it does not contain, whose bundle imports a package it does not declare, and which
+      # declares no licence and ships one that differs from the repository's. Every fault must be reported —
+      # and the import the manifest does declare must not be.
+      - name: Package shape sensitivity
+        run: |
+          pack_out=$(node bin/package_check.mjs --package-dir bin/package_fixtures 2>&1) && pack_status=0 || pack_status=$?
+          if [ "${pack_status:-0}" = "0" ]; then
+            echo "the package check passed a package with planted faults"; echo "$pack_out"; exit 1
+          fi
+          for expected in 'the manifest points' 'imports rxjs, which the manifest does not declare' \
+            'the manifest declares no license' "the package's LICENSE differs from the repository's LICENSE.txt"; do
+            echo "$pack_out" | grep -qF "$expected" || {
+              echo "the package check did not name: $expected"; echo "$pack_out"; exit 1; }
+          done
+          if echo "$pack_out" | grep -qF 'imports tslib'; then
+            echo "the package check reported a package the manifest declares"; echo "$pack_out"; exit 1
+          fi
+          echo "the package check reported every planted fault and left the declared import alone"
+      # Every key of en.json in every locale, every SPR_STRINGS key overridable, every key the source
+      # references present, and the committed strings identical to what the generator produces — a
+      # check that existed but that nothing ran (plan §11.25).
+      - name: i18n validation
+        run: |
+          npm run validate:i18n
+          npm run build:i18n
+          git diff --exit-code -- src/assets/i18n
+      # And the validator is held to biting, the way every check that reads the tree is: one branch removed
+      # from one locale must be reported, and the catalogue restored. Nothing fed it a fault before this, so
+      # the guard that keeps `en` and `sv` in step could have stopped comparing anything unnoticed (§11.204).
+      # The fault is injected into the real catalogue rather than a fixture, which is what the audit jobs do
+      # to the pages they plant violations in — a fixture copy of the catalogue would drift from it.
+      - name: i18n validation sensitivity
+        run: |
+          set -e
+          cp src/assets/i18n/sv.json /tmp/sv.json.bak
+          branch=$(node -e "const fs=require('node:fs');const p='src/assets/i18n/sv.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));const first=Object.keys(j)[0];delete j[first];fs.writeFileSync(p,JSON.stringify(j,null,2)+'\n');process.stdout.write(first)")
+          validator_out=$(node bin/validate_i18n.mjs 2>&1) && validator_status=0 || validator_status=$?
+          cp /tmp/sv.json.bak src/assets/i18n/sv.json
+          if [ "$validator_status" = "0" ]; then
+            echo "the validator passed with the '$branch' branch missing from sv.json"
+            echo "$validator_out"
+            exit 1
+          fi
+          echo "$validator_out" | grep -q "sv.json is missing" || {
+            echo "the validator failed without naming the missing keys"
+            echo "$validator_out"
+            exit 1
+          }
+          node bin/validate_i18n.mjs > /dev/null
+          git diff --exit-code -- src/assets/i18n
+          echo "the validator reported the missing '$branch' keys, and the catalogue is restored"
+
+  editor:
+    name: Editor (karma + build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install
+        run: npm ci
+      # The editor's specs read the FILES fixtures and the shared check corpus from the
+      # assets the karma target serves; the library suite above must stay green.
+      - name: Editor suite
+        run: npm run test_editor -- --watch=false --browsers=ChromeHeadless
+      # The house rules that are text, not a rendered property: a font size off the --spr-type-*
+      # scale, a colour literal outside a var() fallback, a click handler on a div.
+      - name: Editor house-rule lint
+        run: node bin/editor_lint.mjs --verbose
+      # The lint's rules are held to biting the way the audits' are: bin/lint_fixtures plants one violation
+      # per rule, and this step fails if the lint passes that tree or stops naming a rule. The tree is not
+      # part of any build, and rule 6 stays anchored to the real checks and catalogue.
+      - name: House-rule lint sensitivity
+        run: |
+          lint_out=$(node bin/editor_lint.mjs --root bin/lint_fixtures 2>&1) && lint_status=0 || lint_status=$?
+          if [ "${lint_status:-0}" = "0" ]; then
+            echo "the house-rule lint passed a tree of planted violations"; echo "$lint_out"; exit 1
+          fi
+          for expected in 'font-size "13px" is not a --spr-type-* token' \
+            'colour "#abc" is not a --spr-* token' \
+            'div inside <p> — the browser hoists it out of the paragraph' \
+            '(click) on <div> — use a control, or state its role' \
+            'aria-label="Literal" is a literal — bind it from the strings' \
+            'AudioContext in the editor — audio capture belongs to the recorder (D-G)' \
+            "declares Section, which the library's script model already defines"; do
+            echo "$lint_out" | grep -qF "$expected" || {
+              echo "the house-rule lint did not name: $expected"; echo "$lint_out"; exit 1; }
+          done
+          echo "the house-rule lint named every planted violation"
+      # Production is the configuration with the REST base, so this also proves the
+      # environment replacement and the budgets.
+      - name: Editor production build
+        run: npm run build_editor
+
+  audit:
+    name: Theme audit (editor routes)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install
+        run: npm ci
+      # Every screen the router exposes must be exercised by the audits, and every audited URL must
+      # be a screen the router renders. Both directions have failed: the bank + draw-rule route was
+      # unaudited and its dark scheme was broken (§11.45), and a renamed route leaves an audit line
+      # pointing at a URL that renders nothing to find faults in. Static, so it needs no browser.
+      - name: Route coverage
+        run: node bin/route_check.mjs
+      # And that check is held to biting: the fixture pair exposes a screen no audit visits and visits a URL no
+      # route renders, so both directions must be reported — and the legitimately audited screen must not be.
+      - name: Route coverage sensitivity
+        run: |
+          route_out=$(node bin/route_check.mjs --routes bin/route_fixtures/routes.ts --workflow bin/route_fixtures/workflow.yml 2>&1) && route_status=0 || route_status=$?
+          if [ "${route_status:-0}" = "0" ]; then
+            echo "the route check passed a pair with a gap in both directions"; echo "$route_out"; exit 1
+          fi
+          for expected in 'the router exposes /project/:p/planted/unrouted and no audit visits it' \
+            'an audit visits /project/Demo1/planted/phantom and no route renders it'; do
+            echo "$route_out" | grep -qF "$expected" || {
+              echo "the route check did not name: $expected"; echo "$route_out"; exit 1; }
+          done
+          if echo "$route_out" | grep -qF 'planted/audited'; then
+            echo "the route check complained about the legitimately audited screen"; echo "$route_out"; exit 1
+          fi
+          echo "the route check reported both gaps and left the audited screen alone"
+      # One step: the dev server and the browser must stay alive until the audits have run
+      # (a background process does not survive the end of the step that started it).
+      - name: Audit the editor routes
+        run: |
+          set -e
+          npm run start_editor -- --port 4300 > /tmp/editor-dev.log 2>&1 &
+          google-chrome --headless=new --remote-debugging-port=9333 --user-data-dir=/tmp/cdp about:blank > /tmp/chrome.log 2>&1 &
+          for i in $(seq 1 180); do
+            curl -sf -o /dev/null http://127.0.0.1:4300/project/Demo1/script && break
+            sleep 1
+          done
+          for i in $(seq 1 60); do
+            curl -sf -o /dev/null http://127.0.0.1:9333/json/version && break
+            sleep 1
+          done
+          # The library list, the editor (outline/centre/inspector), the preview mock, and one
+          # state behind an interaction: the inspector with a draw rule selected.
+          node bin/theme_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script --viewports 1366x768,1920x1080
+          node bin/theme_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script/1245/edit --viewports 1366x768,1920x1080
+          node bin/theme_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script/1245/source --viewports 1366x768,1920x1080
+          node bin/theme_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script/playback/preview --viewports 1366x768,1920x1080
+          node bin/theme_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script/bank-draw/edit --prepare bin/audit/open-draw-rule.js --viewports 1366x768,1920x1080
+          # The centre's *selected* card. A URL selects the node (`?sel=g:0:0`), but a URL cannot
+          # throw, so the fixture asserts the selection is on the page — which is what makes the audits
+          # measure the *selected* screen rather than the default one. The non-text rule does not read
+          # that marker itself: `.active` is deliberately not a state signal (§11.62), so what it
+          # measures here are the other boundaries on the selected screen (§11.238).
+          node bin/theme_audit.mjs --url 'http://127.0.0.1:4300/project/Demo1/script/bank-draw/edit?sel=g:0:0' --prepare bin/audit/open-centre-state.js --viewports 1366x768
+          node bin/theme_audit.mjs --url http://127.0.0.1:4300/project/Demo1/bank --viewports 1366x768,1920x1080
+          node bin/theme_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script/bank-draw/draws --viewports 1366x768,1920x1080
+          # The dedicated bank + draw-rule screen. It renders without any interaction, yet it was on
+          # the manual list only — and it was the one editor screen whose dark scheme was broken
+          # (plan §11.45).
+          node bin/theme_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script/bank-draw/bank/g:0:0 --viewports 1366x768,1920x1080
+          node bin/theme_audit.mjs --url http://127.0.0.1:4300/project/Demo1/draws --viewports 1366x768,1920x1080
+          # A phone width as well: the editor stacks its three columns below 820 px and the bank below
+          # 1100 px, and the shell hides its own overflow, so a screen that does not fit or does not
+          # reflow shows up here (plan §11.14).
+          node bin/theme_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script --viewports 390x844
+          node bin/theme_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script/1245/edit --viewports 390x844
+          node bin/theme_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script/bank-draw/edit --viewports 390x844
+          node bin/theme_audit.mjs --url http://127.0.0.1:4300/project/Demo1/bank --viewports 390x844
+          node bin/theme_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script/bank-draw/draws --viewports 390x844
+          node bin/theme_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script/playback/preview --viewports 390x844
+          # ui-spec's house rule covers light *and* dark: the same routes again with the opt-in dark
+          # scheme switched on (`bin/audit/use-dark-scheme.js`), which is where the link token and the
+          # timeline's hatch were failing before §11.13.
+          node bin/theme_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script --viewports 1366x768 --prepare bin/audit/use-dark-scheme.js
+          node bin/theme_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script/1245/edit --viewports 1366x768 --prepare bin/audit/use-dark-scheme.js
+          node bin/theme_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script/1245/source --viewports 1366x768 --prepare bin/audit/use-dark-scheme.js
+          node bin/theme_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script/playback/preview --viewports 1366x768 --prepare bin/audit/use-dark-scheme.js
+          node bin/theme_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script/bank-draw/edit --viewports 1366x768 --prepare bin/audit/use-dark-scheme.js,bin/audit/open-draw-rule.js
+          node bin/theme_audit.mjs --url 'http://127.0.0.1:4300/project/Demo1/script/bank-draw/edit?sel=g:0:0' --viewports 1366x768 --prepare bin/audit/use-dark-scheme.js,bin/audit/open-centre-state.js
+          node bin/theme_audit.mjs --url http://127.0.0.1:4300/project/Demo1/bank --viewports 1366x768 --prepare bin/audit/use-dark-scheme.js
+          node bin/theme_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script/bank-draw/draws --viewports 1366x768 --prepare bin/audit/use-dark-scheme.js
+          node bin/theme_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script/bank-draw/bank/g:0:0 --viewports 1366x768 --prepare bin/audit/use-dark-scheme.js
+          node bin/theme_audit.mjs --url http://127.0.0.1:4300/project/Demo1/draws --viewports 1366x768 --prepare bin/audit/use-dark-scheme.js
+          # The machine-checkable part of ui-spec §8: accessible names, labels, ARIA relationships,
+          # tree/radiogroup semantics, tab order and 44 px target sizes, on the same routes.
+          node bin/a11y_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script --viewports 1366x768
+          node bin/a11y_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script/1245/edit --viewports 1366x768
+          node bin/a11y_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script/playback/preview --viewports 1366x768
+          node bin/a11y_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script/bank-draw/edit --prepare bin/audit/open-draw-rule.js --viewports 1366x768
+          node bin/a11y_audit.mjs --url http://127.0.0.1:4300/project/Demo1/bank --viewports 1366x768
+          node bin/a11y_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script/bank-draw/draws --viewports 1366x768
+          node bin/a11y_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script/bank-draw/bank/g:0:0 --viewports 1366x768
+          node bin/a11y_audit.mjs --url http://127.0.0.1:4300/project/Demo1/draws --viewports 1366x768
+          node bin/a11y_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script/1245/source --viewports 1366x768
+          # The selected state's accessibility: `aria-current` on the current row, the active card's
+          # names and target sizes — none of which the unselected routes above render.
+          node bin/a11y_audit.mjs --url 'http://127.0.0.1:4300/project/Demo1/script/bank-draw/edit?sel=g:0:0' --prepare bin/audit/open-centre-state.js --viewports 1366x768
+          # The same routes in the dark scheme: the house rule covers both, and a scheme changes
+          # which surfaces the colours land on.
+          node bin/a11y_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script --viewports 1366x768 --prepare bin/audit/use-dark-scheme.js
+          node bin/a11y_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script/bank-draw/draws --viewports 1366x768 --prepare bin/audit/use-dark-scheme.js
+          # The editor at a phone width: the columns stack there, and the tab order must follow.
+          node bin/a11y_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script/1245/edit --viewports 390x844
+          node bin/a11y_audit.mjs --url http://127.0.0.1:4300/project/Demo1/bank --viewports 390x844
+          node bin/a11y_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script --viewports 390x844
+          # The audits are the gates the screens are held to, so check that they bite. The fixture
+          # plants one violation per documented rule; this fails if the audit passes anyway or if it
+          # does not name one of them. README §7's sensitivity claims were prose before this.
+          theme_out=$(node bin/theme_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script \
+            --prepare bin/audit/plant-violations.js --viewports 1366x768 2>&1) && theme_status=0 || theme_status=$?
+          if [ "${theme_status:-0}" = "0" ]; then
+            echo "the theme audit passed with planted violations"; echo "$theme_out"; exit 1
+          fi
+          for expected in 'lightgrey' '9px' 'contrast 2.96:1' 'renders in Arial' 'document scrolls' \
+            'state marker (is-selected) border contrast' \
+            'did not load (natural size 0)' 'has no alt text' 'renders 5px tall (expected 16-64)' \
+            'aspect ratio changed (4.00 vs natural 1.00)' 'is outside the viewport'; do
+            echo "$theme_out" | grep -q "$expected" || {
+              echo "the theme audit did not name: $expected"; echo "$theme_out"; exit 1; }
+          done
+          a11y_out=$(node bin/a11y_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script \
+            --prepare bin/audit/plant-violations.js --viewports 1366x768 2>&1) && a11y_status=0 || a11y_status=$?
+          if [ "${a11y_status:-0}" = "0" ]; then
+            echo "the accessibility audit passed with planted violations"; echo "$a11y_out"; exit 1
+          fi
+          # Every rule the audit documents now has a planted case (§11.242): the eleven strings here were nearly
+          # all it had, so rules 2, 3, 7 and 8 could each have stopped detecting unnoticed.
+          for expected in 'exposes a button with no name' 'is 17 px high' 'has no lang attribute' \
+            '2 h1 heading(s)' '2 main landmark(s)' 'tabindex=3' 'a control inside a control' \
+            'id "planted-duplicate-id" appears 2 times' 'has no alt and is not marked decorative' \
+            'is aria-hidden but contains focusable content' \
+            'has no label (add <label for>, a wrapping label or aria-label)' \
+            'aria-describedby points at nothing with text' 'aria-labelledby points at nothing with text' \
+            'section.planted-violation aria-labelledby points at nothing with text' \
+            'radio(s) without aria-checked' 'is a radiogroup with no radios' \
+            'treeitem(s) have no aria-level' 'treeitem(s) with children have no aria-expanded' \
+            'carry no aria-posinset/aria-setsize' 'table row(s) with no name' \
+            'tab order jumps back up the same column' \
+            'with nothing to announce' \
+            'planted-genuine-warning: a console warning the audit must still report'; do
+            echo "$a11y_out" | grep -qF "$expected" || {
+              echo "the accessibility audit did not name: $expected"; echo "$a11y_out"; exit 1; }
+          done
+          # And `--except` means what its header says for every rule, not just rule 6 (§11.238 measured the
+          # option applying to one judge alone). With every rule number excluded, a page whose only faults are
+          # planted must pass — a rule added without consulting `runs()` fires here and fails the step, which is
+          # exactly the gap §11.238 found, so this is the check that keeps the option honest (§11.239).
+          gated_out=$(node bin/a11y_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script \
+            --prepare bin/audit/plant-violations.js --viewports 1366x768 \
+            --except 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16 2>&1) && gated_status=0 || gated_status=$?
+          if [ "${gated_status:-0}" != "0" ]; then
+            echo "excluding every rule still reported a fault — some rule is not gated"; echo "$gated_out"; exit 1
+          fi
+          echo "every rule the fixture fires is silenced by --except"
+          # The one branch that needs a state of its own: a tree holding a row and no treeitem. The probe reads a
+          # single `role="tree"`, so `plant-violations.js` proves the item-without-a-level branch and this fixture
+          # proves the empty one — which the audit names twice, once for the markup and once for the accessibility
+          # tree (§11.243).
+          tree_out=$(node bin/a11y_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script \
+            --prepare bin/audit/plant-empty-tree.js --viewports 1366x768 2>&1) && tree_status=0 || tree_status=$?
+          if [ "${tree_status:-0}" = "0" ]; then
+            echo "the accessibility audit passed a tree with no treeitem"; echo "$tree_out"; exit 1
+          fi
+          for expected in 'role="tree" contains 1 row(s) with no role="treeitem"' \
+            'the accessibility tree has a tree with no treeitem'; do
+            echo "$tree_out" | grep -qF "$expected" || {
+              echo "the accessibility audit did not name: $expected"; echo "$tree_out"; exit 1; }
+          done
+          echo "both halves of the empty-tree rule are proved to bite"
+          # The same state through the other audit, which `bin/route_check.mjs` requires: every state an
+          # accessibility pass audits must also be measured by a theme pass. Nothing here is a theme fault, so this
+          # asserts it is measured and clean — the fixture's row carries the page's own type for exactly that.
+          node bin/theme_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script \
+            --prepare bin/audit/plant-empty-tree.js --viewports 1366x768
+          echo "the empty-tree state is measured by both audits"
+          # The console rule's other half: Angular's own development-build hint rides in the same fixture
+          # and must not be reported (a11y_audit.mjs's IGNORED_CONSOLE; §11.127 measured the exclusion —
+          # the hint arrives after the settle window, so catching one was timing rather than a fault).
+          # Both console messages share this state so the theme pass measures it too, which
+          # bin/route_check.mjs requires of every state an accessibility pass audits.
+          if echo "$a11y_out" | grep -qF 'NG0913'; then
+            echo "the accessibility audit judged Angular's development-build hint"; echo "$a11y_out"; exit 1
+          fi
+          # And the two theme rules a page of the application cannot show: with no token layer at all
+          # the audit must say so, and the Material pins must be reported as unfollowed rather than
+          # skipped. A page that is not the application is exactly that state, so this needs no
+          # fixture - pointing it at the app makes both assertions fail, which is the check on them.
+          tokens_out=$(node bin/theme_audit.mjs --url http://127.0.0.1:4300/favicon.ico --viewports 1366x768 2>&1) \
+            && tokens_status=0 || tokens_status=$?
+          if [ "${tokens_status:-1}" = "0" ]; then
+            echo "the theme audit passed on a page with no token layer"; echo "$tokens_out"; exit 1
+          fi
+          for expected in 'no --spr-* tokens are defined (token layer inert)' \
+            'does not follow --spr-primary'; do
+            echo "$tokens_out" | grep -qF "$expected" || {
+              echo "the theme audit did not name: $expected"; echo "$tokens_out"; exit 1; }
+          done
+          echo "both audits named every planted violation, and the token layer itself"
+
+  dry-run:
+    name: Recorder dry run (Chrome, fake media)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install
+        run: npm ci
+      # The driver drives the production bundle, so this job also proves the app build.
+      - name: Build the recorder
+        run: npm run build
+      # The receiver serves the built bundle and creates session 1 from the fixture script; Chrome
+      # feeds it a fake media stream. One step, because a background process does not survive the
+      # end of the step that started it.
+      - name: Drive a session end to end
+        run: |
+          set -e
+          # The step's own scratch state. A runner starts with none, but running this step twice locally
+          # leaves a completed session behind, and the driver then meets a session it does not expect:
+          # measured, `start: play_arrow Starta uppspelning` and `session: status=COMPLETED`, with every
+          # clip "never played". Clearing it costs nothing and makes the step reproducible.
+          rm -rf /tmp/dryrun /tmp/receiver.log /tmp/chrome.log
+          # Chrome will not advance an audio clip's clock without an output device, so no prompt clip
+          # can play; the recorder reports that as a failure rather than stalling on it (it bounds
+          # the wait). Give the runner a null sink so the clip-relative checks are checked here too.
+          # Best effort: without it the driver measures the frozen clock, drives the run anyway and
+          # marks those checks unverified instead of blaming the recorder (bin/audit/dry_run.mjs).
+          if ! pactl info > /dev/null 2>&1; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq pulseaudio > /dev/null 2>&1 || true
+          fi
+          pulseaudio --start --exit-idle-time=-1 --disallow-exit > /dev/null 2>&1 || true
+          # The sink is what makes the clip-relative checks possible, and its absence used to be silent: every line here
+          # discarded its output behind `|| true`, so a runner that could not create it said nothing, and the first word
+          # was the driver's degraded branch five minutes later — a symptom, not a cause (§11.283). Retry it, then say.
+          for attempt in 1 2 3; do
+            pactl load-module module-null-sink sink_name=null_out > /dev/null 2>&1 || true
+            pactl set-default-sink null_out > /dev/null 2>&1 || true
+            if pactl list short sinks 2>/dev/null | grep -q null_out; then
+              break
+            fi
+            sleep 2
+          done
+          if ! pactl list short sinks 2>/dev/null | grep -q null_out; then
+            echo "the null sink could not be created on this runner, so the clip-relative checks cannot run — that is the"
+            echo "one thing this job exists to check (§11.245), so it fails here rather than five minutes into a session"; exit 1
+          fi
+          node server/server.mjs --port 8391 --data /tmp/dryrun --seed src/test \
+            --app dist/cavox/browser --project Demo1 --script playback --quiet > /tmp/receiver.log 2>&1 &
+          google-chrome --headless=new --remote-debugging-port=9333 --user-data-dir=/tmp/cdp-dry \
+            --use-fake-ui-for-media-stream --use-fake-device-for-media-stream \
+            --autoplay-policy=no-user-gesture-required about:blank > /tmp/chrome.log 2>&1 &
+          for i in $(seq 1 120); do
+            curl -sf -o /dev/null http://127.0.0.1:8391/api/v1/version && break
+            sleep 1
+          done
+          for i in $(seq 1 60); do
+            curl -sf -o /dev/null http://127.0.0.1:9333/json/version && break
+            sleep 1
+          done
+          # The driver first, on the session it expects: the migrate above created it and nothing has
+          # loaded it yet. The audits and the probe below visit the same pages and leave the session
+          # loaded and connected, which is not the state the driver's first take is written for.
+          dry_out=$(node bin/audit/dry_run.mjs --base http://127.0.0.1:8391 --port 9333 --session 1 --deadline-ms 300000 2>&1) \
+            && dry_status=0 || dry_status=$?
+          echo "$dry_out" | tail -25
+          if [ "${dry_status:-0}" != "0" ]; then
+            echo "the dry run failed"; exit 1
+          fi
+          # And it must not have been degraded. Without an audio device the driver reports the clip-relative
+          # claims as unverified and still exits 0 — right for a person, wrong for this job, which exists to
+          # check where each clip played and whose sink is installed best-effort (`|| true` above). Until
+          # §11.245 a runner whose sink failed lost those checks with the job still green.
+          if echo "$dry_out" | grep -q 'not verified here'; then
+            echo "the dry run could not check the clip-relative claims on this runner"; exit 1
+          fi
+          echo "$dry_out" | grep -q 'Dry run passed' || {
+            echo "the dry run did not report a clean pass"; exit 1; }
+          # And the driver is held to biting, which it had no way to be until §11.246 — every other gate here has a
+          # fixture that makes it fail, and a gate whose checks are only ever seen passing is one refactor away from
+          # checking nothing. This one drops the driver's own audio events: every take runs normally, so the
+          # *clip-relative* assertions must fire, which is the claim M1's gate exists for. The session is an id the
+          # seed does not hold on purpose: the receiver creates an unknown id with the `--script playback` default,
+          # whereas the seeded 2, 3 and 9 carry other scripts (measured — a run on session 3 drove an 18-item script
+          # and never reached the clip assertions). The other fault, which times out on purpose, runs last in this
+          # step for the reason given there.
+          events_out=$(node bin/audit/dry_run.mjs --base http://127.0.0.1:8391 --port 9333 --session 1002 --deadline-ms 300000 \
+            --prepare bin/audit/plant-silent-events.js 2>&1) && events_status=0 || events_status=$?
+          if [ "${events_status:-0}" = "0" ]; then
+            echo "the dry run passed with its audio events dropped"; echo "$events_out"; exit 1
+          fi
+          echo "$events_out" | grep -q 'never played its clip' || {
+            echo "the dry run failed without naming the clip it could not see"; echo "$events_out" | tail -20; exit 1; }
+          echo "the dry run bites on a run that cannot proceed and on a clip it cannot see"
+          # The recorder's own screens, which the editor-scoped audit job never renders: the token,
+          # contrast, type-size and layout rules apply to them too (the redesign is shared), and the
+          # *logo* rules — loaded, alt text, height, inside the viewport — only ever fire here, on the
+          # recorder's control bar (plan §11.26).
+          node bin/theme_audit.mjs --url http://127.0.0.1:8391/spr/session/1 --viewports 1366x768
+          node bin/theme_audit.mjs --url http://127.0.0.1:8391/ --viewports 1366x768
+          node bin/theme_audit.mjs --url http://127.0.0.1:8391/spr/respondent/1 --viewports 1366x768
+          # The recorder's screens against the rules that hold anywhere — names, labels, ids, alt,
+          # ARIA, the tree, tab order, nesting, a quiet console. The editor's house rules (44 px
+          # targets, one h1, one main) are scoped out: the recorder predates them (plan §11.28).
+          node bin/a11y_audit.mjs --url http://127.0.0.1:8391/spr/session/1 --viewports 1366x768 --rules universal
+          node bin/a11y_audit.mjs --url http://127.0.0.1:8391/ --viewports 1366x768 --rules universal
+          node bin/a11y_audit.mjs --url http://127.0.0.1:8391/spr/respondent/1 --viewports 1366x768 --rules universal
+          # The same three screens at a phone width. The editor's routes have had this pass since
+          # §11.14 showed what an unmeasured narrow screen does; the recorder's had none.
+          node bin/theme_audit.mjs --url http://127.0.0.1:8391/spr/session/1 --viewports 390x844
+          node bin/theme_audit.mjs --url http://127.0.0.1:8391/spr/respondent/1 --viewports 390x844
+          node bin/theme_audit.mjs --url http://127.0.0.1:8391/ --viewports 390x844
+          node bin/a11y_audit.mjs --url http://127.0.0.1:8391/spr/session/1 --viewports 390x844 --rules universal
+          node bin/a11y_audit.mjs --url http://127.0.0.1:8391/spr/respondent/1 --viewports 390x844 --rules universal
+          node bin/a11y_audit.mjs --url http://127.0.0.1:8391/ --viewports 390x844 --rules universal
+          # And in the opt-in dark scheme at 1366x768, where §11.13's contrast failures were found -
+          # the editor's routes have had that pass since then, the recorder's none.
+          node bin/theme_audit.mjs --url http://127.0.0.1:8391/spr/session/1 --viewports 1366x768 --prepare bin/audit/use-dark-scheme.js
+          node bin/theme_audit.mjs --url http://127.0.0.1:8391/spr/respondent/1 --viewports 1366x768 --prepare bin/audit/use-dark-scheme.js
+          node bin/theme_audit.mjs --url http://127.0.0.1:8391/ --viewports 1366x768 --prepare bin/audit/use-dark-scheme.js
+          node bin/a11y_audit.mjs --url http://127.0.0.1:8391/spr/session/1 --viewports 1366x768 --rules universal --prepare bin/audit/use-dark-scheme.js
+          node bin/a11y_audit.mjs --url http://127.0.0.1:8391/spr/respondent/1 --viewports 1366x768 --rules universal --prepare bin/audit/use-dark-scheme.js
+          node bin/a11y_audit.mjs --url http://127.0.0.1:8391/ --viewports 1366x768 --rules universal --prepare bin/audit/use-dark-scheme.js
+          # The stage's instruction line, and which marks the branding slots actually show, measured
+          # rather than eyeballed: the tool exits non-zero when the line sits off the header's centre
+          # beyond a pixel, when a page has no stage, or when the status line does not fit. The
+          # respondent mirror is measured too, where the same line is set at the larger caption.
+          node bin/layout_probe.mjs --url http://127.0.0.1:8391/spr/session/1 --mirror http://127.0.0.1:8391/spr/respondent/1 --viewports 1568x986,1280x800
+          # The probe's four failure modes, so the tool cannot stop biting: a page with no stage must be
+          # reported as such - it used to crash on one, building its log line from a viewport that a
+          # state report does not carry - a line off the centre must fail at zero tolerance, a status
+          # line whose content is wider than its box must be named, and a root wider than its viewport
+          # must be named too. The first two need no fixture.
+          nopage_out=$(node bin/layout_probe.mjs --url http://127.0.0.1:8391/recorder/session/1 --viewports 1568x986 2>&1) \
+            && nopage_status=0 || nopage_status=$?
+          if [ "${nopage_status:-0}" = "0" ]; then
+            echo "the probe passed a page with no stage"; echo "$nopage_out"; exit 1
+          fi
+          echo "$nopage_out" | grep -qF 'no stage on the page' || {
+            echo "the probe did not report the missing stage"; echo "$nopage_out"; exit 1; }
+          tight_out=$(node bin/layout_probe.mjs --url http://127.0.0.1:8391/spr/session/1 --viewports 1568x986 --tolerance 0 2>&1) \
+            && tight_status=0 || tight_status=$?
+          if [ "${tight_status:-0}" = "0" ]; then
+            echo "the probe passed an off-centre line at zero tolerance"; echo "$tight_out"; exit 1
+          fi
+          echo "$tight_out" | grep -qF 'outside tolerance' || {
+            echo "the probe did not report the off-centre line"; echo "$tight_out"; exit 1; }
+          status_out=$(node bin/layout_probe.mjs --url http://127.0.0.1:8391/spr/session/1 \
+            --prepare bin/audit/plant-status-overflow.js --viewports 1568x986 2>&1) \
+            && status_status=0 || status_status=$?
+          if [ "${status_status:-0}" = "0" ]; then
+            echo "the probe passed a status line wider than its box"; echo "$status_out"; exit 1
+          fi
+          echo "$status_out" | grep -qF 'statusFits=false' || {
+            echo "the probe did not report the unreadable status line"; echo "$status_out"; exit 1; }
+          # The fourth: a root wider than its viewport. The tool has named this failure since its header was
+          # written and no fixture ever induced it, so the branch was implemented and unexercised (§11.238).
+          # The fixture throws if its block does not make the root overflow, so a stylesheet that hides the
+          # overflow fails the step rather than passing a probe that measured a healthy page.
+          fits_out=$(node bin/layout_probe.mjs --url http://127.0.0.1:8391/spr/session/1 \
+            --prepare bin/audit/plant-horizontal-overflow.js --viewports 1568x986 2>&1) \
+            && fits_status=0 || fits_status=$?
+          if [ "${fits_status:-0}" = "0" ]; then
+            echo "the probe passed a page that overflows horizontally"; echo "$fits_out"; exit 1
+          fi
+          echo "$fits_out" | grep -qF 'fits=false' || {
+            echo "the probe did not report the horizontal overflow"; echo "$fits_out"; exit 1; }
+          echo "the layout probe reports all four failure modes"
+          # Five theme rules fire only on the recorder's own chrome — a mark outside the transport bar, a button
+          # squeezed below its target, a mark colliding with a state indicator, two marks colliding with each
+          # other, and a progress table wider than its rail. Until this step nothing induced any of them: the
+          # editor-scoped job never renders a control panel, so the rules could have stopped detecting unnoticed
+          # (§11.238 recorded them; §11.240 planted them). Each message is required below.
+          transport_out=$(node bin/theme_audit.mjs --url http://127.0.0.1:8391/spr/session/1 \
+            --prepare bin/audit/plant-transport-violations.js --viewports 1366x768 2>&1) \
+            && transport_status=0 || transport_status=$?
+          if [ "${transport_status:-0}" = "0" ]; then
+            echo "the theme audit passed with the transport-bar faults planted"; echo "$transport_out"; exit 1
+          fi
+          for expected in 'outside the transport bar' 'transport button squeezed to 12px' \
+            'overlaps app-uploadstatus' 'control-bar logos overlap' "is wider than the rail's"; do
+            echo "$transport_out" | grep -qF "$expected" || {
+              echo "the theme audit did not name: $expected"; echo "$transport_out"; exit 1; }
+          done
+          echo "the transport-bar and rail rules are proved to bite"
+          # The recorder's own selected row: the state class on the row and the bar on the cell below it, which is the
+          # model §11.260 widened the non-text rule for. Nothing else in this job selects a row, so without this the
+          # marker would never be measured — and it is the one state whose mark and its state live on different
+          # elements.
+          node bin/theme_audit.mjs --url http://127.0.0.1:8391/spr/session/1 \
+            --prepare bin/audit/select-row.js --viewports 1366x768
+          echo "the selected row's marker is measured and passes"
+
+          # Last in this step, because it deliberately times out. The prompt clips are blocked at the network, which
+          # keeps the app from reaching the state the driver waits for, and the run used to *hang* there — measured,
+          # 15 minutes with no output and no exit — so what must fail is the overall deadline (90 s here, to keep the
+          # job quick), the bound §11.246 added for exactly this. It runs last because a run that ends at its
+          # deadline leaves the shared browser in a state the *next* run inherits: measured, the run straight after
+          # one hung until its own deadline, and the driver's best-effort page cleanup did not prevent that. So
+          # nothing follows it here.
+          silence_out=$(node bin/audit/dry_run.mjs --base http://127.0.0.1:8391 --port 9333 --session 1001 \
+            --prepare bin/audit/plant-clip-silence.js --deadline-ms 90000 2>&1) && silence_status=0 || silence_status=$?
+          if [ "${silence_status:-0}" = "0" ]; then
+            echo "the dry run passed with the prompt clips blocked"; echo "$silence_out"; exit 1
+          fi
+          # Two endings are correct here and §11.286 is why. With a *frozen* audio clock the driver waits for a state the
+          # blocked clips never reach, and the 90-second deadline ends it — the ending §11.246 wrote this for. With a
+          # *working* sink, as on this runner since the sink gained its retry, the clock advances, the blocked clips fail
+          # their own assertions first, and the run ends naming them. What must not happen is a run that says neither.
+          echo "$silence_out" | grep -qE 'exceeded its|could not be played|never played' || {
+            echo "the dry run failed without naming the blocked clips or its deadline"; echo "$silence_out"; exit 1; }
+          echo "the dry run fails when a prompt clip cannot arrive — at its deadline, or by naming the clips"
+
+  detail-view:
+    name: Recorder detail view (development build, Chrome)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install
+        run: npm ci
+      # The overlay no production bundle can be probed for: bin/audit/open-detail-view.js opens the
+      # waveform and sonagram pane through Angular's development API, and the page is the recorder's
+      # own `/recorder/session/1` route. One step, because a background process does not survive the
+      # end of the step that started it.
+      - name: Audit the detail view
+        run: |
+          set -e
+          npx ng build --configuration development --output-path=/tmp/devapp
+          node server/server.mjs --port 8391 --data /tmp/detailrun --seed src/test --app none \
+            --project Demo1 --script playback --migrate
+          node server/server.mjs --port 8391 --data /tmp/detailrun --seed src/test \
+            --app /tmp/devapp/browser --project Demo1 --script playback --quiet > /tmp/receiver.log 2>&1 &
+          google-chrome --headless=new --remote-debugging-port=9333 --user-data-dir=/tmp/cdp-detail \
+            --use-fake-ui-for-media-stream --use-fake-device-for-media-stream \
+            --autoplay-policy=no-user-gesture-required about:blank > /tmp/chrome.log 2>&1 &
+          for i in $(seq 1 180); do
+            curl -sf -o /dev/null http://127.0.0.1:8391/recorder/session/1 && break
+            sleep 1
+          done
+          for i in $(seq 1 60); do
+            curl -sf -o /dev/null http://127.0.0.1:9333/json/version && break
+            sleep 1
+          done
+          node bin/theme_audit.mjs --url http://127.0.0.1:8391/recorder/session/1 \
+            --prepare bin/audit/open-detail-view.js --viewports 1366x768
+          node bin/a11y_audit.mjs --url http://127.0.0.1:8391/recorder/session/1 \
+            --prepare bin/audit/open-detail-view.js --viewports 1366x768 --rules universal
+          # The error dialog too, through the recorder's own error path. Rule 6 is skipped here and
+          # nothing else: with a modal open Angular Material marks the application root `aria-hidden`
+          # while its focus trap keeps Tab inside the dialog - measured, four presses all landed on the
+          # dialog's button - so that rule cannot tell the pattern from a real violation and would
+          # report the framework. Skipping it is written in the command, where it is visible, and every
+          # other rule runs against the dialog.
+          node bin/theme_audit.mjs --url http://127.0.0.1:8391/recorder/session/1 \
+            --prepare bin/audit/open-error-dialog.js --viewports 1366x768
+          node bin/a11y_audit.mjs --url http://127.0.0.1:8391/recorder/session/1 \
+            --prepare bin/audit/open-error-dialog.js --viewports 1366x768 --rules universal --except 6

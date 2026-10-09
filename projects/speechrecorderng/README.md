@@ -9,7 +9,19 @@ For backwards compatibility to server REST API v1 set the property `apiVersion: 
 
 ### Install NPM package
 Speechrecorder module is available as NPM package.
-Add `"speechrecorderng": "3.11.26"` to the `dependencies` array property in the `package.json` file of your application. Run `npm install` to install the package.
+Install it with `npm install speechrecorderng`, which adds it to your `package.json`.
+### Releasing
+This repository is where the library is published from, out of `dist/`. Two commands:
+
+1. `npm run new_patchrelease_build_and_pack_module` — or `new_prerelease_build_and_pack_module` for a
+   prerelease — bumps the version in both `package.json` files, stamps the version constant and the
+   FILES-mode fixture from it, builds into `dist/speechrecorderng` and packs the tarball into `dist/`
+   through `bin/mv_tgz_pkgs.js`, which fails when the tarball is not where `npm pack` should have left it
+   rather than reporting a release that shipped nothing;
+2. `npm run publish_module` — publishes `dist/speechrecorderng`.
+
+Neither step commits or tags: `npm version` runs with `--no-git-tag-version`, so the two version bumps and
+the stamped files are the releaser's to commit, and the tag is theirs to cut.
 ### Module integration
 Add SpeechRecorderNg module to 'imports' property of your `AppModule` annotation. The module main component `SpeechRecorder` should be activated by an Angular route.
 
@@ -132,7 +144,7 @@ value as a fallback.
 | `--spr-stage` / `--spr-stage-ink` | `#F1EFE4` / `#000000` | prompt stage (18.21:1) |
 | `--spr-ink` / `--spr-ink-muted` / `--spr-ink-subtle` | `#1F3044` / `#4A6288` / `#6D7C98` | body, secondary, non-essential |
 | `--spr-border` / `--spr-border-strong` / `--spr-divider` | `#D8DFE8` / `#C7D1DF` / `#E9EDF3` | lines |
-| `--spr-ok` / `--spr-caution` / `--spr-alert` | `#73A790` / `#D7B17C` / `#EABAB9` | recording-done, warning/level, error — ink is `--spr-*-ink` (black) |
+| `--spr-ok` / `--spr-caution` / `--spr-alert` | `#73A790` / `#D7B17C` / `#EABAB9` | recording-done, warning/level, error — text *on* the fill is `--spr-*-ink` (black); text in the status colour *on a surface* is `--spr-*-text` (`#1B5E20` / `#7A5A16` / `#7F1D1D` light, the brand colour dark) |
 | `--spr-canvas` / `--spr-canvas-ink` / `--spr-canvas-signal` | `#0E1A26` / `#FFFFFF` / `#73A790` | signal + spectrogram surface |
 | `--spr-black` / `--spr-lamp-off` | `#000000` / navy 55% | traffic light housing and unlit lamp |
 | `--spr-r-sm … --spr-r-xl` | 6 / 12 / 14 / 22 px | radii |
@@ -361,6 +373,40 @@ Versions 2.x.x of the recorder (then WebSpeechRecorderNg) use the REST API versi
 
 By default the API Endpoint ({apiEndPoint}) is an empty string, the API is then expected to be relative to the base path of the application. 
 
+### The options
+
+`SpeechRecorderConfig` (`spr.config.ts`) carries these, and an application's environment file
+normally lists them directly — `src/environments/environment.ts` in the demo does, and the
+production sample beside it is the deployment-specific copy:
+
+| Field | Type | Default | Purpose |
+|---|---|---|---|
+| `apiEndPoint` | `string \| null` | `null` | API base; relative to the application's path unless set. |
+| `apiType` | `ApiType \| null` | `null` | `NORMAL` talks to the REST API, `FILES` reads `.json` fixtures instead. |
+| `apiVersion` | `number` | `1` | The API version segment. |
+| `withCredentials` | `boolean` | `false` | Send cookies; see Security below. |
+| `enableDownloadRecordings` | `boolean` | `false` | Offer the download action for recordings. |
+| `enableUploadRecordings` | `boolean` | `true` | Upload recordings to the server. |
+| `uploadConfig` | `UploadConfig` | see below | Upload retries, concurrency and idempotency. |
+| `logLevel` | `SprLogLevel` | `INFO` | The logger's gate; see Logging below. |
+| `encryptPersistentRecordings` | `boolean` | `false` | Encrypt chunks at rest in IndexedDB; see Security below. |
+| `branding` | `SpeechRecorderBranding` | unset | Logos per slot; unset renders no marks at all. |
+| `respondentDisplayKey` | `string \| null` | `null` | Key that opens the respondent display; unset keeps `keybindings.ts`'s default. |
+
+An application's environment may add its own fields on top: the demo adds `defaultSessionId` (the
+session the start page's action leads to) and `configurationCatalogUrl` (the catalogue the
+configuration picker offers) — neither is part of this class.
+
+### Offline and fixture mode
+
+`apiType: 'files'` reads scripts, banks, media and recordings from `.json` fixtures under
+`apiEndPoint` instead of talking to a REST API. The defaults for that mode are exported from the
+public API as `SPEECHRECORDER_ENVIRONMENT_DEFAULTS` — `apiType: 'files'`, `apiEndPoint: 'test'`,
+downloads on, uploads off — which is deliberately not what this class defaults to, since the class's
+defaults describe a normal deployment. The demo application ships the same values in
+`src/environments/environment.demo.sample.ts` — with `production: true`, as an environment file needs —
+so copy it over `environment.ts` to run the demo offline.
+
 ### Logging
 
 All library log output goes through a level gated logger. The level is configured with `logLevel` in `SpeechRecorderConfig` (`SprLogLevel.DEBUG`, `INFO` (default), `WARN`, `ERROR`, `OFF`). With the default level, debug output is suppressed.
@@ -375,6 +421,10 @@ All library log output goes through a level gated logger. The level is configure
 * When recordings are stored client side in IndexedDB (`DB_CHUNKED` storage), they are plaintext by default. Set `encryptPersistentRecordings: true` in `SpeechRecorderConfig` to encrypt chunks at rest with AES-GCM (WebCrypto). The key is session scoped: a page reload in the same browser session can still decrypt, a browser restart cannot (stale encrypted chunks become unreadable and should be cleaned up server side). Playback and download of encrypted recordings work transparently.
 
 ## Cavox REST API description
+
+The entities below are the model. The repository's `doc/script-editor/rest-api.md` is the complete endpoint
+reference — drafts, publishing and versions, banks and draws, media and the preview session — for a backend that
+implements more than the entities.
 
 ### Entity Project
 
@@ -462,6 +512,11 @@ Properties:
  * recpromptId: Unique ID of this recording prompt 
  * itemcode: string: In the scope of the script unique identifier of an recording item
  * mediaitems: array: List of media items for this prompt. Currently only a single mediaitem element in the array is supported.
+
+A prompt item can also draw its entries from an **item bank** instead of a list — `prefill.bank`, with a filter, a
+count, an order and what the draw is keyed to. The receiver resolves it when the session is created and writes the
+drawn items into the session's script, so the library needs no change for it; the repository README documents the
+JSON under *Drawing items from a bank*.
 
 ### Embedded entity Media item
 
@@ -608,6 +663,53 @@ step).
 `src/test/script/3457.json` (session 9) is a small sound-prompt script: one item that plays a
 sound automatically and repeatably, one that leaves it to the play control (`autoplay: false`),
 one that is played once without a replay (`replay: false`) and one text item.
+
+#### The `playback` plan (since 3.11.26)
+
+The `autoplay`/`replay` flags above are the per media item mechanism. A prompt item can instead carry a `playback`
+plan, which takes over placement, repeats and the replay rule:
+
+| `when` | What the sound does |
+|---|---|
+| `WITH_PROMPT` (default) | plays when the prompt is presented and the traffic light waits for it — the behaviour the flags above describe |
+| `BEFORE` | plays to the end before the pre-recording delay starts, so the speaker cannot talk over it |
+| `PRERECORDING` | plays inside the pre-recording delay; give the delay at least `repeats × duration + (repeats − 1) × gap` |
+| `DURING` | plays while the microphone is open (shadowing, masking); without `headphones: true` a loudspeaker is part of the recording |
+| `ONDEMAND` | shows a play control instead of playing by itself, so the speaker decides when to listen; implies `replayable` |
+
+The rest of the plan: `repeats` (times the clip plays back to back, default 1), `gap` (silence between repeats,
+default 500 ms), `replayable` (whether the operator may repeat it, overriding `Mediaitem.replay`), `maxReplays` (a
+cap, unset for none), `headphones` (ask the speaker for headphones before the section starts) and `durationMs` (an
+advisory clip length — the receiver measures the real one on upload).
+
+**A plan and the flags are two ways to say the same thing, and they do not mix.** An item that carries a `playback`
+plan has its `autoplay`/`replay` ignored, and a validation check flags an item that sets both so the intent is
+explicit. An item with neither behaves as `WITH_PROMPT` with `autoplay: true` and `replay: true` — the section
+above. On a `type: 'nonrecording'` item only `WITH_PROMPT`, `BEFORE` and `ONDEMAND` have a phase to attach to; the
+item's `duration` then governs when the next item starts, not the clip.
+
+#### Scripts that need a newer recorder
+
+A script can declare what it needs. `Script.minRecorderVersion` is stamped by an editor, and
+`minRecorderVersionFor(script)` computes the floor from the features a script uses — exported together with
+`FEATURE_VERSIONS`, `featuresUsed`, `compareVersions` and `supportsRecorderVersion`. The player is gated on it when
+a session loads: a script whose floor is newer than the build is **refused** rather than run with a feature silently
+missing, and the status line names both versions (`spr.status.scriptVersionTooOld`). A receiver re-checks the same
+floor when it creates a session, so a deployment refuses too.
+
+The alternative is why the floor exists: a script that uses `playback` loaded by a recorder that predates it would
+run **without the clip** and report nothing. `FEATURE_VERSIONS.playback` is the version of the build that implements
+it, so a script that uses it is refused by anything older.
+
+#### The timing the recorder and an editor share
+
+The arithmetic behind an item's clocks is exported, so a tool can show the same timeline the recorder runs:
+`effectiveTiming(item)` returns the pre-recording delay, the recording length (null when the item runs until it is
+stopped), the post-recording delay, the item's maximum window, when its prompt sound plays and the sound itself,
+with every fallback above already applied. `ITEM_PHASES` and `nextPhase` are the item's phase sequence;
+`playbackPlan` fills a plan's defaults, `playbackStart` and `playbackTiming` are the placement decision, and
+`replayAllowed` is the replay rule — each of them on its own, so they can be tested without a session.
+`DEFAULT_PRE_REC_DELAY` (1000 ms) and `DEFAULT_POST_REC_DELAY` (500 ms) are exported with them.
 
 ### Recording file
 

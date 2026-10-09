@@ -4,6 +4,7 @@ import {firstValueFrom} from "rxjs";
 import {AudioContextProvider} from "./context";
 import {Mediaitem} from "../speechrecorder/script/script";
 import {ProjectService} from "../speechrecorder/project/project.service";
+import {messageOf} from "../utils/utils";
 import {SPEECHRECORDER_CONFIG, SpeechRecorderConfig} from "../spr.config";
 import {SprLogger} from "../utils/logger";
 
@@ -18,6 +19,13 @@ export type PromptAudioResult = 'ended' | 'stopped' | 'failed';
 
 /** Prompt sounds are short; the cache only holds what a session navigates back and forth over. */
 const CACHE_LIMIT = 8;
+
+/**
+ * How long a prompt's playback may exceed the clip's own length before it is called stuck. A
+ * context whose clock never moves is the case this guards: the clip is audible in no way, and the
+ * take that waits for it would otherwise wait forever (see `start`).
+ */
+const PLAYBACK_SLACK_MS = 1000;
 
 /**
  * Plays the sound of a prompt media item (`mimetype: 'audio/*'`, `src` a project resource).
@@ -39,6 +47,9 @@ export class PromptAudioService {
 
   private source: AudioBufferSourceNode|null = null;
   private endCurrent: ((result: PromptAudioResult) => void)|null = null;
+  /** The silence between the repeats of a sequence, and how to cut it short. */
+  private gapTimer: number|null = null;
+  private endGap: (() => void)|null = null;
 
   constructor(private http: HttpClient, private projectService: ProjectService,
               @Optional() @Inject(SPEECHRECORDER_CONFIG) config?: SpeechRecorderConfig) {
@@ -87,6 +98,45 @@ export class PromptAudioService {
   /** Stops the sound that is playing, if any. */
   stop(): void {
     this.stopCurrent();
+  }
+
+  /**
+   * Plays a prompt sound `repeats` times with `gap` ms of silence between the repeats (the
+   * `playback` modifier of D-V = C). Resolves like `play`: `stopped` when anything interrupts a
+   * playback or a gap, `failed` when a repeat cannot be played.
+   */
+  async playSequence(
+    projectName: string|null|undefined,
+    mediaitem: Mediaitem,
+    {repeats = 1, gap = 0}: {repeats?: number, gap?: number} = {},
+  ): Promise<PromptAudioResult> {
+    const total = Math.max(1, Math.floor(repeats));
+    for (let index = 0; index < total; index++) {
+      if (index > 0 && gap > 0 && !(await this.waitGap(gap))) {
+        return 'stopped';
+      }
+      const result = await this.play(projectName, mediaitem);
+      if (result !== 'ended') {
+        return result;
+      }
+    }
+    return 'ended';
+  }
+
+  /** The silence between repeats; false when `stop()` cut it short. */
+  private waitGap(ms: number): Promise<boolean> {
+    return new Promise<boolean>((resolve) => {
+      const finish = (waited: boolean) => {
+        if (this.gapTimer !== null) {
+          window.clearTimeout(this.gapTimer);
+          this.gapTimer = null;
+        }
+        this.endGap = null;
+        resolve(waited);
+      };
+      this.endGap = () => finish(false);
+      this.gapTimer = window.setTimeout(() => finish(true), ms);
+    });
   }
 
   private load(url: string): Promise<AudioBuffer> {
@@ -142,11 +192,16 @@ export class PromptAudioService {
     const ready = context.state === 'running' ? Promise.resolve() : context.resume();
     return ready.then(() => new Promise<PromptAudioResult>((resolve) => {
       let done = false;
+      let watchdog: number|null = null;
       const finish = (result: PromptAudioResult) => {
         if (done) {
           return;
         }
         done = true;
+        if (watchdog !== null) {
+          window.clearTimeout(watchdog);
+          watchdog = null;
+        }
         if (this.source === source) {
           this.source = null;
           this.endCurrent = null;
@@ -161,6 +216,34 @@ export class PromptAudioService {
       this.endCurrent = finish;
       SprLogger.debug("Prompt audio " + url + " playing, " + buffer.duration.toFixed(2) + "s.");
       source.start();
+      // A context that cannot reach an output device still reports `running` and still starts a
+      // source: its clock simply never moves, so `onended` never arrives and this promise would
+      // never settle — the session would wait, silently, for a sound nobody can hear. The take's
+      // clocks must not depend on a working device, so bound the wait by the buffer's own length
+      // plus slack; a source that never reports its end is failed, which the session manager
+      // already shows to the operator and then carries on from.
+      const startedAt = context.currentTime;
+      const graceMs = PLAYBACK_SLACK_MS + buffer.duration * 1000;
+      const check = (lastChance: boolean) => {
+        // A clock that moved a meaningful part of the clip is playing, just slowly: give it one
+        // more clip's worth of time before calling it stuck.
+        const progress = context.currentTime - startedAt;
+        if (!lastChance && progress >= Math.min(0.25, buffer.duration * 0.25)) {
+          watchdog = window.setTimeout(() => check(true), graceMs);
+          return;
+        }
+        SprLogger.error("Prompt audio " + url + " never reached the end of its playback (its clock stopped at " + progress.toFixed(3) + "s of " + buffer.duration.toFixed(2) + "s); reporting the failure so the session can continue.");
+        // A source that did play but never reported its end would keep sounding under a session
+        // that has moved on; silence it.
+        try {
+          source.stop();
+          source.disconnect();
+        } catch (ignored) {
+          // never started, or already gone: nothing left to silence
+        }
+        finish('failed');
+      };
+      watchdog = window.setTimeout(() => check(false), graceMs);
     })).catch((reason) => {
       SprLogger.error("Prompt audio " + url + " could not be started: " + messageOf(reason));
       return 'failed' as PromptAudioResult;
@@ -168,6 +251,15 @@ export class PromptAudioService {
   }
 
   private stopCurrent(): void {
+    const endGap = this.endGap;
+    this.endGap = null;
+    if (this.gapTimer !== null) {
+      window.clearTimeout(this.gapTimer);
+      this.gapTimer = null;
+    }
+    if (endGap !== null) {
+      endGap();
+    }
     const source = this.source;
     const finish = this.endCurrent;
     this.source = null;
@@ -185,8 +277,4 @@ export class PromptAudioService {
       finish('stopped');
     }
   }
-}
-
-function messageOf(reason: unknown): string {
-  return reason instanceof Error ? reason.message : String(reason);
 }

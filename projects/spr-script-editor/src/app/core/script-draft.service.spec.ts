@@ -1,0 +1,470 @@
+/**
+ * Draft-service protocol specs (plan M3, `E3 draft service`; rest-api.md §2.3, decisions D-C/D-N/D2).
+ *
+ * `HttpTestingController` stands in for the receiver: the specs assert the exact request shape
+ * (method, `If-Match`, body), the debounce/flush timing, single-flight coalescing, the 412
+ * re-apply-with-guards path, the conflict the operator then resolves (adopting the server's text and
+ * keeping the local one), the 428 reload-and-retry, the invalid-JSON rule, the local backup and
+ * the FILES-mode read-only behaviour. They are the executable contract the receiver conformance
+ * run then re-checks with real status codes and ETags.
+ */
+import {provideHttpClient} from '@angular/common/http';
+import {HttpTestingController, provideHttpClientTesting, TestRequest} from '@angular/common/http/testing';
+import {fakeAsync, TestBed, tick} from '@angular/core/testing';
+import {ApiType, SPEECHRECORDER_CONFIG, SpeechRecorderConfig} from 'speechrecorderng';
+import {ScriptApiService} from './script-api.service';
+import {ScriptDraftService} from './script-draft.service';
+
+const DRAFT = '{"name":"x","sections":[]}';
+/** A published version as the server serves it: parse it, then stringify it for a new draft. */
+const SCRIPT = {name: 'published', sections: [], playback: {src: 'media/clip.wav'}};
+const ETAG_A = '"A"';
+const WRITE_OK = {scriptId: 1, draftVersion: 2, etag: '"B"'};
+
+function setup(config: SpeechRecorderConfig = {apiEndPoint: 'api/v1', apiType: ApiType.NORMAL, apiVersion: 1}) {
+  TestBed.resetTestingModule();
+  TestBed.configureTestingModule({
+    providers: [
+      provideHttpClient(),
+      provideHttpClientTesting(),
+      {provide: SPEECHRECORDER_CONFIG, useValue: config},
+      ScriptApiService,
+    ],
+  });
+  return {service: TestBed.inject(ScriptDraftService), http: TestBed.inject(HttpTestingController)};
+}
+
+function pathOf(urlWithParams: string): string {
+  return urlWithParams.split('?')[0];
+}
+
+function expectDraft(http: HttpTestingController, method: string): TestRequest {
+  return http.expectOne((request) => request.method === method && pathOf(request.urlWithParams).endsWith('/script/1/draft'));
+}
+
+/** Loads `text` at `etag` and settles the GET so the service has a model. */
+function loadDraft(service: ScriptDraftService, http: HttpTestingController, text = DRAFT, etag = ETAG_A): void {
+  void service.load('Demo1', 1);
+  expectDraft(http, 'GET').flush(text, {headers: {ETag: etag}});
+  tick();
+}
+
+function conflictBody(current: unknown, currentEtag: string) {
+  return {
+    error: 'The draft changed since you loaded it.',
+    message: 'The draft changed since you loaded it.',
+    code: 'SCRIPT_DRAFT_CONFLICT',
+    details: {current, currentEtag},
+  };
+}
+
+describe('ScriptDraftService', () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(() => TestBed.inject(HttpTestingController).verify());
+
+  it('debounces a write by 2 s and flushes it immediately on demand', fakeAsync(() => {
+    const {service, http} = setup();
+    loadDraft(service, http);
+
+    service.setValue('name', ['name'], 'debounced');
+    tick(1999);
+    http.expectNone((request) => request.method === 'PUT');
+
+    tick(1);
+    const debounced = expectDraft(http, 'PUT');
+    expect(debounced.request.headers.get('If-Match')).toBe(ETAG_A);
+    debounced.flush(WRITE_OK);
+    tick();
+
+    // A flush does not wait for the debounce.
+    service.setValue('name', ['name'], 'flushed');
+    void service.flush();
+    const flushed = expectDraft(http, 'PUT');
+    expect(flushed.request.body as string).toContain('flushed');
+    flushed.flush({scriptId: 1, draftVersion: 3, etag: '"C"'});
+    tick();
+    expect(service.dirty()).toBe(false);
+  }));
+
+  it('single-flights the write and coalesces edits that arrive while one is in flight', fakeAsync(() => {
+    const {service, http} = setup();
+    loadDraft(service, http);
+
+    service.setValue('name', ['name'], 'first');
+    void service.flush();
+    const first = expectDraft(http, 'PUT');
+    expect(first.request.body as string).toContain('first');
+
+    service.setValue('name', ['name'], 'second');
+    void service.flush();
+    http.expectNone((request) => request.method === 'PUT');
+
+    first.flush(WRITE_OK);
+    tick();
+
+    const second = expectDraft(http, 'PUT');
+    expect(second.request.body as string).toContain('second');
+    expect(second.request.headers.get('If-Match')).toBe('"B"');
+    second.flush({scriptId: 1, draftVersion: 3, etag: '"C"'});
+    tick();
+    expect(service.dirty()).toBe(false);
+  }));
+
+  it('sends If-Match with the ETag of the last response', fakeAsync(() => {
+    const {service, http} = setup();
+    loadDraft(service, http, DRAFT, ETAG_A);
+
+    service.setValue('name', ['name'], 'one');
+    void service.flush();
+    const one = expectDraft(http, 'PUT');
+    expect(one.request.headers.get('If-Match')).toBe('"A"');
+    one.flush(WRITE_OK);
+    tick();
+    expect(service.etag()).toBe('"B"');
+
+    service.setValue('name', ['name'], 'two');
+    void service.flush();
+    const two = expectDraft(http, 'PUT');
+    expect(two.request.headers.get('If-Match')).toBe('"B"');
+    two.flush({scriptId: 1, draftVersion: 3, etag: '"C"'});
+    tick();
+    expect(service.etag()).toBe('"C"');
+    expect(service.text()).toContain('two');
+  }));
+
+  it('re-applies the structural intent once after a 412 and retries with the fresh ETag', fakeAsync(() => {
+    const {service, http} = setup();
+    loadDraft(service, http, '{"name":"x","sections":[{"name":"a"}]}', '"A"');
+
+    service.insert('sections', ['sections'], 1, {name: 'b'});
+    void service.flush();
+    const first = expectDraft(http, 'PUT');
+    expect(first.request.headers.get('If-Match')).toBe('"A"');
+    expect(JSON.parse(first.request.body as string).sections.length).toBe(2);
+
+    // A second client renamed the script but left the section array alone: the guard holds.
+    first.flush(conflictBody({name: 'server', sections: [{name: 'a'}]}, '"S"'), {status: 412, statusText: 'Precondition Failed'});
+    tick();
+
+    const retry = expectDraft(http, 'PUT');
+    expect(retry.request.headers.get('If-Match')).toBe('"S"');
+    const retried = JSON.parse(retry.request.body as string);
+    expect(retried.name).toBe('server');
+    expect(retried.sections.map((section: {name: string}) => section.name)).toEqual(['a', 'b']);
+    retry.flush({scriptId: 1, draftVersion: 3, etag: '"D"'});
+    tick();
+
+    expect(service.conflict()).toBeNull();
+    expect(service.etag()).toBe('"D"');
+    expect(service.model()?.name).toBe('server');
+    expect(service.dirty()).toBe(false);
+  }));
+
+  it('goes to the conflict state with both texts when an index guard fails', fakeAsync(() => {
+    const {service, http} = setup();
+    loadDraft(service, http, '{"name":"x","sections":[{"name":"a"}]}', '"A"');
+
+    service.insert('sections', ['sections'], 1, {name: 'b'});
+    void service.flush();
+    expectDraft(http, 'PUT')
+      .flush(conflictBody({name: 'server', sections: [{name: 'a'}, {name: 'c'}]}, '"S"'), {status: 412, statusText: 'Precondition Failed'});
+    tick();
+
+    // The array grew under the guard: no retry, the operator chooses.
+    http.expectNone((request) => request.method === 'PUT');
+    const conflict = service.conflict();
+    expect(conflict).not.toBeNull();
+    expect(conflict?.localText).toContain('"b"');
+    expect(conflict?.remoteText).toContain('"c"');
+    expect(conflict?.remoteEtag).toBe('"S"');
+    expect(service.etag()).toBe('"A"');
+  }));
+
+  it('adopting the server\'s side clears the conflict, the intent and the local backup', fakeAsync(() => {
+    const {service, http} = setup();
+    loadDraft(service, http, '{"name":"x","sections":[{"name":"a"}]}', '"A"');
+
+    service.insert('sections', ['sections'], 1, {name: 'b'});
+    void service.flush();
+    // The array grew under the guard, so nothing can be re-applied and the operator must choose.
+    expectDraft(http, 'PUT')
+      .flush(conflictBody({name: 'server', sections: [{name: 'a'}, {name: 'c'}]}, '"S"'), {status: 412, statusText: 'Precondition Failed'});
+    tick();
+
+    const backupKey = Object.keys(localStorage).find((key) => key.startsWith('spr-script-draft'));
+    expect(backupKey).toBeDefined('the unacked edit is backed up');
+    expect(service.conflict()).not.toBeNull();
+    expect(service.dirty()).toBe(true);
+
+    void service.resolveConflict('remote');
+    tick();
+
+    // The server's draft is adopted whole: its text, its validator, and nothing left pending.
+    expect(service.model()?.name).toBe('server');
+    expect(service.text()).toContain('"c"');
+    expect(service.etag()).toBe('"S"');
+    expect(service.conflict()).toBeNull();
+    expect(service.dirty()).toBe(false, 'the adopted text is what the server holds, so nothing is unsaved');
+    // Adopting the server's side without clearing the backup would restore the text the operator
+    // discarded on the next load, and it could then overwrite the server's newer version.
+    expect(localStorage.getItem(backupKey!)).toBeNull();
+    expect(service.text()).not.toContain('"b"');
+  }));
+
+  it('keeping the local side retries it against the server\'s validator', fakeAsync(() => {
+    const {service, http} = setup();
+    loadDraft(service, http, '{"name":"x","sections":[{"name":"a"}]}', '"A"');
+
+    service.insert('sections', ['sections'], 1, {name: 'b'});
+    void service.flush();
+    expectDraft(http, 'PUT')
+      .flush(conflictBody({name: 'server', sections: [{name: 'a'}, {name: 'c'}]}, '"S"'), {status: 412, statusText: 'Precondition Failed'});
+    tick();
+    expect(service.conflict()).not.toBeNull();
+
+    void service.resolveConflict('local');
+    tick();
+
+    const retry = expectDraft(http, 'PUT');
+    expect(retry.request.headers.get('If-Match')).toBe('"S"', 'the retry uses the server\'s validator');
+    const body = JSON.parse(retry.request.body as string);
+    expect(body.name).toBe('x', 'the operator kept their own text');
+    expect(body.sections.map((section: {name: string}) => section.name)).toEqual(['a', 'b']);
+    retry.flush({scriptId: 1, draftVersion: 9, etag: '"T"'});
+    tick();
+
+    expect(service.conflict()).toBeNull();
+    expect(service.etag()).toBe('"T"');
+    expect(service.dirty()).toBe(false);
+  }));
+
+  it('treats 428 as reload-then-retry-once', fakeAsync(() => {
+    const {service, http} = setup();
+    loadDraft(service, http, DRAFT, '"A"');
+
+    service.setValue('name', ['name'], 'retry');
+    void service.flush();
+    expectDraft(http, 'PUT').flush(
+      {error: 'If-Match is required for a draft write', message: 'If-Match is required for a draft write', code: 'PRECONDITION_REQUIRED'},
+      {status: 428, statusText: 'Precondition Required'});
+    tick();
+
+    expectDraft(http, 'GET').flush(DRAFT, {headers: {ETag: '"R"'}});
+    tick();
+
+    const retry = expectDraft(http, 'PUT');
+    expect(retry.request.headers.get('If-Match')).toBe('"R"');
+    expect(retry.request.body as string).toContain('retry');
+    retry.flush({scriptId: 1, draftVersion: 2, etag: '"R2"'});
+    tick();
+    expect(service.conflict()).toBeNull();
+    expect(service.etag()).toBe('"R2"');
+  }));
+
+  it('never PUTs invalid JSON; it writes the last valid model instead', fakeAsync(() => {
+    const {service, http} = setup();
+    loadDraft(service, http, DRAFT, '"A"');
+
+    service.setText('{"name": broken');
+    expect(service.dirty()).toBe(true);
+    expect(service.text()).toBe(DRAFT);
+
+    void service.flush();
+    const invalidAttempt = expectDraft(http, 'PUT');
+    expect(invalidAttempt.request.body).toBe(DRAFT);
+    expect(invalidAttempt.request.body as string).not.toContain('broken');
+    invalidAttempt.flush(WRITE_OK);
+    tick();
+    // The operator's invalid text is still unsaved, so the draft stays dirty.
+    expect(service.dirty()).toBe(true);
+    expect(service.sourceText()).toBe('{"name": broken');
+
+    service.setText('{"name":"valid","sections":[]}');
+    void service.flush();
+    const validAttempt = expectDraft(http, 'PUT');
+    expect(validAttempt.request.body).toBe('{"name":"valid","sections":[]}');
+    validAttempt.flush({scriptId: 1, draftVersion: 3, etag: '"C"'});
+    tick();
+    expect(service.dirty()).toBe(false);
+  }));
+
+  it('backs up unacked changes, restores them on load and clears them on ack', fakeAsync(() => {
+    const {service, http} = setup();
+    loadDraft(service, http, DRAFT, '"A"');
+
+    service.setValue('name', ['name'], 'backed-up');
+    const backupKey = Object.keys(localStorage).find((key) => key.startsWith('spr-script-draft'));
+    expect(backupKey).toBeDefined();
+    expect(localStorage.getItem(backupKey!)).toContain('backed-up');
+
+    // Simulate a crash/reload: the server still has the original text.
+    loadDraft(service, http, DRAFT, '"A"');
+    expect(service.dirty()).toBe(true);
+    expect(service.sourceText()).toContain('backed-up');
+    expect(service.text()).toContain('backed-up');
+
+    void service.flush();
+    const restoring = expectDraft(http, 'PUT');
+    expect(restoring.request.body as string).toContain('backed-up');
+    restoring.flush(WRITE_OK);
+    tick();
+    expect(localStorage.getItem(backupKey!)).toBeNull();
+    expect(service.dirty()).toBe(false);
+  }));
+
+  it('disables writes in FILES mode but still shows the draft as locally modified', fakeAsync(() => {
+    const {service, http} = setup({apiEndPoint: 'test', apiType: ApiType.FILES, apiVersion: 1});
+    expect(service.writesDisabled()).toBe(true);
+
+    void service.load('Demo1', 1);
+    http.expectOne((request) => request.method === 'GET' && pathOf(request.urlWithParams).endsWith('/script/1/draft.json'))
+      .flush(DRAFT, {headers: {ETag: ETAG_A}});
+    tick();
+
+    service.setValue('name', ['name'], 'local-only');
+    expect(service.dirty()).toBe(true);
+
+    void service.flush();
+    tick(2500);
+    http.expectNone((request) => request.method === 'PUT');
+    expect(service.dirty()).toBe(true);
+  }));
+
+  it('coalesces undo snapshots per focused field and caps the history', fakeAsync(() => {
+    const {service, http} = setup();
+    loadDraft(service, http);
+
+    service.setValue('name', ['name'], 'b');
+    service.setValue('name', ['name'], 'c');
+    expect(service.canUndo()).toBe(true);
+    service.undo();
+    expect(service.model()?.name).toBe('x');
+    expect(service.canUndo()).toBe(false);
+    expect(service.canRedo()).toBe(true);
+    service.redo();
+    expect(service.model()?.name).toBe('c');
+
+    // Distinct focuses snapshot each time, capped at 50.
+    for (let i = 0; i < 60; i++) {
+      service.setValue(`field-${i}`, ['name'], `v${i}`);
+    }
+    let undone = 0;
+    while (service.undo()) {
+      undone++;
+    }
+    expect(undone).toBe(50);
+
+    void service.flush();
+    expectDraft(http, 'PUT').flush(WRITE_OK);
+    tick();
+  }));
+
+  it('hands out a new model reference after an edit so screens re-render', fakeAsync(() => {
+    const {service, http} = setup();
+    loadDraft(service, http);
+
+    const before = service.model();
+    service.setValue('script.name', ['name'], 'edited');
+    const after = service.model();
+
+    // The service edits `rawModel` in place; without a fresh top-level object a computed would
+    // never see the change (outline rows, markers and the shell's name all read `model()`).
+    expect(after).not.toBe(before);
+    expect(after?.name).toBe('edited');
+    expect(before?.name).toBe('x');
+
+    void service.flush();
+    expectDraft(http, 'PUT').flush(WRITE_OK);
+    tick();
+  }));
+
+  it('opens a legacy script read-only until N06 converts it (D-M)', fakeAsync(() => {
+    localStorage.clear();
+    const {service, http} = setup();
+    const legacy = '{"name":"Legacy","sections":[{"mode":"MANUAL","promptphase":"RECORDING","promptUnits":[{"itemcode":"A1"}]}]}';
+    void service.load('Demo1', 1);
+    expectDraft(http, 'GET').flush(legacy, {headers: {ETag: ETAG_A}});
+    tick();
+
+    expect(service.legacy()).withContext('the shape is detected').toBe(true);
+    expect(service.writesDisabled()).withContext('and it disables writes').toBe(true);
+
+    // A converted document is an ordinary draft again.
+    void service.load('Demo1', 1);
+    expectDraft(http, 'GET').flush('{"name":"Converted","sections":[{"groups":[]}]}', {headers: {ETag: ETAG_A}});
+    tick();
+
+    expect(service.legacy()).toBe(false);
+    expect(service.writesDisabled()).toBe(false);
+    // The round-trip spec loads these same coordinates; leave no local backup behind.
+    localStorage.clear();
+  }));
+
+  it('restores a version by adopting the re-read draft bytes and validator', fakeAsync(() => {
+    const {service, http} = setup();
+    loadDraft(service, http, DRAFT, ETAG_A);
+
+    void service.restoreVersion(3);
+
+    const restore = http.expectOne((request) => request.method === 'POST' && pathOf(request.urlWithParams).endsWith('/script/1/draft/_restore'));
+    expect(restore.request.headers.get('If-Match')).toBe(ETAG_A);
+    expect(restore.request.body).toEqual({version: 3});
+    restore.flush({scriptId: 1, draftVersion: 9, etag: '"B"'});
+
+    const read = http.expectOne((request) => request.method === 'GET' && pathOf(request.urlWithParams).endsWith('/script/1/draft'));
+    read.flush('{"name":"restored","sections":[]}', {headers: {ETag: '"B"'}});
+    tick();
+
+    expect(service.model()?.name).toBe('restored');
+    expect(service.etag()).toBe('"B"');
+    expect(service.dirty()).toBe(false);
+  }));
+
+  it('starts a draft from the newest published version, asserting emptiness with If-None-Match: *', fakeAsync(() => {
+    const {service, http} = setup();
+    // The state the operator is in: the script exists, its draft does not (a migrated script).
+    void service.load('Demo1', 1).catch(() => undefined);
+    expectDraft(http, 'GET').flush({error: 'script 1 has no draft'}, {status: 404, statusText: 'Not Found'});
+    tick();
+    expect(service.model()).toBeNull();
+
+    void service.startDraftFromPublished();
+
+    const versions = http.expectOne((request) => request.method === 'GET' && pathOf(request.urlWithParams).endsWith('/script/1/version'));
+    versions.flush([{version: 3, publishedDate: '2026-01-01T00:00:00.000Z', note: '', sessions: 0}]);
+    tick();
+
+    const published = http.expectOne((request) => request.method === 'GET' && pathOf(request.urlWithParams).endsWith('/script/1/version/3'));
+    published.flush(SCRIPT);
+    tick();
+
+    const create = http.expectOne((request) => request.method === 'PUT' && pathOf(request.urlWithParams).endsWith('/script/1/draft'));
+    expect(create.request.headers.get('If-None-Match')).toBe('*');
+    expect(create.request.headers.has('If-Match')).toBe(false);
+    expect(create.request.body).toBe(JSON.stringify(SCRIPT));
+    create.flush({scriptId: 1, draftVersion: 1, etag: ETAG_A});
+    tick();
+
+    expectDraft(http, 'GET').flush(JSON.stringify(SCRIPT), {headers: {ETag: ETAG_A}});
+    tick();
+
+    expect(service.model()?.name).toBe(SCRIPT.name);
+    expect(service.etag()).toBe(ETAG_A);
+    expect(service.lastError()).toBeNull();
+  }));
+
+  it('does not create anything when the script has no published version to start from', fakeAsync(() => {
+    const {service, http} = setup();
+    void service.load('Demo1', 1).catch(() => undefined);
+    expectDraft(http, 'GET').flush({error: 'script 1 has no draft'}, {status: 404, statusText: 'Not Found'});
+    tick();
+
+    void service.startDraftFromPublished();
+
+    http.expectOne((request) => pathOf(request.urlWithParams).endsWith('/script/1/version')).flush([]);
+    tick();
+
+    expect(service.lastError()).toContain('neither a draft nor a published version');
+    http.verify();
+  }));
+});

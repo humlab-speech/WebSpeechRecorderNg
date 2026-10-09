@@ -14,6 +14,8 @@ import {createReadStream, existsSync, statSync} from 'node:fs';
 import {extname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createApiHandler} from './api.mjs';
+import {applyCors} from './cors.mjs';
+import {RECORDER_VERSION} from './feature-versions.mjs';
 import {Store} from './store.mjs';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
@@ -21,7 +23,43 @@ const ROOT = resolve(HERE, '..');
 
 const options = parseArgs(process.argv.slice(2));
 const log = makeLogger();
-const store = new Store({dataDir: options.data, seedDir: options.seed, log}).open();
+const store = new Store({dataDir: options.data, seedDir: options.seed, log, recorderVersion: options.recorderVersion, pseudonymiseSpeakers: options.pseudonymiseSpeakers}).open();
+
+// Maintenance subcommands run against the data directory and exit before serving.
+if (options.migrate || options.gc) {
+  if (options.migrate) {
+    const summary = store.migrateLegacyTrees();
+    log(`migrate: ${summary.scripts} script(s) examined, ${summary.imported} legacy script(s) imported as version 1`);
+  }
+  if (options.gc) {
+    const summary = store.gc({media: options.gcMedia, journalKeep: options.gcJournal, uploadsMaxAgeDays: options.gcUploads});
+    log(`gc: ${summary.revisionsRemoved} draft revision(s) removed, ${summary.previewsRemoved} expired preview(s) removed, `
+      + `${summary.orphansFound} orphan media found${options.gcMedia ? `, ${summary.mediaRemoved} removed` : ' (pass --gc-media to remove)'}`);
+    // A chunk session is resumable, so it is only collected when the operator names the age (§11.195).
+    if (summary.chunkSessionsRemoved > 0) {
+      log(`    collected ${summary.chunkSessionsRemoved} unfinished chunk session(s) older than ${options.gcUploads} day(s), `
+        + `${summary.chunkFilesRemoved} chunk file(s) removed`);
+    }
+    if (summary.chunkSessionsLeft > 0) {
+      log(`    ${summary.chunkSessionsLeft} unfinished chunk session(s) holding ${summary.chunkFilesLeft} chunk(s) kept under uploads/`
+        + `${options.gcUploads === null ? ' (pass --gc-uploads <days> to collect old ones)' : ''}`);
+    }
+    // Same shape for the journal: counted always, bounded only on request (§11.194). A null count means
+    // the file could not be read, and `trimJournal` has already said so by name.
+    if (summary.journalRemoved > 0) {
+      // `keep` is a floor when entries carry no usable date: they are kept rather than ranked, so the
+      // count can exceed what was asked for and the *dated* entries are what went (§11.194). Both facts
+      // belong in the line, or "trimmed to 2 entry(s)" after `--gc-journal 1` reads like a bug.
+      const overRequest = options.gcJournal !== null && summary.journalEntries > options.gcJournal;
+      log(`    trimmed the idempotency journal to ${summary.journalEntries} entry(s) — ${summary.journalRemoved} removed`
+        + `${overRequest ? ` (${options.gcJournal} was asked for: the rest carry no date, so they are kept rather than ranked)` : ''}`);
+    } else if (summary.journalEntries !== null && summary.journalEntries > 0) {
+      log(`    ${summary.journalEntries} idempotency journal entry(s)`
+        + `${options.gcJournal === null ? ' (pass --gc-journal <keep> to trim)' : ''}`);
+    }
+  }
+  process.exit(0);
+}
 const autoCreateSession = {
   enabled: options.autoCreate,
   project: options.project ?? defaultProject(store),
@@ -145,28 +183,6 @@ function contentTypeOf(path) {
   return types[extname(path).toLowerCase()] ?? 'application/octet-stream';
 }
 
-// ---------------------------------------------------------------- CORS
-
-/** Needed when the application is served by `ng serve` on another origin instead of by this server. */
-function applyCors(req, res, opts) {
-  if (!opts.cors) {
-    return;
-  }
-  const origin = req.headers.origin;
-  if (origin === undefined) {
-    return;
-  }
-  res.setHeader('Access-Control-Allow-Origin', opts.credentials ? origin : '*');
-  res.setHeader('Vary', 'Origin');
-  if (opts.credentials) {
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-  }
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Idempotency-Key, X-Requested-With, Authorization');
-  res.setHeader('Access-Control-Expose-Headers', 'Idempotency-Replayed');
-  res.setHeader('Access-Control-Max-Age', '600');
-}
-
 // ---------------------------------------------------------------- command line
 
 function parseArgs(argv) {
@@ -182,10 +198,20 @@ function parseArgs(argv) {
     autoCreate: true,
     cors: true,
     credentials: false,
+    corsOrigins: [],
     maxBody: 256 * 1024 * 1024,
     concatWaitMs: 1500,
     quiet: false,
     verbose: false,
+    migrate: false,
+    gc: false,
+    gcMedia: false,
+    // No defaults: the store states no retention for the journal or for unfinished chunk sessions, so
+    // a plain --gc counts them and an operator who wants them bounded passes the number (§11.194/195).
+    gcJournal: null,
+    gcUploads: null,
+    recorderVersion: RECORDER_VERSION,
+    pseudonymiseSpeakers: false,
   };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -202,10 +228,18 @@ function parseArgs(argv) {
       case '--no-auto-create': opts.autoCreate = false; break;
       case '--no-cors': opts.cors = false; break;
       case '--credentials': opts.credentials = true; break;
+      case '--cors-origin': opts.corsOrigins.push(value); i++; break;
       case '--max-body': opts.maxBody = Number(value); i++; break;
       case '--concat-wait-ms': opts.concatWaitMs = Number(value); i++; break;
       case '--quiet': opts.quiet = true; break;
       case '--verbose': opts.verbose = true; break;
+      case '--migrate': opts.migrate = true; break;
+      case '--gc': opts.gc = true; break;
+      case '--gc-media': opts.gcMedia = true; break;
+      case '--gc-journal': opts.gcJournal = Number(value); i++; break;
+      case '--gc-uploads': opts.gcUploads = Number(value); i++; break;
+      case '--recorder-version': opts.recorderVersion = value; i++; break;
+      case '--pseudonymise-speakers': opts.pseudonymiseSpeakers = true; break;
       case '--help': case '-h': usage(); process.exit(0); break;
       default:
         process.stderr.write(`unknown argument ${arg}\n`);
@@ -218,6 +252,13 @@ function parseArgs(argv) {
   }
   if (!Number.isFinite(opts.maxBody) || opts.maxBody <= 0) {
     throw new Error(`--max-body must be a byte count, got ${opts.maxBody}`);
+  }
+  // Both are counts, and both prune when present: a NaN would reach the store as "trim to nothing".
+  if (opts.gcJournal !== null && (!Number.isInteger(opts.gcJournal) || opts.gcJournal < 0)) {
+    throw new Error(`--gc-journal must be a count of entries to keep, got ${argv[argv.indexOf('--gc-journal') + 1]}`);
+  }
+  if (opts.gcUploads !== null && (!Number.isFinite(opts.gcUploads) || opts.gcUploads < 0)) {
+    throw new Error(`--gc-uploads must be an age in days, got ${argv[argv.indexOf('--gc-uploads') + 1]}`);
   }
   return opts;
 }
@@ -246,6 +287,10 @@ function usage() {
   --no-auto-create     answer 404 for sessions that do not exist
   --no-cors            do not answer cross origin requests (ng serve on another port)
   --credentials        allow credentials in cross origin requests
+  --cors-origin <origin>
+                       an origin allowed to send them (repeatable). With
+                       --credentials the request's origin is never reflected: an
+                       origin not named here gets no CORS headers at all
   --max-body <bytes>   maximum request body size (default ${256 * 1024 * 1024})
   --concat-wait-ms <n> how long a concat request waits for chunks that are
                        still in flight before it defers to them (default 1500;
@@ -253,6 +298,20 @@ function usage() {
                        encodes asynchronously, see the README)
   --quiet              log uploads and errors only
   --verbose            log every request, including static files
+  --recorder-version <v> version the served recorder reports (default ${RECORDER_VERSION}); a
+                       script whose minRecorderVersion is above it is refused at session creation
+  --pseudonymise-speakers
+                       store and return a stable per-deployment label instead of the caller's
+                       speaker id (README §8.4); the salt lives in the data directory, so labels
+                       survive restarts and the copy-to-production transfer
+  --migrate            create the per-script layout for legacy flat scripts, then exit
+  --gc                 prune draft revisions and expired preview sessions, then exit
+  --gc-media           with --gc, also delete media that no draft or version references
+  --gc-journal <keep>  with --gc, trim the idempotency journal to the newest <keep> entries.
+                       No default: without it the journal is only counted (§11.194)
+  --gc-uploads <days>  with --gc, collect unfinished chunk sessions older than <days>. No
+                       default: a chunk session is resumable, so it is only collected when
+                       an operator names the age (§11.195)
   -h, --help           this text
 `);
 }

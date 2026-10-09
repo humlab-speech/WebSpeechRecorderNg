@@ -10,7 +10,7 @@ export {VERSION} from './lib/spr.module.version'
 export {SPEECHRECORDER_ENVIRONMENT_DEFAULTS} from './lib/environment/environment.defaults'
 export {SPEECHRECORDER_CONFIG} from './lib/spr.config'
 
-export {UUID} from "./lib/utils/utils"
+export {UUID, messageOf} from "./lib/utils/utils"
 export {SprLogger, SprLogLevel} from "./lib/utils/logger"
 export {Action} from "./lib/action/action";
 
@@ -35,9 +35,13 @@ export {ProjectService} from './lib/speechrecorder/project/project.service'
 export {Session} from './lib/speechrecorder/session/session'
 export {SessionService} from './lib/speechrecorder/session/session.service'
 export {ScriptService} from './lib/speechrecorder/script/script.service'
-export {Script,Section,Group,PromptItem,Mediaitem,PromptPhase,Mode} from './lib/speechrecorder/script/script'
+export {Script,Section,Group,PromptItem,Mediaitem,PromptDoc,PromptDocUtil,MediaitemUtil,PromptitemUtil} from './lib/speechrecorder/script/script'
+export type {PromptPhase,Mode,Order,Playback,PlaybackWhen,PrefillBankSource,Bank,BankItem,DrawFilter,DrawFixedBy,BankSource,VirtualViewBox,Recinstructions,MediaitemKind} from './lib/speechrecorder/script/script'
 export {ScriptPrefillService} from './lib/speechrecorder/script/prefill.service'
 export {ScriptPrefillUtil} from './lib/speechrecorder/script/prefill'
+export {DEFAULT_POST_REC_DELAY, DEFAULT_PRE_REC_DELAY, ITEM_PHASES, effectiveTiming, nextPhase, playbackPlan, playbackStart, playbackTiming, promptVisibleAt, replayAllowed, sectionNeedsHeadphones} from './lib/speechrecorder/script/phases'
+export type {EffectiveTiming, ItemPhase, PlaybackPlan, PlaybackStart, PlaybackTiming} from './lib/speechrecorder/script/phases'
+export {FEATURE_VERSIONS, compareVersions, featuresUsed, minRecorderVersionFor, supportsRecorderVersion} from './lib/speechrecorder/script/feature-versions'
 export type {PromptItemPrefill} from './lib/speechrecorder/script/script'
 export type {PrefillChoice, PrefillChoices, PrefillSource, PrefillSourceList} from './lib/speechrecorder/script/prefill'
 export {RecordingService} from './lib/speechrecorder/recordings/recordings.service'

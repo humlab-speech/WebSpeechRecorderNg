@@ -1,0 +1,80 @@
+@use '@angular/material' as mat;
+
+@use '../../speechrecorderng/src/lib/theme/palette' as umu;
+@use '../../speechrecorderng/src/lib/theme/tokens' as tokens;
+
+// Umeå University brand theme for the script editor.
+//
+// Same rule as the library and the recorder: components reference `var(--spr-*, <fallback>)`
+// only, never a colour literal. `mat.theme()` derives every Material system role from the brand
+// tone ramps; the includes after it pin the roles and tokens where the brand value must be exact.
+html {
+  @include mat.theme((
+    color: (
+      primary: umu.$spr-primary-palette,
+      tertiary: umu.$spr-tertiary-palette,
+      theme-type: light,
+    ),
+    typography: (
+      plain-family: umu.$spr-font-family,
+      brand-family: umu.$spr-font-family,
+      regular-weight: 400,
+      medium-weight: 500,
+      bold-weight: 700,
+    ),
+    density: 0,
+  ));
+}
+
+// Emitted at the top level: both mixins write `:root { … }` themselves, and nesting them inside
+// `html {}` would compile to the descendant selector `html :root`, which matches nothing.
+// (`bin/theme_audit.mjs` fails the build check if the pins stop resolving.)
+@include tokens.spr-token-styles();
+@include tokens.spr-material-role-tokens();
+
+// Opt-in dark scheme: `<html data-spr-scheme="dark">` switches every --spr-* value, and the
+// Material pins above follow automatically because they reference the tokens, not literals.
+@include tokens.spr-token-styles(dark, ':root[data-spr-scheme="dark"]');
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--spr-font-family, Inter, "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif);
+  font-size: var(--spr-type-body, 16px);
+  color: var(--spr-ink, #1F3044);
+  background: var(--spr-page, #EEF1F5);
+}
+
+// Every link reads from the token: without this the user agent's blue leaks in wherever a screen
+// forgot to colour one, and the dark scheme's 4.5:1 is not something a browser default can know.
+a {
+  color: var(--spr-link, #2A4765);
+}
+
+// Screen-reader-only text, defined once for every screen (four components used to carry their own
+// copy). `top`/`left` matter: an absolutely positioned box with an auto offset keeps its in-flow
+// position, which extended the document past the viewport in the bank's table caption — the shell
+// hides its own overflow, so the extra 46 px showed up as a scrollbar nobody asked for.
+.visually-hidden {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+spre-app-shell {
+  display: block;
+  height: 100%;
+}

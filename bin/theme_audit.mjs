@@ -5,10 +5,26 @@
  * Drives an already-running Chrome over the DevTools Protocol and checks the rendered
  * application against the brand rules that a screenshot cannot verify:
  *
- *   1. no legacy colour literals survive (the green/lightgrey/darkgray/grey/red/yellow set)
+ *   1. no legacy colour literal survives as a background or a text colour (the green, lightgrey, darkgray, grey,
+ *      yellow, red, orange and #00c853 set — eight, not the six the colours' names suggest). Only `background-color`
+ *      and `color` are read, so a legacy literal on a border, an outline, a `box-shadow` or an SVG `fill` is not
+ *      caught here;
  *   2. measured text contrast meets WCAG AA (4.5:1, or 3:1 for large text)
- *   3. no text renders below the smallest token size (13.6px), icons excepted
+ *   3. no text renders below the smallest token size — 13.6px read as 13.5, the 0.1 being the browser's own
+ *      sub-pixel rounding — icons excepted
  *   4. the application still fits the viewport without document scrollbars
+ *   5. non-text contrast (WCAG 1.4.11): a boundary that carries meaning — an element that announces a
+ *      state by ARIA or a state class, and the boundary it draws on itself **or on a descendant** (a row's state with
+ *      its marker on the cell below it, which is how the recorder marks its selected row) — reaches 3:1 against
+ *      what it sits on. Decorative lines are exempt, and on a descendant only `box-shadow` and `outline` are read: a
+ *      table border there is structure, not the state (§11.260).
+ *
+ * Those five are the *brand* rules. The tool also enforces the shapes a redesign breaks silently, and a reader who
+ * takes the list above for the whole gate would miss most of it: a forbidden font family; a logo that did not load,
+ * carries no alt text, is the wrong height or aspect ratio, or renders outside the viewport; a control bar whose
+ * content spills past it, whose logo overlaps an indicator, or whose buttons are squeezed below their target; a rail
+ * that no longer fits its own table; a token layer the page never read; a Material pin that moved; and a page that
+ * rendered nothing at all (§11.224).
  *
  * Usage:
  *   # terminal 1
@@ -38,8 +54,11 @@ const MIN_TEXT_PX = Number(opt('min-text-px', '13.6')) - 0.1;
  * Optional script evaluated in the page after load and before measuring, to reach states
  * that need interaction (overlays, dialogs). See `bin/audit/`.
  */
-const PREPARE_FILE = opt('prepare', '');
-const PREPARE_SOURCE = PREPARE_FILE ? readFileSync(PREPARE_FILE, 'utf8') : '';
+// `--prepare` takes one fixture or a comma-separated list, evaluated in order: the dark scheme *plus* a
+// state fixture (`use-dark-scheme.js,open-draw-rule.js`) is one pass, because a state the light pass opens
+// is otherwise never measured in dark.
+const PREPARE_FILES = opt('prepare', '').split(',').map((name) => name.trim()).filter((name) => name !== '');
+const PREPARE_SOURCES = PREPARE_FILES.map((file) => ({file, source: readFileSync(file, 'utf8')}));
 
 /** Colours that must not appear anywhere after the redesign. */
 const FORBIDDEN = {
@@ -170,6 +189,22 @@ const PAGE_PROBE = `(() => {
     const r = el.getBoundingClientRect();
     if (r.width < 2 || r.height < 2) return;
     const cs = getComputedStyle(el);
+    // The state this element announces, if any (§11.45's residual, §11.62's class rules, §11.260's narrowing).
+    const stateOfEl = (() => {
+      const aria = el.getAttribute('aria-selected') === 'true' ? 'aria-selected'
+        : (el.getAttribute('aria-current') && el.getAttribute('aria-current') !== 'false') ? 'aria-current'
+        : el.getAttribute('aria-checked') === 'true' ? 'aria-checked'
+        : el.getAttribute('aria-invalid') === 'true' ? 'aria-invalid' : '';
+      if (aria) return aria;
+      const classes = typeof el.className === 'string' ? el.className.split(/\\s+/).map((entry) => entry.toLowerCase()) : [];
+      // "active" is deliberately absent: it means a selection in the editor (.group.active) but a layout flag in the
+      // recorder (.collapsable.active is expanded/collapsed), and the two cannot be told apart from the class name, so
+      // it made the detail-view job fail on a pane whose border is decorative (§11.62). "selrow" is the recorder's own
+      // name for the selected row and means only that, so it is recognised — and since that row draws its mark on a
+      // descendant, it is judged through the rule that reads one (§11.260). No backticks anywhere above: this script is
+      // injected as a template, and one would end it.
+      return classes.find((entry) => /^(selected|current|checked|selrow|is-[a-z][a-z-]*)$/.test(entry)) || '';
+    })();
     const text = ownText(el);
     rows.push({
       label: label(el),
@@ -185,6 +220,32 @@ const PAGE_PROBE = `(() => {
       disabled: el.hasAttribute('disabled') || el.getAttribute('aria-disabled') === 'true' || !!el.closest('[disabled],[aria-disabled="true"]'),
       decorative: el.getAttribute('aria-hidden') === 'true' || !!el.closest('[aria-hidden="true"]'),
       isIcon: el.tagName === 'MAT-ICON' || (cs.fontFamily.includes('Material Icons')),
+      state: stateOfEl,
+      boundaries: (() => {
+        const out = [];
+        for (const side of ['Top', 'Right', 'Bottom', 'Left']) {
+          const w = parseFloat(cs['border' + side + 'Width']) || 0;
+          if (w > 0) out.push(['border-' + side.toLowerCase(), cs['border' + side + 'Color']]);
+        }
+        if (cs.boxShadow && cs.boxShadow !== 'none') out.push(['box-shadow', cs.boxShadow]);
+        const ow = parseFloat(cs.outlineWidth) || 0;
+        if (ow > 0 && cs.outlineStyle && cs.outlineStyle !== 'none') out.push(['outline', cs.outlineColor]);
+        return out;
+      })(),
+      // A state element may draw its mark on a *descendant* instead of itself, which is what the recorder's selected
+      // row does: the state class sits on the row and the bar on the cell's first box-shadow (§11.260). Only box-shadow
+      // and outline are read there — the same cell's table border is structure rather than the state, and judging it was
+      // the false positive §11.241 measured at 1.06:1.
+      stateDescendants: stateOfEl === '' ? [] : Array.from(el.querySelectorAll('*')).flatMap((child) => {
+        const childStyle = getComputedStyle(child);
+        const out = [];
+        if (childStyle.boxShadow && childStyle.boxShadow !== 'none') out.push(['box-shadow', childStyle.boxShadow]);
+        const ownOutline = parseFloat(childStyle.outlineWidth) || 0;
+        if (ownOutline > 0 && childStyle.outlineStyle && childStyle.outlineStyle !== 'none') {
+          out.push(['outline', childStyle.outlineColor]);
+        }
+        return out;
+      }),
       visible: cs.visibility !== 'hidden' && cs.display !== 'none' && parseFloat(cs.opacity) > 0.05,
     });
   });
@@ -215,7 +276,13 @@ const PAGE_PROBE = `(() => {
     railFit,
     tokens,
     pins,
-    fit: { scrollHeight: document.documentElement.scrollHeight, innerHeight: window.innerHeight },
+    fit: {
+      scrollHeight: document.documentElement.scrollHeight,
+      innerHeight: window.innerHeight,
+      // How many elements the document holds: a page that never rendered is nearly empty, and every
+      // other rule here passes on an empty document.
+      nodes: document.querySelectorAll('*').length,
+    },
   });
 })()`;
 
@@ -238,9 +305,16 @@ const contrast = (a, b) => {
 };
 const parseCss = (value) => {
   const m = String(value).match(/^rgba?\(([^)]+)\)$/);
-  if (!m) return null;
-  const parts = m[1].split(/[,\s/]+/).filter(Boolean).map(Number);
-  return [parts[0], parts[1], parts[2], parts.length > 3 ? parts[3] : 1];
+  if (m) {
+    const parts = m[1].split(/[,\s/]+/).filter(Boolean).map(Number);
+    return [parts[0], parts[1], parts[2], parts.length > 3 ? parts[3] : 1];
+  }
+  // Newer Chromium reports some computed colours in the colour-4 syntax.
+  const srgb = String(value).match(/^color\(srgb ([\d.]+) ([\d.]+) ([\d.]+)(?: \/ ([\d.]+))?\)$/);
+  if (srgb) {
+    return [Number(srgb[1]) * 255, Number(srgb[2]) * 255, Number(srgb[3]) * 255, srgb[4] === undefined ? 1 : Number(srgb[4])];
+  }
+  return null;
 };
 
 const list = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
@@ -276,19 +350,33 @@ const inventory = new Map();
 for (const [width, height] of VIEWPORTS) {
   await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
   await send('Page.navigate', { url: URL_TO_TEST });
-  await new Promise(r => setTimeout(r, 9000));
-  if (PREPARE_SOURCE) {
+  // Wait for the page to settle rather than for a fixed interval. A fixed wait measures whatever has
+  // arrived: on a slow load that is a blank document, which the fit rule passes trivially while a
+  // content-dependent rule fails - a gate that is both vacuous and flaky.
+  let settledShape = '';
+  for (let attempt = 0; attempt < 120; attempt++) {           // at most 30 s
+    const shape = await send('Runtime.evaluate', {
+      expression:
+        "document.readyState + ':' + document.querySelectorAll('*').length + ':' + document.documentElement.scrollHeight",
+      returnByValue: true,
+    });
+    const now = String(shape.result?.result?.value ?? '');
+    if (now.startsWith('complete') && now === settledShape && attempt > 3) break;
+    settledShape = now;
+    await new Promise(r => setTimeout(r, 250));
+  }
+  for (const {file, source} of PREPARE_SOURCES) {
     const prepared = await send('Runtime.evaluate', {
-      expression: PREPARE_SOURCE,
+      expression: source,
       awaitPromise: true,
       returnByValue: true,
     });
     if (prepared.result?.exceptionDetails) {
-      failures.push(`${width}x${height}: --prepare script failed: ${prepared.result.exceptionDetails.exception?.description || ''}`);
-    } else {
-      console.log(`  prepared(${PREPARE_FILE}): ${String(prepared.result?.result?.value ?? '').slice(0, 120)}`);
-      await new Promise(r => setTimeout(r, 1500));
+      failures.push(`${width}x${height}: --prepare ${file} failed: ${prepared.result.exceptionDetails.exception?.description || ''}`);
+      break;
     }
+    console.log(`  prepared(${file}): ${String(prepared.result?.result?.value ?? '').slice(0, 120)}`);
+    await new Promise(r => setTimeout(r, 1500));
   }
   const out = await send('Runtime.evaluate', { expression: PAGE_PROBE, returnByValue: true });
   const raw = out.result?.result?.value;
@@ -416,10 +504,53 @@ for (const [width, height] of VIEWPORTS) {
     }
   }
 
+  // Non-text contrast (WCAG 1.4.11): a boundary that carries meaning must reach 3:1 against what it
+  // sits on. This is the rule that would have caught the picker's selected-row marker at 1.73:1 in
+  // the dark scheme (§11.45), which the text rule cannot see. Decorative lines are deliberately
+  // exempt: it applies only where the element announces a state.
+  for (const row of rows) {
+    if (!row.state || !row.visible || row.disabled || row.decorative) continue;
+    // Once per colour: a border is normally the same on all four sides, and four identical failures
+    // would bury the one that matters.
+    const seen = new Set();
+    for (const [channel, value] of [...(row.boundaries || []), ...(row.stateDescendants || [])]) {
+      const key = channel.startsWith('border-') ? String(value) : channel + ':' + String(value);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const colour = channel === 'box-shadow'
+        ? (String(value).match(/rgba?\([^)]+\)|color\(srgb [^)]+\)/) || [])[0]
+        : value;
+      const parsed = colour ? parseCss(colour) : null;
+      if (!parsed || parsed[3] === 0) continue;
+      const bg = parseCss(row.effectiveBg) || [255, 255, 255, 1];
+      const composited = parsed[3] < 1
+        ? [
+            parsed[0] * parsed[3] + bg[0] * (1 - parsed[3]),
+            parsed[1] * parsed[3] + bg[1] * (1 - parsed[3]),
+            parsed[2] * parsed[3] + bg[2] * (1 - parsed[3]),
+          ]
+        : [parsed[0], parsed[1], parsed[2]];
+      const ratio = contrast(composited, [bg[0], bg[1], bg[2]]);
+      if (ratio < 3) {
+        const named = channel.startsWith('border-') ? 'border' : channel;
+        failures.push(
+          `${width}x${height}: ${row.label} state marker (${row.state}) ${named} contrast ` +
+          `${ratio.toFixed(2)}:1 < 3:1 (${composited.map(Math.round).join(',')} on ${row.effectiveBg})`
+        );
+      }
+    }
+  }
+  if (fit.nodes < 20) {
+    failures.push(
+      `${width}x${height}: only ${fit.nodes} elements in the document - the application did not render`
+    );
+  }
   if (fit.scrollHeight > fit.innerHeight + 1) {
-    failures.push(`${width}x${height}: document scrolls (scrollHeight ${fit.scrollHeight} > viewport ${fit.innerHeight})`);
+    failures.push(
+      `${width}x${height}: document scrolls (scrollHeight ${fit.scrollHeight} > viewport ${fit.innerHeight} + 1)`
+    );
   } else {
-    console.log(`fit ok at ${width}x${height} (${fit.scrollHeight} <= ${fit.innerHeight})`);
+    console.log(`fit ok at ${width}x${height} (scrollHeight ${fit.scrollHeight} <= viewport ${fit.innerHeight} + 1)`);
   }
 }
 

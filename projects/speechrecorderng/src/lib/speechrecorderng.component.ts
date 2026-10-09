@@ -10,6 +10,8 @@ import {ActivatedRoute, Params, Router} from "@angular/router";
 import {SessionService} from "./speechrecorder/session/session.service";
 import {ScriptService} from "./speechrecorder/script/script.service";
 import {ScriptPrefillService} from "./speechrecorder/script/prefill.service";
+import {minRecorderVersionFor, supportsRecorderVersion} from "./speechrecorder/script/feature-versions";
+import {VERSION} from "./spr.module.version";
 import {PrefillChoices} from "./speechrecorder/script/prefill";
 import {SpeechRecorderUploader} from "./speechrecorder/spruploader";
 import {Session} from "./speechrecorder/session/session";
@@ -18,7 +20,7 @@ import {ProjectService} from "./speechrecorder/project/project.service";
 import {AudioContextProvider} from "./audio/context";
 import {RecordingService} from "./speechrecorder/recordings/recordings.service";
 import {RecordingFileDescriptorImpl} from "./speechrecorder/recording";
-import {Arrays, DataSize} from "./utils/utils";
+import {Arrays, DataSize, messageOf} from "./utils/utils";
 import {RecorderComponent} from "./recorder_component";
 import {BasicRecorder} from "./speechrecorder/session/basicrecorder";
 import {SprDb} from "./db/inddb";
@@ -137,10 +139,10 @@ export class SpeechrecorderngComponent extends RecorderComponent implements OnIn
                       });
 
                   }, error: (reason) => {
-                    this.sm.statusMsg = reason;
+                    this.sm.statusMsg = messageOf(reason);
                     this.sm.statusAlertType = 'error';
                     this.sm.statusWaiting = false;
-                    SprLogger.error("Error fetching project config: " + reason)
+                    SprLogger.error("Error fetching project config: " + messageOf(reason))
                   }
                 }
               );
@@ -152,10 +154,10 @@ export class SpeechrecorderngComponent extends RecorderComponent implements OnIn
           },
           error:(reason) =>
           {
-            this.sm.statusMsg = reason;
+            this.sm.statusMsg = messageOf(reason);
             this.sm.statusAlertType = 'error';
             this.sm.statusWaiting = false;
-            SprLogger.error("Error fetching session " + reason)
+            SprLogger.error("Error fetching session " + messageOf(reason))
           }
         });
       }
@@ -168,6 +170,16 @@ export class SpeechrecorderngComponent extends RecorderComponent implements OnIn
       this.sm.statusWaiting = true;
       this.scriptService.scriptObservable(sess.script).subscribe({
         next: (script) => {
+          if (!supportsRecorderVersion(script)) {
+            // Refuse rather than run a silently different session (L4): the script needs a newer
+            // recorder than this build, and the operator has to know why nothing happens.
+            const required = script?.minRecorderVersion ?? minRecorderVersionFor(script) ?? '';
+            SprLogger.error(`Script needs recorder ${required}; this recorder is ${VERSION}.`);
+            this.sm.statusAlertType = 'error';
+            this.sm.statusMsg = this.i18n.t('spr.status.scriptVersionTooOld', {required, actual: VERSION});
+            this.sm.statusWaiting = false;
+            return;
+          }
           this.sm.statusAlertType = 'info';
           this.sm.statusMsg = this.i18n.t('spr.status.scriptReceived');
           this.sm.statusWaiting = false;
@@ -179,14 +191,14 @@ export class SpeechrecorderngComponent extends RecorderComponent implements OnIn
               this.fetchRecordings(sess, this.script)
             },
             error: (reason) => {
-              const errMsg = this.i18n.t('spr.status.scriptPrefillError', {value: reason})
+              const errMsg = this.i18n.t('spr.status.scriptPrefillError', {value: messageOf(reason)})
               SprLogger.error(errMsg)
               this.sm.statusMsg = errMsg;
               this.sm.statusAlertType = 'error';
             }
           });
         }, error: (reason) => {
-          let errMsg = this.i18n.t('spr.status.scriptFetchError', {value: reason})
+          let errMsg = this.i18n.t('spr.status.scriptFetchError', {value: messageOf(reason)})
           SprLogger.error(errMsg)
           this.sm.statusMsg = errMsg;
           this.sm.statusAlertType = 'error';
