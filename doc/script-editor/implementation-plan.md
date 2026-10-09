@@ -8567,4 +8567,7 @@ and four consecutive CI runs green on tips carrying all of it.
 third time this rule has flagged its own documentation — §11.269 and §11.270 record the first two — and the fix is the same
 one each time: an example is not a claim, so it goes where examples go.)
 
+(**And the run on this entry's own tip passed**: `71ae5367`, five and a half minutes, six jobs and ten checks — the fifth
+consecutive green, and the second on a tip carrying a *summary* of the work rather than a change to it.)
+
 
