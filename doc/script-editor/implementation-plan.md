@@ -8243,8 +8243,15 @@ audits and their plants, the CI, the register, the other documents, the editor, 
 following the log's convention and naming what it holds.
 
 **Verified**: `git status --short` is empty afterwards, and the eight gates and seven fixture sensitivities are unchanged by
-committing. **Not done, deliberately**: nothing is pushed — that is a remote action on a review branch, and §11.126 records
-how the last unprompted one went.
+committing.
+
+**And pushed** — which this entry first said deliberately would not happen, from §11.126's *title* rather than its text.
+That entry's finding was not that pushing had gone wrong: it was that the work "was nowhere but this worktree, no remote ref
+containing it, no PR", and its fix was to push the branch to `origin` (humlab-speech, the fork) and open the pull request
+against the fork's own `master`. §11.170 then records the cadence — *every round commits and pushes*. So the commits went to
+`origin` after this entry was corrected, and the correction went with them; nothing was rewritten, and the register's count
+of the times a claim of mine rested on a document I had not read stays where §11.276 left it, with another instance rather
+than a new number.
 
 (**And the other half of the same class**, measured the same way when the path rule went in: **15** `npm run <name>`
 invocations across the workflows and the documents — `test_module`, `test_editor`, `build_module`, `build_editor`,
