@@ -8424,6 +8424,11 @@ blocked still fails the step.
 **Verified**: `workflow_check`, `bash -n` and the eight gates pass on the amended file, and the ending it now expects is the
 one this run actually produced.
 
+(**And the run on `c5e73fa9` passed**: all six jobs green — server, library, editor, theme audit, detail view and the dry
+run — with the pull request's ten checks and nothing failing. The sink's retry held, the silence run took the ending this
+entry chose for it, and the round-trip failure never recurred after its first appearance. The whole sequence is
+§11.281–§11.288.)
+
 ### 11.287 The task tables' live counts, re-measured — one had drifted by ten specs — **Corrected**
 
 The plan's task tables carry counts, and §11.177 moved them once. With the register a hundred entries longer, two are live
@@ -8434,5 +8439,20 @@ editor's "**486** at the tip" is **not**: `npm run test_editor -- --watch=false 
 **Corrected to 496**, with the two earlier numbers kept beside it, because a count that has moved twice is evidence about
 the count rather than noise to erase. The table's own "when written" and "when M1 closed" figures are left alone: they say
 what they are, which is the whole difference between them and a live one.
+
+### 11.288 The dry run's first invocation had no bound — a gate that could stall for six hours — **Fixed**
+
+§11.246 gave the *silence* run a `--deadline-ms 90000`, because §11.245 had measured this driver *hanging* — fifteen
+minutes with no output and no exit — when a fixture kept it away from the state it waits for. **The bound went to that run
+only.** The first invocation, `--session 1`, the one this job exists for, had none; nor had the events run at
+`--session 1002`. GitHub's per-job timeout is six hours, so a hang in either would not *fail* the job, it would *stall* it —
+and a job nobody watches for six hours is worse than one that fails.
+
+**Both now carry `--deadline-ms 300000`** — five minutes, several times a healthy run's length, against a whole three-run
+step that takes about five. A gate may fail; it may not sit.
+
+**Verified**: `workflow_check` and `bash -n` pass on the amended file. Neither invocation is executed here, for the reason
+§11.245 records: on a machine with no audio device the driver takes its degraded branch, and this entry does not claim to
+have run them.
 
 
