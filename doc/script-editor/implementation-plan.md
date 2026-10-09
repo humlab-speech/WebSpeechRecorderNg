@@ -8222,6 +8222,24 @@ cases better than the probe that re-found them: §11.216 knew three conventions 
 and it is the honest answer to "what is left": everything a check, a fixture or a measurement can close is closed, and
 audits in this range now confirm rather than find.
 
+### 11.279 The branch's work, committed — nine commits, and the tree clean for the first time in this pass — **Done**
+
+§11.126 and §11.170 recorded this work's git state before; this records it again, because the state had drifted exactly the
+way those entries describe. Measured first: **48 paths uncommitted** — 39 modified, 9 untracked, **4749 insertions** across
+them — while the branch's last commit was *"docs: abandoned chunk sessions are the third kind of state nothing collects"*,
+which is §11.195. Everything after that entry, including every rule, fixture and paragraph this pass added, existed only in
+the working tree.
+
+**Why not one commit per finding**, the convention the log keeps (`docs:`, `fix(server):`, `ci:`, `feat(bin):`, one subject
+each): the register's entries and their code share files, so eighty entries' worth of change is interleaved in the same
+hunks and cannot be split retroactively. The nine commits are grouped by unit instead — the new gate, the checkers, the
+audits and their plants, the CI, the register, the other documents, the editor, the server, the READMEs — each subject
+following the log's convention and naming what it holds.
+
+**Verified**: `git status --short` is empty afterwards, and the eight gates and seven fixture sensitivities are unchanged by
+committing. **Not done, deliberately**: nothing is pushed — that is a remote action on a review branch, and §11.126 records
+how the last unprompted one went.
+
 (**And the other half of the same class**, measured the same way when the path rule went in: **15** `npm run <name>`
 invocations across the workflows and the documents — `test_module`, `test_editor`, `build_module`, `build_editor`,
 `validate:i18n`, `serve:api`, `pack_pi_module`, `start_prod` and the rest — **every one defined** in `package.json`'s 24
