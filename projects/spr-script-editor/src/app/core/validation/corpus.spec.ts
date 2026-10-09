@@ -8,7 +8,11 @@
  */
 import {CORPUS_FILES, type CorpusDoc, runCorpus} from './corpus';
 
-const BASES = ['/test/checks', '/checks', '/assets/checks'];
+// `/checks` is where `angular.json`'s test target maps `doc/script-editor/checks`, so it is tried first:
+// the other two are older guesses, and probing them first cost thirteen 404s and thirteen WARN lines on
+// every run — which is the sort of noise that makes a real missing-asset failure hard to spot. They stay
+// as fallbacks for a configuration that serves the corpus somewhere else.
+const BASES = ['/checks', '/test/checks', '/assets/checks'];
 const CLEAN = 'clean';
 
 async function loadCorpus(name: string): Promise<CorpusDoc | null> {

@@ -208,6 +208,25 @@ describe('BankBrowser (project bank, FILES mode)', () => {
     expect(texts(root, '.actions button')).not.toContain(BANK_STRINGS.table.edit);
   });
 
+  it('shows the table skeleton while the items are in flight, not an empty table', async () => {
+    const {harness, root, http} = await setup('/project/Demo1/bank', ApiType.FILES);
+    (await take({harness, http}, (req) => pathOf(req.urlWithParams) === 'test/project/Demo1/bank.json')).flush(BANKS);
+    harness.detectChanges();
+
+    // The item request is open: the skeleton stands in for the table, labelled for a screen reader.
+    const items = await take({harness, http}, (req) => pathOf(req.urlWithParams).endsWith('/demo-sentences/item.json'));
+    const skeleton = root.querySelector('.skeleton');
+    expect(skeleton).withContext('the table skeleton while the page is in flight').not.toBeNull();
+    expect(skeleton?.getAttribute('role')).toBe('status');
+    expect(skeleton?.getAttribute('aria-label')).toBe(BANK_STRINGS.table.loading);
+    expect(root.querySelector('spre-bank-item-table')).toBeNull();
+
+    items.flush(PAGE);
+    harness.detectChanges();
+    expect(root.querySelector('.skeleton')).toBeNull();
+    expect(root.querySelector('spre-bank-item-table')).not.toBeNull();
+  });
+
   it('offers to widen the filter when it matches nothing', async () => {
     const {harness, root, http} = await setup('/project/Demo1/bank', ApiType.FILES);
     (await take({harness, http}, (req) => pathOf(req.urlWithParams) === 'test/project/Demo1/bank.json')).flush(BANKS);

@@ -105,15 +105,34 @@ describe('editor → library round-trip', () => {
     expect(legacy.length).withContext('no legacy promptUnits fixture in the tree').toBeGreaterThan(0);
     for (const fixture of legacy) {
       const service = await loadThroughDraftService(PROJECT, fixture.id, fixture.text, '"fixture"');
-      const written = JSON.parse(service.text()) as {sections: Array<Record<string, unknown>>};
-      for (const [index, section] of (fixture.value['sections'] as Array<Record<string, unknown>>).entries()) {
+      const written = JSON.parse(service.text()) as {sections?: Array<Record<string, unknown>>};
+      const sections = fixture.value['sections'] as Array<Record<string, unknown>>;
+      // A round trip that loses a section used to fail here as "Cannot read properties of undefined
+      // (reading 'groups')" — a TypeError from indexing into the result, which names neither the fixture
+      // nor how much was lost, and cost a re-run to characterise (§11.174). The shape is asserted first,
+      // so the next occurrence reports `id came back with N of M sections` and needs no re-run at all.
+      const writtenSections = written.sections ?? [];
+      expect(writtenSections.length)
+        .withContext(`${fixture.id} came back with ${writtenSections.length} of ${sections.length} sections`)
+        .toBe(sections.length);
+      for (const [index, section] of sections.entries()) {
         if (section['promptUnits'] === undefined) {
           continue;
         }
-        expect(written.sections[index]['groups'])
+        // A failed expectation does not stop the spec, so a lost section would still be indexed into and
+        // reported as "Cannot read properties of undefined" — the message that named nothing (§11.174).
+        // Report the hole and step over it, so the failure reads as a fact about the round trip.
+        const writtenSection = writtenSections[index];
+        expect(writtenSection)
+          .withContext(`${fixture.id} has no section ${index} (${writtenSections.length} of ${sections.length} came back)`)
+          .toBeDefined();
+        if (writtenSection === undefined) {
+          continue;
+        }
+        expect(writtenSection['groups'])
           .withContext(`${fixture.id} section ${index} invented a groups key`)
           .toBeUndefined();
-        expect(written.sections[index]['promptUnits'])
+        expect(writtenSection['promptUnits'])
           .withContext(`${fixture.id} section ${index} changed promptUnits`)
           .toEqual(section['promptUnits']);
       }

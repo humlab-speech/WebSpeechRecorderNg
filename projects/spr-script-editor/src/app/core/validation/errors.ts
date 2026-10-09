@@ -203,18 +203,23 @@ export function checkE06(draft: Draft): Finding[] {
 }
 
 /**
- * E07 — the first mediaitem shows nothing and the item plays nothing.
- * (validation.md checks `mediaitems[0]`; `server/validate.mjs` scans every entry — see the report.)
+ * E07 — the item shows nothing and plays nothing: no entry of `mediaitems` carries `text`, `promptDoc` or `src`, and
+ * none of them is audio. The **whole list** is considered, which is what `server/validate.mjs` does and what
+ * validation.md's trigger says.
+ *
+ * It used to read `mediaitems[0]` and to treat a `playback` as something to play, so the editor could refuse a script
+ * the server would publish — the opposite of this pass's own principle that a client-side check is not the gate
+ * (§11.249).
  */
 export function checkE07(draft: Draft): Finding[] {
   const findings: Finding[] = [];
   for (const {item, itemPath: path} of eachItem(draft)) {
-    const first = mediaitemsOf(item)[0];
-    const shows = isObject(first)
-      && ((first['text'] !== undefined && first['text'] !== null)
-        || (first['promptDoc'] !== undefined && first['promptDoc'] !== null)
-        || (first['src'] !== undefined && first['src'] !== null));
-    if (!shows && (item['playback'] === undefined || item['playback'] === null)) {
+    const mediaitems = mediaitemsOf(item);
+    const shows = mediaitems.some((entry) => isObject(entry)
+      && ((entry['text'] !== undefined && entry['text'] !== null)
+        || (entry['promptDoc'] !== undefined && entry['promptDoc'] !== null)
+        || (entry['src'] !== undefined && entry['src'] !== null)));
+    if (!shows && !mediaitems.some((entry) => isAudio(entry))) {
       findings.push(error('E07', `${path}.mediaitems`, S.e07));
     }
   }

@@ -112,6 +112,21 @@ describe('E07 empty item', () => {
     const draft = script({sections: [section({groups: [group({promptItems: [item({mediaitems: []})]})]})]});
     expect(paths(checkE07(draft))).toEqual([`${ITEM0}.mediaitems`]);
   });
+  // The two cases the divergence deserved (§11.249): the check read only `mediaitems[0]`, so an item whose *second*
+  // entry is what shows was refused here and accepted by the server, and an item with a `playback` and nothing else
+  // was passed here and refused there.
+  it('is clean when a later mediaitem is what shows', () => {
+    const draft = script({sections: [section({groups: [group({promptItems: [item({
+      mediaitems: [{}, {text: 'the words', mimetype: 'text/plain'}],
+    })]})]})]});
+    expect(checkE07(draft)).toEqual([]);
+  });
+  it('flags a playback with nothing to show or play (E06 names the same item)', () => {
+    const draft = script({sections: [section({groups: [group({promptItems: [
+      item({playback: {when: 'BEFORE'}, mediaitems: []}),
+    ]})]})]});
+    expect(paths(checkE07(draft))).toEqual([`${ITEM0}.mediaitems`]);
+  });
 });
 
 describe('E08 retired', () => {

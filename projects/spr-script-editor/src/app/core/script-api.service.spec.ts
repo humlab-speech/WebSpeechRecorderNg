@@ -62,7 +62,12 @@ describe('ScriptApiService', () => {
 
     service.getScript(1245).subscribe();
 
-    http.expectOne((req) => pathOf(req.urlWithParams) === 'test/script/1245.json').flush({scriptId: 1245, sections: []});
+    const request = http.expectOne((req) => pathOf(req.urlWithParams) === 'test/script/1245.json');
+    // The `.json` suffix above is the path half of the FILES contract; `requestUUID` is the other half, and
+    // this is the only spec that exercises this call site (`list` covers it for the library list). Without
+    // this the spec had no expectation of its own: it could only fail on the URL matcher.
+    expect(queryOf(request.request.urlWithParams).has('requestUUID')).toBe(true);
+    request.flush({scriptId: 1245, sections: []});
   });
 
   it('publishes the draft with its ETag and note', () => {
@@ -75,9 +80,54 @@ describe('ScriptApiService', () => {
     expect(request.request.method).toBe('POST');
     expect(request.request.withCredentials).toBe(true);
     expect(request.request.body).toEqual({fromDraftEtag: '"A"', note: 'added repetition'});
+    expect(request.request.headers.get('Idempotency-Key'))
+      .toBe('publish:1245:%22A%22:added%20repetition');
     request.flush({version: 4, publishedDate: '2026-10-03T10:00:00Z', minRecorderVersion: '3.12'});
 
     expect(emitted).toEqual([{version: 4, publishedDate: '2026-10-03T10:00:00Z', minRecorderVersion: '3.12'}]);
+  });
+
+  it('derives the publish key from the intent, so a retry of the same publish reuses it', () => {
+    const {service, http} = setup({apiEndPoint: 'api/v1', apiType: ApiType.NORMAL, apiVersion: 1});
+    const keyOf = (scriptId: number, body: {fromDraftEtag: string; note?: string}): string => {
+      service.publish('Demo1', scriptId, body).subscribe();
+      const request = http.expectOne((req) => pathOf(req.urlWithParams).endsWith(`/script/${scriptId}/publish`));
+      request.flush({version: 1, publishedDate: '2026-10-08T00:00:00Z'});
+      const key = request.request.headers.get('Idempotency-Key');
+      if (key === null) {
+        throw new Error('the publish request carried no Idempotency-Key');
+      }
+      return key;
+    };
+
+    const first = keyOf(1245, {fromDraftEtag: '"A"', note: 'n'});
+    // The same intent: the operator's second click after a response they never saw. The server answers
+    // the version it already froze rather than freezing another (rest-api §1.3).
+    expect(keyOf(1245, {fromDraftEtag: '"A"', note: 'n'})).toBe(first);
+    // A different draft, note or script is a different publish, and must not replay the first one.
+    expect(keyOf(1245, {fromDraftEtag: '"B"', note: 'n'})).not.toBe(first);
+    expect(keyOf(1245, {fromDraftEtag: '"A"', note: 'other'})).not.toBe(first);
+    expect(keyOf(999, {fromDraftEtag: '"A"', note: 'n'})).not.toBe(first);
+    // A missing note is the same intent as an empty one...
+    expect(keyOf(1245, {fromDraftEtag: '"A"'})).toBe(keyOf(1245, {fromDraftEtag: '"A"', note: ''}));
+    // ...and a note with a newline, a quote or non-ASCII stays a legal header value.
+    const awkward = keyOf(1245, {fromDraftEtag: '"A"', note: 'line\nbreak "quoted" ünïcode'});
+    expect(awkward).not.toContain('\n');
+    expect(awkward).toContain('%C3%BC');
+
+    // A note pasted at length is folded to a hash rather than inlined: a key is a header, and an
+    // inlined 20 kB note made the receiver answer 431 before the route ran, where the same note in the
+    // body published fine. The key must stay short, and still differ between long notes.
+    const long = 'x'.repeat(5000);
+    const longKey = keyOf(1245, {fromDraftEtag: '"A"', note: long});
+    expect(longKey.length).toBeLessThan(80);
+    expect(longKey).not.toContain('x'.repeat(10));
+    expect(longKey).toBe(keyOf(1245, {fromDraftEtag: '"A"', note: long}), 'the same long note is the same intent');
+    expect(longKey).not.toBe(keyOf(1245, {fromDraftEtag: '"A"', note: `${long}y`}), 'a different one is not');
+    // The boundary itself is exact on both sides.
+    const atLimit = 'y'.repeat(200);
+    expect(keyOf(1245, {fromDraftEtag: '"A"', note: atLimit})).toContain(atLimit);
+    expect(keyOf(1245, {fromDraftEtag: '"A"', note: `${atLimit}y`})).not.toContain('yyyy');
   });
 
   it('lists versions and reads one version', () => {

@@ -141,10 +141,19 @@ export class ScriptApiService {
    * `POST project/{p}/script/{id}/publish` (rest-api.md §2.4). `fromDraftEtag` is the publisher's
    * `If-Match`: the server freezes exactly that draft or answers `409` with `details.checks`
    * (errors) or `FEATURE_FLOOR_UNKNOWN`.
+   *
+   * The request carries a derived `Idempotency-Key` (rest-api.md §1.3), so a retry after a response the
+   * operator never saw — a timeout, a dropped connection — answers the version that was already frozen
+   * instead of freezing a second one carrying the same text. It is derived from the **intent** rather
+   * than minted per attempt, because the retry that matters is a second click: this script, this draft,
+   * this note. Editing the draft or changing the note is a different intent and so a different key.
    */
   publish(projectId: string, scriptId: string | number, body: PublishBody): Observable<PublishResult> {
     const url = projectPath(this.base, projectId, 'script', scriptId, 'publish');
-    return this.http.post<PublishResult>(url, body, {withCredentials: this.withCredentials});
+    return this.http.post<PublishResult>(url, body, {
+      withCredentials: this.withCredentials,
+      headers: {'Idempotency-Key': publishKey(scriptId, body)},
+    });
   }
 
   /** `GET project/{p}/script/{id}/version` — the version index, newest first. */
@@ -202,4 +211,34 @@ export class ScriptApiService {
   private get<T>(url: string, params?: QueryParam[]): Observable<T> {
     return this.http.get<T>(withQuery(url, this.config, params), {withCredentials: this.withCredentials});
   }
+}
+
+/** Notes up to this length go into the key verbatim; longer ones are hashed. See `publishKey`. */
+const NOTE_INLINED_IN_KEY = 200;
+
+/**
+ * The idempotency key of one publish intent (rest-api §1.3). The draft's ETag decides *what* is frozen
+ * and the note is carried into the frozen version, so both belong to the intent; the script id keeps two
+ * scripts that happen to share an ETag from sharing a key. `encodeURIComponent` keeps a note containing
+ * newlines, quotes or non-ASCII inside a legal header value.
+ *
+ * The note arrives from a free text area, so it is only inlined while it is short: a key is a *header*,
+ * and a note pasted at length would push the request past the header limit — the receiver answers `431`
+ * before the route runs, where the same note in the body published fine. A long note is folded to a hash
+ * instead, which costs only the ability to tell two *long* notes apart if the hash collides.
+ */
+function publishKey(scriptId: string | number, body: PublishBody): string {
+  const note = body.note ?? '';
+  const part = note.length <= NOTE_INLINED_IN_KEY ? encodeURIComponent(note) : `h${fnv1a(note)}`;
+  return `publish:${scriptId}:${encodeURIComponent(body.fromDraftEtag)}:${part}`;
+}
+
+/** FNV-1a over UTF-16 code units: deterministic, dependency-free, and only ever compares long notes. */
+function fnv1a(value: string): string {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < value.length; index++) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16);
 }

@@ -36,7 +36,11 @@ describe('DrawApiService', () => {
 
     service.sessionDraws('Demo1', 2042).subscribe();
 
-    http.expectOne((req) => pathOf(req.urlWithParams) === 'api/v1/project/Demo1/session/2042/draws').flush({});
+    const request = http.expectOne((req) => pathOf(req.urlWithParams) === 'api/v1/project/Demo1/session/2042/draws');
+    // The other half of the same contract: NORMAL mode appends no query and no `.json`, and this is the only
+    // spec for this call site. Before it the spec asserted nothing of its own — only the URL matcher above.
+    expect(queryOf(request.request.urlWithParams).toString()).toBe('');
+    request.flush({});
   });
 
   it('reads the script-scoped draw record with its query, in FILES mode', () => {

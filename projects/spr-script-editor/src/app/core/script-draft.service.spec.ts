@@ -3,7 +3,8 @@
  *
  * `HttpTestingController` stands in for the receiver: the specs assert the exact request shape
  * (method, `If-Match`, body), the debounce/flush timing, single-flight coalescing, the 412
- * re-apply-with-guards path, the 428 reload-and-retry, the invalid-JSON rule, the local backup and
+ * re-apply-with-guards path, the conflict the operator then resolves (adopting the server's text and
+ * keeping the local one), the 428 reload-and-retry, the invalid-JSON rule, the local backup and
  * the FILES-mode read-only behaviour. They are the executable contract the receiver conformance
  * run then re-checks with real status codes and ETags.
  */
@@ -177,6 +178,64 @@ describe('ScriptDraftService', () => {
     expect(conflict?.remoteText).toContain('"c"');
     expect(conflict?.remoteEtag).toBe('"S"');
     expect(service.etag()).toBe('"A"');
+  }));
+
+  it('adopting the server\'s side clears the conflict, the intent and the local backup', fakeAsync(() => {
+    const {service, http} = setup();
+    loadDraft(service, http, '{"name":"x","sections":[{"name":"a"}]}', '"A"');
+
+    service.insert('sections', ['sections'], 1, {name: 'b'});
+    void service.flush();
+    // The array grew under the guard, so nothing can be re-applied and the operator must choose.
+    expectDraft(http, 'PUT')
+      .flush(conflictBody({name: 'server', sections: [{name: 'a'}, {name: 'c'}]}, '"S"'), {status: 412, statusText: 'Precondition Failed'});
+    tick();
+
+    const backupKey = Object.keys(localStorage).find((key) => key.startsWith('spr-script-draft'));
+    expect(backupKey).toBeDefined('the unacked edit is backed up');
+    expect(service.conflict()).not.toBeNull();
+    expect(service.dirty()).toBe(true);
+
+    void service.resolveConflict('remote');
+    tick();
+
+    // The server's draft is adopted whole: its text, its validator, and nothing left pending.
+    expect(service.model()?.name).toBe('server');
+    expect(service.text()).toContain('"c"');
+    expect(service.etag()).toBe('"S"');
+    expect(service.conflict()).toBeNull();
+    expect(service.dirty()).toBe(false, 'the adopted text is what the server holds, so nothing is unsaved');
+    // Adopting the server's side without clearing the backup would restore the text the operator
+    // discarded on the next load, and it could then overwrite the server's newer version.
+    expect(localStorage.getItem(backupKey!)).toBeNull();
+    expect(service.text()).not.toContain('"b"');
+  }));
+
+  it('keeping the local side retries it against the server\'s validator', fakeAsync(() => {
+    const {service, http} = setup();
+    loadDraft(service, http, '{"name":"x","sections":[{"name":"a"}]}', '"A"');
+
+    service.insert('sections', ['sections'], 1, {name: 'b'});
+    void service.flush();
+    expectDraft(http, 'PUT')
+      .flush(conflictBody({name: 'server', sections: [{name: 'a'}, {name: 'c'}]}, '"S"'), {status: 412, statusText: 'Precondition Failed'});
+    tick();
+    expect(service.conflict()).not.toBeNull();
+
+    void service.resolveConflict('local');
+    tick();
+
+    const retry = expectDraft(http, 'PUT');
+    expect(retry.request.headers.get('If-Match')).toBe('"S"', 'the retry uses the server\'s validator');
+    const body = JSON.parse(retry.request.body as string);
+    expect(body.name).toBe('x', 'the operator kept their own text');
+    expect(body.sections.map((section: {name: string}) => section.name)).toEqual(['a', 'b']);
+    retry.flush({scriptId: 1, draftVersion: 9, etag: '"T"'});
+    tick();
+
+    expect(service.conflict()).toBeNull();
+    expect(service.etag()).toBe('"T"');
+    expect(service.dirty()).toBe(false);
   }));
 
   it('treats 428 as reload-then-retry-once', fakeAsync(() => {
