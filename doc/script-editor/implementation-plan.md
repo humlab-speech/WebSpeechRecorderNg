@@ -8610,8 +8610,9 @@ const create = await awaitRequest(state.http, (request) => request.method === 'P
 the discrimination the local run cannot make, since the unmodified spec also passes on a fast machine — an A/B run in which the
 first attempt failed deterministically where the unmodified spec passed, proving the wait is load-bearing and not decoration.
 
-(**And CI confirmed it**: on `c8255ef4`, the commit carrying this entry, `Editor (karma + build)` passed — the very job that had
-failed on two trees it was innocent of — and on `f5bdadd6` and `48d815dd` after it. Every run of the branch since the fix has the
-editor job `completed/success`, six of them, and three finished green end to end.)
+(**And CI confirmed it, in its own numbers**: on `c8255ef4`, the commit carrying this entry, `Editor (karma + build)` passed with
+`TOTAL: 496 SUCCESS` — the same suite that had lost the race — and the run finished green end to end, all six jobs, taking the PR
+to ten checks passing and none pending. The editor job has been `completed/success` on every run of the branch since, six of
+them.)
 
 
