@@ -8337,6 +8337,11 @@ failure's lineage, and it is why the missing-asset case now throws with a messag
 shape**: this run's assertion is `2 of 1 sections`, so the asset server did not *omit* fixture `1` — it answered with another
 fixture's bytes, which is a new observation of the same family and the one the re-run under way will settle.
 
+**The re-run settled it**: `Editor (karma + build)` **passed on the same commit** with nothing changed — the second time this
+failure has behaved that way, as the spec's own comment had already recorded. So the editor half of §11.281's red is a
+transient of the asset-serving kind; what belongs in the register is its *shape* (a fixture answered with another fixture's
+bytes) and not a mechanism, because no mechanism has been shown.
+
 **The dry-run job: the runner had no audio sink.** The driver said so in its own words — *"5 check(s) not verified here:
 this browser cannot play a clip"* — the degraded branch, then failed on two console errors. The step's `pulseaudio` install
 is best-effort by design (`|| true`), and §11.245's fail-closed assertion then did exactly what it was written for: a run
