@@ -8373,6 +8373,12 @@ failure has behaved that way, as the spec's own comment had already recorded. So
 transient of the asset-serving kind; what belongs in the register is its *shape* (a fixture answered with another fixture's
 bytes) and not a mechanism, because no mechanism has been shown.
 
+(**And it recurred, so "never recurred" was wrong — corrected here.** On `30748b39`, a documentation-only tip and therefore
+not caused by that change, `Editor (karma + build)` failed again in 40 s: the same job, and a duration far short of the full
+suite, which is the shape the round-trip failure has. The run before it passed the same job on the same tree. Two occurrences
+make this a flake with a rate rather than a one-off, and the log of the second names the specs, so this annotation does not
+guess at them.)
+
 **The dry-run job: the runner had no audio sink.** The driver said so in its own words — *"5 check(s) not verified here:
 this browser cannot play a clip"* — the degraded branch, then failed on two console errors. The step's `pulseaudio` install
 is best-effort by design (`|| true`), and §11.245's fail-closed assertion then did exactly what it was written for: a run
