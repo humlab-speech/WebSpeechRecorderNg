@@ -32,9 +32,31 @@ if (options.migrate || options.gc) {
     log(`migrate: ${summary.scripts} script(s) examined, ${summary.imported} legacy script(s) imported as version 1`);
   }
   if (options.gc) {
-    const summary = store.gc({media: options.gcMedia});
+    const summary = store.gc({media: options.gcMedia, journalKeep: options.gcJournal, uploadsMaxAgeDays: options.gcUploads});
     log(`gc: ${summary.revisionsRemoved} draft revision(s) removed, ${summary.previewsRemoved} expired preview(s) removed, `
       + `${summary.orphansFound} orphan media found${options.gcMedia ? `, ${summary.mediaRemoved} removed` : ' (pass --gc-media to remove)'}`);
+    // A chunk session is resumable, so it is only collected when the operator names the age (§11.195).
+    if (summary.chunkSessionsRemoved > 0) {
+      log(`    collected ${summary.chunkSessionsRemoved} unfinished chunk session(s) older than ${options.gcUploads} day(s), `
+        + `${summary.chunkFilesRemoved} chunk file(s) removed`);
+    }
+    if (summary.chunkSessionsLeft > 0) {
+      log(`    ${summary.chunkSessionsLeft} unfinished chunk session(s) holding ${summary.chunkFilesLeft} chunk(s) kept under uploads/`
+        + `${options.gcUploads === null ? ' (pass --gc-uploads <days> to collect old ones)' : ''}`);
+    }
+    // Same shape for the journal: counted always, bounded only on request (§11.194). A null count means
+    // the file could not be read, and `trimJournal` has already said so by name.
+    if (summary.journalRemoved > 0) {
+      // `keep` is a floor when entries carry no usable date: they are kept rather than ranked, so the
+      // count can exceed what was asked for and the *dated* entries are what went (§11.194). Both facts
+      // belong in the line, or "trimmed to 2 entry(s)" after `--gc-journal 1` reads like a bug.
+      const overRequest = options.gcJournal !== null && summary.journalEntries > options.gcJournal;
+      log(`    trimmed the idempotency journal to ${summary.journalEntries} entry(s) — ${summary.journalRemoved} removed`
+        + `${overRequest ? ` (${options.gcJournal} was asked for: the rest carry no date, so they are kept rather than ranked)` : ''}`);
+    } else if (summary.journalEntries !== null && summary.journalEntries > 0) {
+      log(`    ${summary.journalEntries} idempotency journal entry(s)`
+        + `${options.gcJournal === null ? ' (pass --gc-journal <keep> to trim)' : ''}`);
+    }
   }
   process.exit(0);
 }
@@ -184,6 +206,10 @@ function parseArgs(argv) {
     migrate: false,
     gc: false,
     gcMedia: false,
+    // No defaults: the store states no retention for the journal or for unfinished chunk sessions, so
+    // a plain --gc counts them and an operator who wants them bounded passes the number (§11.194/195).
+    gcJournal: null,
+    gcUploads: null,
     recorderVersion: RECORDER_VERSION,
     pseudonymiseSpeakers: false,
   };
@@ -210,6 +236,8 @@ function parseArgs(argv) {
       case '--migrate': opts.migrate = true; break;
       case '--gc': opts.gc = true; break;
       case '--gc-media': opts.gcMedia = true; break;
+      case '--gc-journal': opts.gcJournal = Number(value); i++; break;
+      case '--gc-uploads': opts.gcUploads = Number(value); i++; break;
       case '--recorder-version': opts.recorderVersion = value; i++; break;
       case '--pseudonymise-speakers': opts.pseudonymiseSpeakers = true; break;
       case '--help': case '-h': usage(); process.exit(0); break;
@@ -224,6 +252,13 @@ function parseArgs(argv) {
   }
   if (!Number.isFinite(opts.maxBody) || opts.maxBody <= 0) {
     throw new Error(`--max-body must be a byte count, got ${opts.maxBody}`);
+  }
+  // Both are counts, and both prune when present: a NaN would reach the store as "trim to nothing".
+  if (opts.gcJournal !== null && (!Number.isInteger(opts.gcJournal) || opts.gcJournal < 0)) {
+    throw new Error(`--gc-journal must be a count of entries to keep, got ${argv[argv.indexOf('--gc-journal') + 1]}`);
+  }
+  if (opts.gcUploads !== null && (!Number.isFinite(opts.gcUploads) || opts.gcUploads < 0)) {
+    throw new Error(`--gc-uploads must be an age in days, got ${argv[argv.indexOf('--gc-uploads') + 1]}`);
   }
   return opts;
 }
@@ -272,6 +307,11 @@ function usage() {
   --migrate            create the per-script layout for legacy flat scripts, then exit
   --gc                 prune draft revisions and expired preview sessions, then exit
   --gc-media           with --gc, also delete media that no draft or version references
+  --gc-journal <keep>  with --gc, trim the idempotency journal to the newest <keep> entries.
+                       No default: without it the journal is only counted (§11.194)
+  --gc-uploads <days>  with --gc, collect unfinished chunk sessions older than <days>. No
+                       default: a chunk session is resumable, so it is only collected when
+                       an operator names the age (§11.195)
   -h, --help           this text
 `);
 }

@@ -36,12 +36,16 @@ test('with the switch the same speaker is one stable label everywhere', () => {
   assert.equal(second.speaker, first.speaker, 'the label must be stable for a speaker');
   assert.notEqual(other.speaker, first.speaker, 'different speakers must differ');
   for (const id of ['s1', 's2', 's3']) {
-    // The field itself, then the whole record. On CI this check flaked (11.175): re-running passed, and
-    // lines 35-37 above had already proved `first.speaker` was a label, so whatever carried `sp-13` was
-    // some *other* field of the record - which the old message ("session s1") could not name.
+    // The field itself, then the whole record. The search has to remove the *generated labels* first:
+    // a label whose random hex begins "13" or "14" starts with one of the raw ids below, which is what
+    // flaked on CI in §11.175 — the diagnosis there ("whatever carried sp-13 was some other field") was
+    // wrong, and this search reported the label as a leak in a valid, correctly pseudonymised record.
     const record = store.session(id);
     assert.match(record.speaker, /^sp-[0-9a-f]{12}$/, `session ${id} must keep a label in its speaker field`);
-    const written = JSON.stringify(record);
+    let written = JSON.stringify(record);
+    for (const label of [first.speaker, other.speaker]) {
+      written = written.split(label).join('<label>');
+    }
     const leaked = ['sp-13', 'sp-14'].filter((real) => written.includes(real));
     assert.deepEqual(
       leaked,
@@ -66,7 +70,14 @@ test('a patched speaker is normalised too', () => {
   store.createSession('s1', {project: 'demo', script: null, speaker: null});
   const patched = store.patchSession('s1', {speaker: 'sp-13'});
   assert.match(patched.speaker, /^sp-[0-9a-f]{12}$/);
-  assert.ok(!JSON.stringify(store.session('s1')).includes('sp-13'));
+  // The raw id must survive nowhere — but the *generated label* is random, and one that happens to
+  // begin with "sp-13" contains the raw id as a substring, which made correct code fail this
+  // assertion about once in every 256 runs. So the search runs over a copy with the label removed:
+  // what is left is any genuine leak, and nothing that the label itself happens to contain.
+  const stored = store.session('s1');
+  assert.equal(stored.speaker, patched.speaker, 'the patch stored the generated label');
+  const rest = JSON.stringify(stored).split(patched.speaker).join('<label>');
+  assert.ok(!rest.includes('sp-13'), 'the raw id survives nowhere outside the label');
 });
 
 test('the already-recorded check keys on the label, so skipping still works', () => {

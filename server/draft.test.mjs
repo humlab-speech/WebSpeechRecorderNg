@@ -100,5 +100,18 @@ test('a legacy flat script is readable and gets its first draft via If-None-Matc
     });
     assert.equal(created.status, 200);
     assert.match(created.headers.get('etag'), /^"[0-9a-f]{64}"$/);
+
+    // A second create-if-absent against a draft that now exists: the precondition the client stated has *failed*, and
+    // RFC 9110 answers that 412 — carrying the current draft, so the editor's create path can retry. It answered 428
+    // instead, which says a precondition is missing when the request sent one (§11.252).
+    const again = await fetch(`${base}/project/demo/script/legacy/draft`, {
+      method: 'PUT',
+      headers: {'content-type': 'application/json', 'if-none-match': '*'},
+      body: '{"name":"Legacy","sections":[]}',
+    });
+    assert.equal(again.status, 412);
+    const conflict = await again.json();
+    assert.equal(conflict.code, 'SCRIPT_DRAFT_CONFLICT');
+    assert.equal(typeof conflict.details.currentEtag, 'string');
   });
 });

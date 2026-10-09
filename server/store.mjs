@@ -27,11 +27,35 @@ const ID_SEQUENCE = 'sequence.json';
 const JOURNAL = 'journal.json';
 
 /**
+ * The suffix `writeText` and `writeJson` build their temp file with: `${path}.tmp-${process.pid}`,
+ * renamed into place. Matching `.json.` and the pid keeps the pattern off any real artifact — an id
+ * that contained `.json.tmp-4` would produce `….tmp-4.json`, which does not end in the suffix.
+ */
+const TEMP_FILE = /\.json\.tmp-\d+$/;
+
+/**
+ * The same, for a media directory. `index.json` is the one JSON file the store writes there, and every
+ * other name in that directory came from the uploader — a person could call a clip `notes.json.tmp-4`,
+ * which `TEMP_FILE` would match. So inside `media/` only the index's own temp file is collectable.
+ */
+const MEDIA_TEMP_FILE = /^index\.json\.tmp-\d+$/;
+
+/**
  * Draft revision retention, in one place because the runbook documents the numbers and both the
  * pruning helper and `gc` have to agree on them.
  */
 const DRAFT_KEEP = 50;
 const DRAFT_MAX_AGE_DAYS = 30;
+
+/**
+ * The two retention defaults for the receiver's runtime state, stated because the owner asked for them (§11.255 —
+ * §11.194/§11.195 had left them unset as a policy question). The journal holds an `Idempotency-Key` for a retry
+ * window, and a key older than a month is not a retry; an unfinished chunk session is abandoned within hours, so a
+ * week is generous. Both are **ages, not counts**, because a count drops the newest entries when a deployment is
+ * busy — and those are the ones still in use.
+ */
+const JOURNAL_MAX_AGE_DAYS = 30;
+const UPLOAD_MAX_AGE_DAYS = 7;
 
 export class Store {
   constructor({dataDir, seedDir, log, recorderVersion = RECORDER_VERSION, pseudonymiseSpeakers = false}) {
@@ -58,7 +82,64 @@ export class Store {
     for (const dir of ['project', 'script', 'session', 'recordingfile', 'bank', 'uploads', 'uploads/tmp']) {
       mkdirSync(join(this.dataDir, dir), {recursive: true});
     }
+    const swept = this.sweepTempFiles(this.dataDir);
+    if (swept > 0) {
+      this.log(`removed ${swept} temp file(s) left behind by an interrupted write`);
+    }
+    // And the two kinds of runtime state the store now bounds **by age** (§11.255). This is the same safe moment the
+    // temp sweep uses — before a request can be served — and age is what makes it safe: an unfinished upload's chunks
+    // are recent by definition, and a journal entry inside its window is one a client may still retry.
+    const aged = this.trimJournal(null, JOURNAL_MAX_AGE_DAYS);
+    if (aged.removed > 0) {
+      this.log(`removed ${aged.removed} idempotency entr(ies) older than ${JOURNAL_MAX_AGE_DAYS} day(s)`);
+    }
+    const abandoned = this.collectChunkSessions(this.pendingChunkSessions(), UPLOAD_MAX_AGE_DAYS, Date.now());
+    if (abandoned.length > 0) {
+      this.log(`collected ${abandoned.length} upload session(s) abandoned for over ${UPLOAD_MAX_AGE_DAYS} day(s)`);
+    }
     return this;
+  }
+
+  /**
+   * Removes the `${path}.tmp-${pid}` files a write leaves behind when it fails, or when the process is
+   * killed between `writeFileSync` and `renameSync` (§11.191). Nothing collects them otherwise, and
+   * the documented backup story copies the tree, so they would travel to production and accumulate
+   * one per interrupted write, per pid.
+   *
+   * Called from `open()`, before a request can be served: at that moment no write of this process can
+   * be in flight, and one receiver owns a data directory — every write here is a read-modify-write
+   * (`journal.json`, the version indexes, `meta.json`), so a second receiver would corrupt more than
+   * temp files. Inside `media/` only the index's temp file is collected, because every other name
+   * there is the uploader's (`MEDIA_TEMP_FILE`).
+   *
+   * **Best effort, deliberately.** This walks the whole tree, so a directory it cannot list or a file
+   * it cannot remove must not stop the receiver from starting — before this existed, a directory the
+   * store never reads could not do that, so a `chmod 000` anywhere under `--data` would have become a
+   * startup failure. A failure is logged and skipped; the litter it names is still there to find.
+   */
+  sweepTempFiles(dir, inMedia = false) {
+    let entries;
+    try {
+      entries = readdirSync(dir, {withFileTypes: true});
+    } catch (error) {
+      this.log(`could not sweep ${dir}: ${error.code ?? error.message}`);
+      return 0;
+    }
+    let removed = 0;
+    for (const entry of entries) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        removed += this.sweepTempFiles(path, inMedia || entry.name === MEDIA_DIR);
+      } else if ((inMedia ? MEDIA_TEMP_FILE : TEMP_FILE).test(entry.name)) {
+        try {
+          rmSync(path, {force: true});
+          removed += 1;
+        } catch (error) {
+          this.log(`could not remove ${path}: ${error.code ?? error.message}`);
+        }
+      }
+    }
+    return removed;
   }
 
   // ---------------------------------------------------------------- ids and paths
@@ -220,8 +301,14 @@ export class Store {
 
   /** The prompt item of a recording script, used to embed the prompt in the metadata. */
   promptItem(scriptId, itemcode) {
+    // Both absences mean "nothing to embed". The script id is checked before the lookup: a session
+    // created without one (auto-create with no configured script) has none, and `script(null)`
+    // reaches `segment(null)`, which throws `invalid identifier ""` — a 400 that loses the upload.
+    if (scriptId === null || scriptId === undefined || scriptId === '' || itemcode === null || itemcode === undefined) {
+      return null;
+    }
     const script = this.script(scriptId);
-    if (script === null || itemcode === null || itemcode === undefined) {
+    if (script === null) {
       return null;
     }
     for (const section of script.sections ?? []) {
@@ -1162,28 +1249,174 @@ export class Store {
   }
 
   /**
-   * Housekeeping: draft revisions per policy, expired preview sessions, and (only when asked)
-   * unreferenced media. Published versions and recordings are never touched.
+   * Housekeeping: draft revisions per policy, expired preview sessions, unfinished chunk sessions
+   * (counted, and collected only when asked — see `pendingChunkSessions`), the idempotency journal
+   * (counted, trimmed only when asked), and (only when asked) unreferenced media. Published versions
+   * and recordings are never touched.
+   *
+   * The two kinds of runtime state are bounded **by age by default** since §11.255 — `JOURNAL_MAX_AGE_DAYS` and
+   * `UPLOAD_MAX_AGE_DAYS` — because the store states that policy now. `journalKeep` (a count) and
+   * `uploadsMaxAgeDays` still let an operator tighten either, and `null` for one disables that bound at the API.
    */
-  gc({keep = DRAFT_KEEP, maxAgeDays = DRAFT_MAX_AGE_DAYS, media = false, now = Date.now()} = {}) {
+  gc({keep = DRAFT_KEEP, maxAgeDays = DRAFT_MAX_AGE_DAYS, media = false, journalKeep = null,
+    journalMaxAgeDays = JOURNAL_MAX_AGE_DAYS, uploadsMaxAgeDays = UPLOAD_MAX_AGE_DAYS, now = Date.now()} = {}) {
     const revisions = this.pruneDraftRevisions({keep, maxAgeDays});
     const expired = this.expiredPreviews(now);
     for (const entry of expired) {
       this.removeSession(entry.sessionId);
     }
     const orphans = this.orphanMedia();
+    let mediaRemoved = 0;
     if (media) {
       for (const orphan of orphans) {
-        rmSync(this.mediaPath(orphan.project, orphan.name), {force: true});
-        this.removeMedia(orphan.project, orphan.name);
+        // The same rule as the chunk sessions below: this is a set, so one file that cannot be removed
+        // is named and skipped rather than ending the run — and the count says what actually happened,
+        // not how many were found (§11.194/§11.195). `orphansFound` keeps saying how many remain.
+        try {
+          rmSync(this.mediaPath(orphan.project, orphan.name), {force: true});
+          this.removeMedia(orphan.project, orphan.name);
+          mediaRemoved += 1;
+        } catch (error) {
+          this.log(`could not remove the orphan media ${orphan.name}: ${error.code ?? error.message}`);
+        }
       }
     }
+    const unfinished = this.pendingChunkSessions();
+    const collected = uploadsMaxAgeDays === null || uploadsMaxAgeDays === undefined
+      ? []
+      : this.collectChunkSessions(unfinished, uploadsMaxAgeDays, now);
+    const journal = this.trimJournal(journalKeep, journalMaxAgeDays, now);
+    const left = unfinished.filter((session) => !collected.includes(session));
     return {
       revisionsRemoved: revisions.removed,
       previewsRemoved: expired.length,
       orphansFound: orphans.length,
-      mediaRemoved: media ? orphans.length : 0,
+      mediaRemoved,
+      chunkSessionsLeft: left.length,
+      chunkFilesLeft: left.reduce((total, session) => total + session.chunks, 0),
+      chunkSessionsRemoved: collected.length,
+      chunkFilesRemoved: collected.reduce((total, session) => total + session.chunks, 0),
+      journalEntries: journal.entries,
+      journalRemoved: journal.removed,
     };
+  }
+
+  /**
+   * The chunk sessions that hold chunks but were never published (§11.195), as a list so `gc` can
+   * report them and, when an operator gives an age, collect the ones past it.
+   *
+   * The store states the age now (§11.255): `open()` collects a session abandoned for over
+   * `UPLOAD_MAX_AGE_DAYS` along with the temp files, and `gc` applies the same bound with `uploadsMaxAgeDays` — which
+   * is why a chunk session is safe to collect by age despite being **resumable**: a client still waiting to finish is
+   * inside the window by construction, and only one past it is treated as abandoned.
+   */
+  pendingChunkSessions() {
+    const pending = [];
+    if (!existsSync(this.uploadsDir)) {
+      return pending;
+    }
+    for (const entry of readdirSync(this.uploadsDir, {withFileTypes: true})) {
+      if (!entry.isDirectory() || !entry.name.startsWith('chunk-')) {
+        continue;
+      }
+      let meta = null;
+      try {
+        meta = this.chunkSession(entry.name.slice('chunk-'.length));
+      } catch (error) {
+        // `readJson` refuses to guess at a corrupt file, and that is right for a request. It is wrong
+        // for this: one unreadable chunk record would otherwise stop the whole maintenance run, which is
+        // the command an operator reaches for when state is broken (`gc` read no chunk record before
+        // §11.195, so this coupling is new). Named, skipped, and left to the operator.
+        this.log(`could not read the chunk session ${entry.name}: ${error.message}`);
+        continue;
+      }
+      if (meta === null || (meta.finalizedRecording !== undefined && meta.finalizedRecording !== null)) {
+        continue;
+      }
+      pending.push({uuid: meta.uuid, createdAt: meta.createdAt ?? null, chunks: this.chunkIndices(meta.uuid).length});
+    }
+    return pending;
+  }
+
+  /**
+   * Removes the unfinished sessions in `pending` whose `createdAt` is older than `maxAgeDays`,
+   * returning those it removed. A session with no usable date is kept: an age it cannot be compared
+   * against is not evidence that it is old.
+   *
+   * A session it cannot delete is **named and skipped**, not fatal — the same rule the sweep follows
+   * (§11.191). Tolerance pays off where there is a set to iterate: one undeletable session must not cost
+   * the others their collection. It does *not* apply to a single write like the journal trim, where a
+   * failure means the whole operation did not happen and there is nothing else to save.
+   */
+  collectChunkSessions(pending, maxAgeDays, now) {
+    const cutoff = now - maxAgeDays * 24 * 60 * 60 * 1000;
+    const removed = [];
+    for (const session of pending) {
+      const at = Date.parse(session.createdAt ?? '');
+      if (!Number.isFinite(at) || at > cutoff) {
+        continue;
+      }
+      try {
+        rmSync(this.chunkDir(session.uuid), {recursive: true, force: true});
+        removed.push(session);
+      } catch (error) {
+        this.log(`could not collect the chunk session ${session.uuid}: ${error.code ?? error.message}`);
+      }
+    }
+    return removed;
+  }
+
+  /**
+   * Trims the idempotency journal to the newest `keep` entries (§11.194). With `keep` null the store
+   * counts it and changes nothing, so only an operator who passes `--gc-journal` bounds it.
+   *
+   * "Newest" is the `date` each entry was remembered with rather than the file's key order, because
+   * JSON object order is not insertion order for keys that look like integers — and an
+   * `Idempotency-Key` may well be one.
+   *
+   * An entry whose `date` is missing or unparseable is **kept**: it cannot be compared, and a date it
+   * cannot be compared against is not evidence that it is old — the same rule `collectChunkSessions`
+   * applies to a session's `createdAt`, so the two prunes agree about the one thing neither can order.
+   * The trim therefore takes the newest of the *dated* entries and leaves the rest alone.
+   */
+  trimJournal(keep, maxAgeDays = JOURNAL_MAX_AGE_DAYS, now = Date.now()) {
+    let journal;
+    try {
+      journal = this.journal();
+    } catch (error) {
+      // Same rule as the chunk records above: every write route already fails loudly on a corrupt
+      // journal (it is read on each `Idempotency-Key`), so `--gc` names it and prunes everything else
+      // rather than stopping — the count comes back null and the caller says so.
+      this.log(`could not read the idempotency journal: ${error.message}`);
+      return {entries: null, removed: 0};
+    }
+    const keys = Object.keys(journal);
+    const dated = [];
+    const undated = [];
+    for (const key of keys) {
+      (Number.isFinite(Date.parse(journal[key]?.date ?? '')) ? dated : undated).push(key);
+    }
+    dated.sort((a, b) => Date.parse(journal[b].date) - Date.parse(journal[a].date));
+    // The age bound first (§11.255), and it applies whether or not a count was given: an entry past the window is not
+    // a retry anyone is waiting on. `maxAgeDays` null disables it; an undated entry is never dropped, per the note above.
+    const cutoff = now - maxAgeDays * 24 * 60 * 60 * 1000;
+    const fresh = maxAgeDays === null || maxAgeDays === undefined
+      ? dated
+      : dated.filter((key) => Date.parse(journal[key].date) >= cutoff);
+    const byCount = keep === null || keep === undefined
+      ? fresh
+      : fresh.slice(0, Math.max(0, keep - undated.length));
+    const kept = [...undated, ...byCount];
+    if (kept.length >= keys.length) {
+      return {entries: keys.length, removed: 0};
+    }
+    const trimmed = {};
+    for (const key of kept) {
+      trimmed[key] = journal[key];
+    }
+    this._journal = trimmed;
+    this.writeJson(join(this.uploadsDir, JOURNAL), trimmed);
+    return {entries: kept.length, removed: keys.length - kept.length};
   }
 
   // ---------------------------------------------------------------- json io

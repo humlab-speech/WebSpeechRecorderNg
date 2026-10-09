@@ -39,6 +39,7 @@ CI runs this and the other five jobs (`.github/workflows/tests.yml`).
 <data>/script/<id>/published.json     what GET script/{id} serves
 <data>/script/<id>/draft.json         current draft (ETag = sha256 of these bytes)
 <data>/script/<id>/versions/<n>.json  immutable published versions (never pruned)
+<data>/script/<id>/versions.json      the published version index, newest first
 <data>/script/<id>/revisions/<n>.json draft snapshots (pruned by gc)
 <data>/script/<id>.json               legacy flat script: read as published v1, never written
 <data>/session/<id>.json              session; bank draws and prefill choices are recorded here
@@ -53,6 +54,7 @@ CI runs this and the other five jobs (`.github/workflows/tests.yml`).
 node server/server.mjs --data <dir> --migrate          # per-script layout for legacy flat scripts
 node server/server.mjs --data <dir> --gc               # prune draft revisions + expired previews
 node server/server.mjs --data <dir> --gc --gc-media    # also delete unreferenced media
+node server/server.mjs --data <dir> --gc --gc-journal 500 --gc-uploads 30   # also bound the two below
 ```
 
 * **Draft revisions** are kept 50 deep and 30 days (see `Store.pruneDraftRevisions`).
@@ -62,7 +64,21 @@ node server/server.mjs --data <dir> --gc --gc-media    # also delete unreference
 * **Preview sessions** (`type: "TEST"`) expire; `gc` removes the session and its materialised script,
   never the source script.
 * **Published versions and recordings are never touched** by `gc`.
+* **Two kinds of runtime state are bounded by age, by default** (§11.255): `uploads/journal.json` (the idempotency
+  answers) drops entries older than **30 days**, and `uploads/chunk-<uuid>/` — an upload that was started and never
+  published — is collected after **7** (`server/store.mjs`). Both also happen in `open()`, so a deployment that never
+  runs maintenance still bounds them. `--gc-journal <keep>` and `--gc-uploads <days>` tighten either further: a count,
+  or a shorter age. Age is what makes the chunk collection safe although a session is **resumable** — a client still
+  finishing its upload is inside the window by construction.
+  Independently of retention, a file or record `--gc` cannot read **or remove** — a corrupt `meta.json`, a corrupt
+  journal, media in
+  a directory it may not write — is named in the log and skipped, and the counts say what actually
+  happened rather than what was found: the command prunes everything else and never stops on the state
+  it exists to clean up.
 * `--migrate` is idempotent and is safe to run on every deployment.
+* **Run these against a stopped receiver.** The store assumes one process owns the data directory (Production notes),
+  and that matters most here: a *serving* receiver holds the idempotency journal in memory, so a trim it never saw is
+  rewritten wholesale by its next remembered write — the entries `--gc-journal` removed come back.
 
 ## Backup, restore, transfer
 
@@ -72,6 +88,15 @@ tree and run `--migrate` once; the layout version in each `meta.json` says which
 in. Verify with `--gc` (read-only for versions) and by fetching a published script.
 
 ## Production notes
+
+**One receiver owns a data directory.** Nothing here locks: every write is a read-modify-write of a
+JSON file (`journal.json`, the version indexes, `meta.json`, the draft revision counter), so a second
+process on the same `--data` would corrupt more than it saves. That is also what lets `open()` clear
+the `*.json.tmp-<pid>` files an interrupted write leaves behind — no other writer's temp file can be
+in flight (`Store.sweepTempFiles`; inside `project/<p>/media/`, whose other names come from the
+uploader, only the index's own temp file is collectable). It is best effort: a directory it cannot
+read, or a file it cannot remove, is logged by name and skipped — housekeeping never stops the
+receiver from starting, whatever it finds under `--data`.
 
 The receiver itself has no authentication; the deployment puts it behind the same protection as the
 recorder (the sample `apache_www_htaccess_sample.txt` shows the SPA fallback pattern). Auth, CSRF,

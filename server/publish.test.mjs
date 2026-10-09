@@ -159,3 +159,42 @@ test('the published document names the script: the entity follows at publish', a
     assert.equal((await listed()).name, 'Renamed in the editor');
   });
 });
+
+test('a publish retried with the same idempotency key replays instead of freezing a second version', async () => {
+  await withServer(async ({base}) => {
+    const created = await createScript(base, 'Idempotent');
+    const {scriptId} = created;
+    const etag = await putDraft(base, scriptId, script([item('a', 'one')]), created.etag);
+
+    // A client that retries after a lost response sends the same key: the freeze happens once, and the
+    // version list does not grow a duplicate row carrying the same text (§11.193).
+    const send = () =>
+      fetch(`${base}/project/demo/script/${scriptId}/publish`, {
+        method: 'POST',
+        headers: {'content-type': 'application/json', 'idempotency-key': 'publish-attempt-1'},
+        body: JSON.stringify({fromDraftEtag: etag, note: 'once'}),
+      });
+
+    const first = await send();
+    assert.equal(first.status, 201);
+    const frozen = await first.json();
+    assert.equal(frozen.version, 1);
+    assert.equal(first.headers.get('idempotency-replayed'), null, 'the first send does the work');
+
+    const retry = await send();
+    assert.equal(retry.status, 201);
+    assert.equal(retry.headers.get('idempotency-replayed'), 'true');
+    assert.deepEqual(await retry.json(), frozen, 'the retry answers the remembered answer, version included');
+
+    const versions = await (await fetch(`${base}/project/demo/script/${scriptId}/version`)).json();
+    assert.deepEqual(versions.map((version) => version.version), [1], 'one version, not two');
+
+    // The key is opt-in, as on the recording, chunk and concat routes: a fresh publish still freezes a
+    // new version, so the key dedupes retries without suppressing legitimate ones.
+    const later = await publish(base, scriptId, {fromDraftEtag: etag, note: 'later'});
+    assert.equal(later.status, 201);
+    assert.equal((await later.json()).version, 2);
+    const after = await (await fetch(`${base}/project/demo/script/${scriptId}/version`)).json();
+    assert.deepEqual(after.map((version) => version.version), [2, 1]);
+  });
+});

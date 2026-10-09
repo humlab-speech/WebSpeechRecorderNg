@@ -265,6 +265,11 @@ describe('Uploader', () => {
         await wait(150);
         httpMock.expectNone('/api/up');
         httpMock.expectNone('/api/second');
+        // The request sequence above is what the spec is named for — a second retry would leave a pending
+        // request for `expectNone` to catch. What it never asserted is the outcome that sequence implies:
+        // both uploads reached DONE, rather than the requests having gone out and a status stuck mid-flight.
+        expect(ul.status).toBe(UploadStatus.DONE);
+        expect(second.status).toBe(UploadStatus.DONE);
     });
 
     it('stays sequential by default (one request in flight)', () => {

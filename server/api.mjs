@@ -30,7 +30,10 @@
  * Uploads answer `{"stored":true,...}`: the client accepts any 2xx but can be configured to
  * require that body (`uploadConfig.requireStoredAck`). Every upload POST is idempotent: the
  * `Idempotency-Key` header of a request that was already answered returns the stored answer,
- * so a retry after a client side timeout cannot store a recording twice.
+ * so a retry after a client side timeout cannot store a recording twice. `POST script/{id}/publish`
+ * honours the same header (§11.193), so a retry there cannot freeze a second version carrying the
+ * same text; the header is answered from `uploads/journal.json` and echoed as
+ * `Idempotency-Replayed: true` on the replayed response.
  */
 import {createReadStream, existsSync, statSync, unlinkSync} from 'node:fs';
 import {unlink} from 'node:fs/promises';
@@ -246,6 +249,16 @@ export function createApiHandler({store, base, maxBody, log, autoCreateSession, 
       if (currentEtag === null && req.headers['if-none-match'] === '*') {
         return {bytes: null, currentEtag: null, value: null};
       }
+      // The client asserted emptiness and a draft has appeared since: that is the precondition *failing*, which RFC 9110
+      // answers 412 for, with the current draft so the editor can retry. Answering 428 would say a precondition is
+      // missing when the request carried one, and the client's create-if-absent path — the one the migration uses for
+      // legacy flat scripts — reads a 412 and nothing else (§11.252).
+      if (req.headers['if-none-match'] === '*') {
+        throw new RequestError(412, 'The draft changed since you loaded it.', {
+          code: 'SCRIPT_DRAFT_CONFLICT',
+          details: {current: JSON.parse(bytes.toString('utf8')), currentEtag},
+        });
+      }
       // The header's verdicts come from `etag.mjs`, so the module R1 documents — with `*` and
       // multi-value lists per RFC 9110 — is the one the API enforces. A caller-supplied validator
       // (the body's own ETag) is compared exactly: it is an internal value, not a client header.
@@ -289,36 +302,44 @@ export function createApiHandler({store, base, maxBody, log, autoCreateSession, 
 
     /** Publishes the draft: precondition, the error gate, the feature floor, then the freeze. */
     async function publishScript(req, res, scriptId) {
-      const body = await readJsonBody(req).catch(() => ({}));
-      if (store.draftBytes(scriptId) === null) {
-        throw new RequestError(409, `script ${scriptId} has no draft to publish`, {code: 'NO_DRAFT'});
-      }
-      const provided = typeof body.fromDraftEtag === 'string' && body.fromDraftEtag !== '' ? body.fromDraftEtag : null;
-      const {bytes} = requireDraftPrecondition(req, scriptId, provided);
-      const text = bytes.toString('utf8');
-      const value = JSON.parse(text);
-      const findings = validateScript(value, {lookupBank: (bankId) => store.bank(bankId)});
-      if (findings.length > 0) {
-        throw new RequestError(409, 'The script has errors and was not published.', {
-          code: 'PUBLISH_REJECTED',
-          details: {checks: findings},
-        });
-      }
-      const {minRecorderVersion, unknownFeatures} = minRecorderVersionFor(value);
-      if (unknownFeatures.length > 0) {
-        throw new RequestError(409, `The script uses features with no recorder floor: ${unknownFeatures.join(', ')}`, {
-          code: 'FEATURE_FLOOR_UNKNOWN',
-          details: {features: unknownFeatures},
-        });
-      }
-      return await sendJson(res, 201, store.publish(scriptId, {
-        text,
-        note: typeof body.note === 'string' ? body.note : null,
-        minRecorderVersion,
-        // The frozen document owns the name: a rename made in the editor is a draft edit, so the
-        // entity (the library list, session creation, PATCH) follows it at this commit point.
-        name: typeof value.name === 'string' && value.name.trim() !== '' ? value.name : null,
-      }));
+      // The fourth remembered write (§11.193). The recording, chunk and concat routes already took an
+      // idempotency key; publish did not, so a lost response or a double submit froze a second version
+      // carrying the same text — and versions are immutable and never pruned.
+      return await idempotent(req, res, `publish script ${scriptId}`, async () => {
+        const body = await readJsonBody(req).catch(() => ({}));
+        if (store.draftBytes(scriptId) === null) {
+          throw new RequestError(409, `script ${scriptId} has no draft to publish`, {code: 'NO_DRAFT'});
+        }
+        const provided = typeof body.fromDraftEtag === 'string' && body.fromDraftEtag !== '' ? body.fromDraftEtag : null;
+        const {bytes} = requireDraftPrecondition(req, scriptId, provided);
+        const text = bytes.toString('utf8');
+        const value = JSON.parse(text);
+        const findings = validateScript(value, {lookupBank: (bankId) => store.bank(bankId)});
+        if (findings.length > 0) {
+          throw new RequestError(409, 'The script has errors and was not published.', {
+            code: 'PUBLISH_REJECTED',
+            details: {checks: findings},
+          });
+        }
+        const {minRecorderVersion, unknownFeatures} = minRecorderVersionFor(value);
+        if (unknownFeatures.length > 0) {
+          throw new RequestError(409, `The script uses features with no recorder floor: ${unknownFeatures.join(', ')}`, {
+            code: 'FEATURE_FLOOR_UNKNOWN',
+            details: {features: unknownFeatures},
+          });
+        }
+        return {
+          status: 201,
+          body: store.publish(scriptId, {
+            text,
+            note: typeof body.note === 'string' ? body.note : null,
+            minRecorderVersion,
+            // The frozen document owns the name: a rename made in the editor is a draft edit, so the
+            // entity (the library list, session creation, PATCH) follows it at this commit point.
+            name: typeof value.name === 'string' && value.name.trim() !== '' ? value.name : null,
+          }),
+        };
+      });
     }
 
     /** Serves one published version verbatim, with its own strong validator. */
