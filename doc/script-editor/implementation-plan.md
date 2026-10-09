@@ -8278,6 +8278,27 @@ states rather than a new number.
 **Why this entry is not pushed yet**: the checks are running on the tip, and a tip that moves restarts them. The push
 follows the verdict.
 
+### 11.281 The editor job's karma failed on the pushed tip — evidence kept, diagnosis pending — **Observed, not reproduced**
+
+The first red check of this pass that is not already explained. On the tip `2b54e51a`, the **Editor (karma + build)** job
+failed after 50 s, and the jobs API says which step: **`Editor suite`**, the fifth — with the house-rule lint, its
+sensitivity block and the production build all skipped behind it. Everything else on that commit passes: `Server (node
+--test)`, `Library (karma)` in 1m30s, `Analyze`, `osv-scanner`, `scan-pr` — which is green now — and `Recorder detail view`.
+
+**Reproduced three times locally, green every time**: `npm run test_editor -- --watch=false --browsers=ChromeHeadless`
+gives 496/496 in **6.2 s** per run, on Chrome 152. Against the CI's 50 s that is roughly eight times slower, so a
+timing-sensitive cause is the first hypothesis rather than a finding. The editor has no project karma config — only
+`tsconfig.spec.json` — so its timeouts are the builder's defaults, and the library's karma passing on the same runner
+argues against a runner-wide stall.
+
+**The evidence is being kept, which is this entry's reason for existing**: §11.202 records a transient failure whose
+evidence I read and then discarded. The failed step's log is fetched the moment the run completes
+(`gh run view --log-failed`), and the job's re-run — refused while the run is still going — comes after that, so a retry
+cannot erase the question it would otherwise answer.
+
+**Not a finding yet, and not pushed**: the entry is committed locally so the tip under test stays fixed, and it follows the
+log rather than preceding it.
+
 (**And the other half of the same class**, measured the same way when the path rule went in: **15** `npm run <name>`
 invocations across the workflows and the documents — `test_module`, `test_editor`, `build_module`, `build_editor`,
 `validate:i18n`, `serve:api`, `pack_pi_module`, `start_prod` and the rest — **every one defined** in `package.json`'s 24
