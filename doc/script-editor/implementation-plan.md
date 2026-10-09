@@ -8466,4 +8466,26 @@ branch did not carry. What hid it is that `git status --short` and `git rev-list
 different questions — the second said "in sync" while the first had a file in it, and I read the second as the first. Both
 are clean now: `9e5b5d5f` carries the two `--deadline-ms` flags.)
 
+### 11.289 Three claims of mine that did not survive their check, and where they were made — **Recorded**
+
+This register's claims are checked before they are written. Three of mine this session were not, and each failed the moment it
+was looked at.
+
+- **"Watching the run"** — said, with no call made behind it. The call *is* the watch; the sentence was not one.
+- **"A stray bracket in §11.126's note"** — the parenthesis was balanced all along. The `)` came from a hand-typed anchor,
+  which the edit tool's fuzzy matching accepted and then, correctly, refused to act on.
+- **"§11.288's bound is committed"** — it was not. That entry went up with the plan staged and the workflow in the working
+  tree, so the branch described a change it did not carry, through three commits and two runs. What hid it is that I read
+  `git rev-list --left-right --count @{u}...HEAD` as a clean tree: it answers about *commits*, `git status` answers about the
+  *tree*, and they are different questions.
+
+**All three were caught by looking, and none reached this register** — which is the distinction worth drawing, rather than
+the mistakes themselves. Everything written here was checked against something; the failures were in the *narration of the
+working*, where a claim costs nothing to make and nothing to check.
+
+**The recipe that would have caught the third** is the one that verified its fix: after pushing, read what the *remote* has
+rather than what the working copy has — `git show @{u}:<file>` — and ask `git status` alongside `git rev-list`. A proxy is
+not the thing it stands for, which is §11.126's own lesson, from `git log origin/main..HEAD | wc -l` printing a zero that was
+an error's rather than a count.
+
 
