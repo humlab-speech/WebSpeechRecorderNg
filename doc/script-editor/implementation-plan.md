@@ -8374,10 +8374,10 @@ transient of the asset-serving kind; what belongs in the register is its *shape*
 bytes) and not a mechanism, because no mechanism has been shown.
 
 (**And it recurred, so "never recurred" was wrong — corrected here.** On `30748b39`, a documentation-only tip and therefore
-not caused by that change, `Editor (karma + build)` failed again in 40 s: the same job, and a duration far short of the full
-suite, which is the shape the round-trip failure has. The run before it passed the same job on the same tree. Two occurrences
-make this a flake with a rate rather than a one-off, and the log of the second names the specs, so this annotation does not
-guess at them.)
+not caused by that change, `Editor (karma + build)` failed again: the same job, at spec 108 of 496 in 0.8 s. The run before it
+passed the same job on the same tree, and re-running the failed job passed it too. Two occurrences make this a flake with a rate
+rather than a one-off. **§11.292 has the cause** — a fixed 20 ms wait for a file read that has no fixed duration, not the
+round-trip shape guessed at here — and the fix.)
 
 **The dry-run job: the runner had no audio sink.** The driver said so in its own words — *"5 check(s) not verified here:
 this browser cannot play a clip"* — the degraded branch, then failed on two console errors. The step's `pulseaudio` install
@@ -8575,5 +8575,39 @@ one each time: an example is not a claim, so it goes where examples go.)
 
 (**And the run on this entry's own tip passed**: `71ae5367`, five and a half minutes, six jobs and ten checks — the fifth
 consecutive green, and the second on a tip carrying a *summary* of the work rather than a change to it.)
+
+### 11.292 The editor suite's flake, diagnosed and fixed — a twenty-millisecond guess replaced by the effect it waited for
+
+**The failure, named.** On `30748b39`, a documentation-only tip, `Editor (karma + build)` failed at spec 108 of 496 in 0.8 s:
+*ScriptLibrary states refuses a file that is not JSON before creating anything*, reporting `Expected undefined to contain
+'broken.json'` — the error element did not exist yet. Re-running the failed job on that same unchanged commit passed it, which
+is the flake's proof and the same test §11.283 applied.
+
+**The cause, found rather than guessed.** The specs waited on a helper that slept a fixed 20 ms for a file read:
+
+```ts
+function settle(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 20));
+}
+```
+
+Its own comment admitted the read "is a browser promise" — and `onImport` is `await file.text()`, a real asynchronous read with
+no fixed duration. Twenty milliseconds is a guess a loaded runner can lose, and on 2026-10-09 one did. §11.283 declined to fix
+this because no mechanism had been shown; one now has.
+
+**The fix, and the trap in it.** `settle(done)` polls a condition every 5 ms up to a second, so it waits for the effect rather
+than a duration. Two of the four sites want an *HTTP request*, and there the obvious predicate is wrong: `match()` consumes what
+it matches, so polling with it eats the request that `expectOne` then cannot find. That is what the first attempt did, failing
+deterministically at `expectOne` while a probe printed `pending: 1` one line earlier. The working helper is `awaitRequest`, which
+polls `expectOne` and hands the request back, so waiting and fetching become one operation:
+
+```ts
+const create = await awaitRequest(state.http, (request) => request.method === 'POST'
+  && pathOf(request.urlWithParams) === 'api/v1/project/Demo1/script');
+```
+
+**Verified**: the editor suite at 496 pass / 0 fail locally with the fix, eight gates exit 0, the production build exit 0, and —
+the discrimination the local run cannot make, since the unmodified spec also passes on a fast machine — an A/B run in which the
+first attempt failed deterministically where the unmodified spec passed, proving the wait is load-bearing and not decoration.
 
 

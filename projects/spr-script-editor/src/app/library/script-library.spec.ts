@@ -1,5 +1,5 @@
-import {provideHttpClient} from '@angular/common/http';
-import {HttpTestingController, provideHttpClientTesting} from '@angular/common/http/testing';
+import {HttpRequest, provideHttpClient} from '@angular/common/http';
+import {HttpTestingController, TestRequest, provideHttpClientTesting} from '@angular/common/http/testing';
 import {TestBed} from '@angular/core/testing';
 import {Router, provideRouter, withComponentInputBinding} from '@angular/router';
 import {RouterTestingHarness} from '@angular/router/testing';
@@ -107,9 +107,34 @@ function importFile(root: HTMLElement, file: File): void {
   input.dispatchEvent(new Event('change'));
 }
 
-/** Reading a File is a browser promise, so the specs wait a real macrotask for it to land. */
-function settle(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 20));
+/**
+ * Reading a File is a browser promise with no fixed duration, so waiting a fixed number of
+ * milliseconds is a guess a loaded runner can lose - it did, at spec 108 of 496 on 2026-10-09.
+ * Poll for the request instead, and hand it back: `match` would consume it before `expectOne` sees it.
+ */
+async function awaitRequest(
+  http: HttpTestingController,
+  match: (request: HttpRequest<unknown>) => boolean,
+): Promise<TestRequest> {
+  const deadline = Date.now() + 1000;
+  for (;;) {
+    try {
+      return http.expectOne(match);
+    } catch (error) {
+      if (Date.now() >= deadline) {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+  }
+}
+
+/** Waits until `done` holds, re-checking every few milliseconds up to a second. */
+async function settle(done: () => boolean): Promise<void> {
+  const deadline = Date.now() + 1000;
+  do {
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  } while (!done() && Date.now() < deadline);
 }
 
 describe('ScriptLibrary states', () => {
@@ -340,20 +365,16 @@ describe('ScriptLibrary states', () => {
 
     const text = '{"name":"Imported","sections":[]}';
     importFile(state.root, new File([text], 'imported.json', {type: 'application/json'}));
-    await settle();
-
-    const create = state.http.expectOne((request) => request.method === 'POST'
+    const create = await awaitRequest(state.http, (request) => request.method === 'POST'
       && pathOf(request.urlWithParams) === 'api/v1/project/Demo1/script');
     expect(create.request.body).toEqual({name: 'imported'});
     create.flush({scriptId: 91, draftVersion: 1, etag: '"C"'});
-    await settle();
-
-    const write = state.http.expectOne((request) => request.method === 'PUT'
+    const write = await awaitRequest(state.http, (request) => request.method === 'PUT'
       && pathOf(request.urlWithParams) === 'api/v1/project/Demo1/script/91/draft');
     expect(write.request.headers.get('If-Match')).toBe('"C"');
     expect(write.request.body).toBe(text);
     write.flush({scriptId: 91, draftVersion: 2, etag: '"D"'});
-    await settle();
+    await settle(() => TestBed.inject(Router).url === '/project/Demo1/script/91/edit');
 
     expect(TestBed.inject(Router).url).toBe('/project/Demo1/script/91/edit');
   });
@@ -364,8 +385,10 @@ describe('ScriptLibrary states', () => {
     state.harness.detectChanges();
 
     importFile(state.root, new File(['not json'], 'broken.json', {type: 'application/json'}));
-    await settle();
-    state.harness.detectChanges();
+    await settle(() => {
+      state.harness.detectChanges();
+      return state.root.querySelector('.action-error') !== null;
+    });
 
     expect(state.root.querySelector('.action-error')?.textContent).toContain('broken.json');
     expect(TestBed.inject(Router).url).toBe('/project/Demo1/script');
