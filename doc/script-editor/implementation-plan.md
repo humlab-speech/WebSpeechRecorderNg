@@ -8498,7 +8498,9 @@ it was looked at.
 - **"The dry run has been going far longer than its predecessors"** — it had been running **four minutes**, against
   predecessors that take about ten, and it was inside its sixth step. The impression came from reading the same run across
   several turns rather than from a clock; the run's own `run_started_at` settled it in one line, and the step-level timeout I
-  was about to add on that evidence was never needed.
+  was about to add on that evidence was never needed. (**And the turns between those reads are seconds apart, not minutes**:
+  the run's clock moved 23 seconds across two of them, so the impression came from the *number* of times I looked rather than
+  from any time having passed.)
 
 **Each was caught by looking, and none reached this register** — which is the distinction worth drawing, rather than
 the mistakes themselves. Everything written here was checked against something; the failures were in the *narration of the
