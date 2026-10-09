@@ -5,10 +5,10 @@
 # which redirects (virtual) routing paths to the index.html page of the application.
 # See https://angular.io/guide/deployment#server-configuration for details.
 #
-# In this example the deploy path /wsr/ng/ was chosen.
+# In this example the deploy path /wsr/ng/dist/ was chosen.
 # The build command for the app is accordingly:
-# ng build --base-href=/wsr/ng/dist/index.html --prod
-# The dist directory can then be deployed (copied) to a directory /wsr/ng/ on your Web-Server
+# ng build --base-href=/wsr/ng/dist/index.html --configuration production
+# The dist directory can then be deployed (copied) to a directory /wsr/ng/dist/ on your Web-Server
 # and this file should be copied to /wsr/ng/dist/.htaccess
 
 <IfModule mod_rewrite.c>

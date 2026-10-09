@@ -284,6 +284,7 @@ answers 504 — sessions, scripts and uploads all come from the API.
 | `--pseudonymise-speakers` | **store and return a stable per-deployment label** (`sp-<12 hex>`) instead of the caller's speaker id. The salt lives in the data directory, so labels survive restarts and the copy-to-production transfer and differ between installations. Off by default |
 | `--migrate` | create the per-script layout for legacy flat scripts, then exit |
 | `--gc`, `--gc-media` | prune draft revisions and expired preview sessions — and, with `--gc-media`, media that no draft or version references — then exit |
+| `--gc-journal <keep>`, `--gc-uploads <days>` | with `--gc`, tighten the two kinds of runtime state's retention: trim the idempotency journal to the newest `<keep>` entries, and collect unfinished chunk sessions older than `<days>`. **Both are bounded by age without these flags** — the journal at 30 days, abandoned sessions at 7 (`server/store.mjs`) — so a bare `--gc` bounds them and the flags tighten it |
 
 ## Configuration
 
