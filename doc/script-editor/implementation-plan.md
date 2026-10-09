@@ -8330,6 +8330,13 @@ case", which reading the helper disproves — `loadThroughDraftService` calls `T
 `HttpTestingController`, and finishes with `http.verify()`, so a pending request cannot cross a call. The cause is
 **unproven**: the evidence is the failure text, and a plausible mechanism I cannot demonstrate is not one.
 
+**And the spec already names this phenomenon.** Its own `fixtures()` comment records the lesson: a fixture the list names but
+the assets do not serve "turned a transient asset-server failure into an inscrutable assertion later on — *measured on CI:
+two of these specs failed once and passed on a re-run of the same commit, with nothing pointing at the cause*". That is this
+failure's lineage, and it is why the missing-asset case now throws with a message naming the file. **What differs is the
+shape**: this run's assertion is `2 of 1 sections`, so the asset server did not *omit* fixture `1` — it answered with another
+fixture's bytes, which is a new observation of the same family and the one the re-run under way will settle.
+
 **The dry-run job: the runner had no audio sink.** The driver said so in its own words — *"5 check(s) not verified here:
 this browser cannot play a clip"* — the degraded branch, then failed on two console errors. The step's `pulseaudio` install
 is best-effort by design (`|| true`), and §11.245's fail-closed assertion then did exactly what it was written for: a run
