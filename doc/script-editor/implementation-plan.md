@@ -8379,7 +8379,10 @@ when the sink is absent, so §11.245's intent is untouched; it now fails where t
 surfaces.
 
 **Verified**: `workflow_check` passes the amended file — six jobs — the broken fixture still names all ten rules, `bash -n`
-parses the amended step's shell, and the eight gates are unchanged.
+parses the amended step's shell, and the eight gates are unchanged. **And both of its branches were run here**, with a stub
+`pactl` on `PATH` standing in for the runner's: one that never reports a sink prints that message and exits 1 **in six
+seconds** — the retries, not five minutes — and one that reports it passes silently. The amended block is the file's
+lines 516–534, extracted by line number after two pattern-based attempts stopped on the wrong `fi`.
 
 ### 11.285 The sink failure is not a transient — the re-run failed at the same step — **Observed, not reproduced**
 
