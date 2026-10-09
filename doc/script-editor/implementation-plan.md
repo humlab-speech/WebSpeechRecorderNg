@@ -8479,10 +8479,10 @@ are clean now: `9e5b5d5f` carries the two `--deadline-ms` flags.)
 run, whose first invocation fit inside the five minutes — and the pull request showed ten checks passing and none failing.
 The bound is not merely present; it is short enough for a healthy run and long enough to have caught nothing.)
 
-### 11.289 Three claims of mine that did not survive their check, and where they were made — **Recorded**
+### 11.289 Claims of mine that did not survive their check, and where they were made — **Recorded**
 
-This register's claims are checked before they are written. Three of mine this session were not, and each failed the moment it
-was looked at.
+This register's claims are checked before they are written. Several of mine this session were not, and each failed the moment
+it was looked at.
 
 - **"Watching the run"** — said, with no call made behind it. The call *is* the watch; the sentence was not one.
 - **"A stray bracket in §11.126's note"** — the parenthesis was balanced all along. The `)` came from a hand-typed anchor,
@@ -8496,14 +8496,18 @@ was looked at.
   several turns rather than from a clock; the run's own `run_started_at` settled it in one line, and the step-level timeout I
   was about to add on that evidence was never needed.
 
-**All three were caught by looking, and none reached this register** — which is the distinction worth drawing, rather than
+**Each was caught by looking, and none reached this register** — which is the distinction worth drawing, rather than
 the mistakes themselves. Everything written here was checked against something; the failures were in the *narration of the
 working*, where a claim costs nothing to make and nothing to check.
 
-**The recipe that would have caught the third** is the one that verified its fix: after pushing, read what the *remote* has
-rather than what the working copy has — `git show @{u}:<file>` — and ask `git status` alongside `git rev-list`. A proxy is
+**The recipe that would have caught §11.288's bound** is the one that verified its fix: after pushing, read what the *remote*
+has rather than what the working copy has — `git show @{u}:<file>` — and ask `git status` alongside `git rev-list`. A proxy is
 not the thing it stands for, which is §11.126's own lesson, from `git log origin/main..HEAD | wc -l` printing a zero that was
 an error's rather than a count.
+
+(**And this entry's first version counted its own bullets** — "three", in the heading, the opening and the closing — so
+adding a fourth left three stale numbers in the paragraph whose subject is claims that were not checked. The counts are gone
+rather than corrected, because a list that grows does not need one.)
 
 ### 11.290 The repository's own health, checked — a clean store, one cosmetic warning and a second worktree — **Measured, no change**
 
