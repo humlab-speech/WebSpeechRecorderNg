@@ -3888,7 +3888,12 @@ the editor.
 (**The same class again, found while checking that pull request's health**: `gh pr view --json commits` reports **100** for
 a branch that is **383** commits ahead of `master` — the API answers one page, so the number is a limit wearing the shape of
 a count. `git rev-list --count origin/master..HEAD` is the count; `mergeable=MERGEABLE` and a merge-base equal to the master
-tip are the other two things worth checking, and both hold: no drift under the branch, and no conflict to resolve.)
+tip are the other two things worth checking, and both hold: no drift under the branch, and no conflict to resolve.
+**Two endpoints of the same pull request settle it beyond doubt**: `gh pr view --json commits` lists **100**, and
+`gh api /repos/…/pulls/1` counts **386** — the first is a page of a list, the second is the number. And the three figures
+this register gives for the branch's width (335 files, +57,952/-188) are all introduced as snapshots, which is the only form
+worth keeping: re-taken today the same repository measures 372 files, +66377/-683. The framed ones stay; a live one would
+have to be chased.)
 
 ### 11.127 A gate that failed one run in four: Angular's own dev hint — **Fixed**
 
