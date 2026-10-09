@@ -8483,6 +8483,10 @@ The bound is not merely present; it is short enough for a healthy run and long e
 second consecutive time — with the pull request's ten checks passing and none failing. Two green runs on the same tree, one
 of them with the corrections on top, is the answer to whether the fixes were the fixes.)
 
+(**And a third**: `52b2766a`, the newest tip with five more commits on it, passed the same six jobs and ten checks — so the dry
+run has now gone green three runs running, each in about five and a half minutes, which is also the answer to whether the
+five-minute bound fits a healthy run.)
+
 ### 11.289 Claims of mine that did not survive their check, and where they were made — **Recorded**
 
 This register's claims are checked before they are written. Several of mine this session were not, and each failed the moment
