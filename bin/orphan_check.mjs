@@ -13,8 +13,10 @@
  * Two ways to be referenced:
  *   - **by name** — any other text file in the repository mentions the basename. Docs count: a fixture a person
  *     runs from the README is used, which is how `bin/audit/use-locale-sv.js` is referenced.
- *   - **through a directory** — for a file in a subdirectory of the root, that subdirectory's name appears
- *     somewhere, which is how a fixture tree is referenced when a check is pointed at it (`--root bin/lint_fixtures`).
+ *   - **through a directory** — for a file in a subdirectory of the root, that subdirectory appears as a *path*,
+ *     which is how a fixture tree is referenced when a check is pointed at it (`--root bin/lint_fixtures`). The bare
+ *     name is not enough: `audit` alone fills this repository's prose and would clear `bin/audit/` without anything
+ *     running it.
  *     A file directly in the root has no such directory: `bin` itself is not a reference, or everything would pass.
  *
  * Usage: node bin/orphan_check.mjs [--root <dir>] [--verbose]
@@ -33,11 +35,13 @@ const opt = (name, fallback) => {
 const ROOT = opt('root', 'bin');
 const VERBOSE = args.includes('--verbose');
 
-const SKIP_DIRS = new Set(['node_modules', 'dist', '.git', 'data']);
+// `.git` and the build caches are the directories a repository never counts as text; everything else is
+// read, dot-named or not, because the promise below is *every* text file - and the workflow is one.
+const SKIP_DIRS = new Set(['node_modules', 'dist', '.git', '.angular', 'data']);
 const TEXT = /\.(md|json|ya?ml|mjs|js|cjs|ts|html|scss|css|txt|sh)$/;
 
 const walk = (dir) => readdirSync(dir, {withFileTypes: true}).flatMap((entry) => {
-  if (entry.name.startsWith('.') || (entry.isDirectory() && SKIP_DIRS.has(entry.name))) {
+  if (entry.isDirectory() && SKIP_DIRS.has(entry.name)) {
     return [];
   }
   const path = join(dir, entry.name);
@@ -71,8 +75,11 @@ for (const path of files) {
     byName += 1;
     continue;
   }
-  // Only a *proper* subdirectory counts, and only its own name: the root is not a reference.
-  const viaDirectory = directory !== '' && others.some(([, text]) => text.includes(directory));
+  // Only a *proper* subdirectory counts, and it counts as a *path*: `bin/audit`, not the bare word
+  // `audit`, which fills this repository's prose and would clear that whole directory without anything
+  // using it. The root itself is never a reference.
+  const directoryPath = directory === '' ? '' : `${ROOT}/${directory}`;
+  const viaDirectory = directoryPath !== '' && others.some(([, text]) => text.includes(directoryPath));
   if (viaDirectory) {
     byDirectory += 1;
     continue;

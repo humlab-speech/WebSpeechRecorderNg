@@ -7,8 +7,10 @@
  *   1. every path the manifest's public surface names exists in the package — the `exports` map, and
  *      `main`/`module`/`types`. An `exports` map is exhaustive, so a typo here is a subpath nobody
  *      can import, and a missing file behind an entry is a resolution failure at the consumer's end;
- *   2. every external package the shipped bundle imports is declared as a dependency or peer. An
- *      import the manifest does not declare fails at install time for the consumer, not here.
+ *   2. every external package the shipped *code* imports is declared as a dependency or peer — every `.mjs` and
+ *      `.js` the package ships, wherever it sits, not one directory of them, so a secondary entry point's bundle is
+ *      covered the day it appears (§11.237). An import the manifest does not declare fails at install time for the
+ *      consumer, not here.
  *
  *   3. the licence travels with the package, declared in the manifest and shipped as a file whose
  *      text matches the repository's. MIT's own condition is that the notice accompanies copies, so
@@ -76,29 +78,50 @@ const declared = new Set([
   ...Object.keys(manifest.peerDependencies ?? {}),
   ...Object.keys(manifest.optionalDependencies ?? {}),
 ]);
-const bundleDir = join(PACKAGE_DIR, 'fesm2022');
+/** Every JavaScript file the package ships, wherever it sits: `fesm2022/` holds the primary bundle, and a secondary
+ * entry point gets a `fesm2022/` of its own, so a scan of one directory stops covering the package the day a second
+ * entry point is added — and nothing else declares imports (§11.237). */
+const shipped = [];
+const collectCode = (dir) => {
+  for (const entry of readdirSync(dir, {withFileTypes: true})) {
+    if (entry.name === 'node_modules') {
+      continue;
+    }
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      collectCode(path);
+    } else if (/\.(mjs|js)$/.test(entry.name)) {
+      shipped.push(path);
+    }
+  }
+};
+collectCode(PACKAGE_DIR);
+
 const imported = new Map();
-if (existsSync(bundleDir)) {
-  for (const file of readdirSync(bundleDir).filter((name) => name.endsWith('.mjs'))) {
-    for (const line of readFileSync(join(bundleDir, file), 'utf8').split('\n')) {
-      const match = /^(?:import|export)[^'"]*['"]([^'"]+)['"]/.exec(line.trim());
-      if (!match) {
-        continue;
-      }
-      const specifier = match[1];
-      if (specifier.startsWith('.') || specifier.startsWith('node:')) {
-        continue;
-      }
-      const name = specifier.startsWith('@')
-        ? specifier.split('/').slice(0, 2).join('/')
-        : specifier.split('/')[0];
-      imported.set(name, (imported.get(name) ?? 0) + 1);
+const firstSeenIn = new Map();
+for (const file of shipped) {
+  for (const line of readFileSync(file, 'utf8').split('\n')) {
+    const match = /^(?:import|export)[^'"]*['"]([^'"]+)['"]/.exec(line.trim());
+    if (!match) {
+      continue;
+    }
+    const specifier = match[1];
+    if (specifier.startsWith('.') || specifier.startsWith('node:')) {
+      continue;
+    }
+    const name = specifier.startsWith('@')
+      ? specifier.split('/').slice(0, 2).join('/')
+      : specifier.split('/')[0];
+    imported.set(name, (imported.get(name) ?? 0) + 1);
+    if (!firstSeenIn.has(name)) {
+      firstSeenIn.set(name, file);
     }
   }
 }
 for (const name of [...imported.keys()].sort()) {
   if (!declared.has(name)) {
-    problems.push(`the shipped bundle imports ${name}, which the manifest does not declare`);
+    problems.push(`the shipped code in ${firstSeenIn.get(name)} imports ${name}, `
+      + 'which the manifest does not declare');
   }
 }
 
@@ -124,5 +147,5 @@ if (problems.length) {
   process.exit(1);
 }
 console.log(`Package check passed: ${promised.length} promised path(s) present, `
-  + `${imported.size} imported package(s) all declared (${[...imported.keys()].sort().join(', ')}), `
-  + `licence ${manifest.license}.`);
+  + `${imported.size} imported package(s) all declared (${[...imported.keys()].sort().join(', ')}) `
+  + `across ${shipped.length} shipped file(s), licence ${manifest.license}.`);

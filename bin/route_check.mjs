@@ -32,14 +32,25 @@ const EDITOR_ORIGIN = 'http://127.0.0.1:4300';
 // --- what the router exposes ---------------------------------------------------------------
 const source = readFileSync(ROUTES, 'utf8');
 const routes = [];
-// Entries are objects that may span lines; a redirect has no screen to audit.
-const entries = source.split(/\{\s*path:/).slice(1).map((chunk) => chunk.split('}')[0]);
-for (const entry of entries) {
-  const path = /^\s*'([^']*)'/.exec(entry)?.[1];
-  if (path === undefined || /redirectTo/.test(entry)) {
-    continue;
+// Entries are objects that may span lines and may order their keys freely, so they are cut by brace depth rather
+// than by the text `{path:`. A route that puts `title:` first is still a route, and a check that stopped seeing it
+// would blame the audit for pointing at a screen nothing renders (§11.236). Comments are blanked first: prose that
+// mentions `{path:` — as this fixture's own header does — would otherwise unbalance the count for every object after
+// it. A redirect has no screen to audit.
+const uncommented = source.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
+const entries = [];
+for (let i = 0, depth = 0, start = -1; i < uncommented.length; i += 1) {
+  if (uncommented[i] === '{') {
+    if (depth === 0) start = i;
+    depth += 1;
+  } else if (uncommented[i] === '}' && depth > 0) {
+    depth -= 1;
+    if (depth === 0 && start >= 0) entries.push(uncommented.slice(start, i + 1));
   }
-  if (path === '**') {
+}
+for (const entry of entries) {
+  const path = /\bpath:\s*'([^']*)'/.exec(entry)?.[1];
+  if (path === undefined || /redirectTo/.test(entry) || path === '**') {
     continue;
   }
   routes.push('/' + path);

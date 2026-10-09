@@ -15,7 +15,14 @@
  *   - top-level `name`, `on`, `jobs`;
  *   - each job at two spaces, with `runs-on:` and at least one step;
  *   - each step a `- uses:` or `- run:` (or a `- name:` that leads to one), never empty;
- *   - each `run:` block at least one non-empty command line.
+ *   - each `run:` block at least one non-empty command line;
+ *   - every `bin/…`, `server/…`, `src/…`, `projects/…` or `doc/…` path a command names exists, wildcards expanded
+ *     against their directory — a step pointing at a deleted tool fails when CI reaches it, which is the slowest way to
+ *     find out (§11.273 measured the three files first: 160 paths, every one resolving). A path *with an extension*: a
+ *     bare directory is not matched, because the token after a flag may be a sentinel rather than a path — measured, the
+ *     probe that would enforce it reports `--app none`, which is how the receiver says "serve no application";
+ *   - every `npm run <name>` a command runs is one of `package.json`'s scripts, for the same reason and with the same
+ *     measurement behind it (15 names, every one defined).
  *
  * Usage: node bin/workflow_check.mjs [--verbose] [--path <file>]
  *
@@ -23,7 +30,8 @@
  * one violation per rule above, and the server job's sensitivity step requires every message from it. A
  * guard that stopped detecting would otherwise pass exactly like a clean tree.
  */
-import {readFileSync} from 'node:fs';
+import {existsSync, readdirSync, readFileSync} from 'node:fs';
+import {basename, dirname} from 'node:path';
 
 const args = process.argv.slice(2);
 const opt = (name, fallback) => {
@@ -121,6 +129,54 @@ if (jobsAt < 0) {
 
 if (VERBOSE) {
   console.log(`${PATH}: ${lines.length} lines, jobs: ${jobNames.join(', ')}`);
+}
+// Every path a `run:` block names has to be there. A step pointing at a deleted tool or fixture is a job that fails when
+// CI reaches it — the slowest possible way to learn it — and unlike the shape rules above, this one is not about YAML, so
+// the tree was measured before it was enforced (§11.273): 160 paths named across the three workflow files, every one
+// resolving. Wildcards are expanded against their directory; a `{...}` alternative is not, which the workflows do not use.
+const NAMED_PATH = /(?<![\w/.-])((?:bin|server|src|projects|doc|scripts|tools)\/[A-Za-z0-9_./@{}-]*\.(?:json|mjs|scss|html|yml|ts|js|md))/g;
+const expand = (named) => {
+  if (!named.includes('*')) return existsSync(named) ? [named] : [];
+  let inside;
+  try {
+    inside = readdirSync(dirname(named));
+  } catch {
+    return [];
+  }
+  const shape = new RegExp('^' + basename(named)
+    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+    .replace(/\*/g, '[^/]*') + '$');
+  return inside.filter((name) => shape.test(name));
+};
+lines.forEach((line, index) => {
+  for (const match of line.matchAll(NAMED_PATH)) {
+    if (expand(match[1]).length === 0) {
+      problems.push(`${PATH}:${index + 1}: names a file that is not there — ${match[1]}`);
+    }
+  }
+});
+
+// And the script names a command runs: `npm run <name>` must be one of `package.json`'s scripts, for the same reason — a
+// renamed script is a job that fails at the last step rather than at the edit. Measured before it was enforced (§11.273):
+// 15 names invoked across the workflows and the documents, every one of them defined.
+let defined = null;
+try {
+  defined = new Set(Object.keys(JSON.parse(readFileSync('package.json', 'utf8')).scripts ?? {}));
+} catch {
+  defined = null; // no package.json here: the path rule above is the whole check for this file
+}
+if (defined !== null) {
+  lines.forEach((line, index) => {
+    for (const match of line.matchAll(/npm run ([A-Za-z0-9:_-]+)/g)) {
+      if (!defined.has(match[1])) {
+        problems.push(`${PATH}:${index + 1}: runs an npm script that is not defined — ${match[1]}`);
+      }
+    }
+  });
+}
+
+if (jobNames.length === 0) {
+  problems.push(`no job was found in ${PATH} — the checker parsed nothing, and that is not a pass`);
 }
 if (problems.length) {
   console.error(`${problems.length} problem(s) in ${PATH}:`);

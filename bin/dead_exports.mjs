@@ -36,8 +36,8 @@ const TEST_INFRASTRUCTURE = new Set([
 ]);
 
 const DEFAULT_ROOTS = [
-  {dir: 'projects/spr-script-editor/src', strip: 'projects/spr-script-editor/src/', api: null},
-  {dir: 'server', strip: '', api: null},
+  {dir: 'projects/spr-script-editor/src', strip: 'projects/spr-script-editor/src/'},
+  {dir: 'server', strip: 'server/'},
 ];
 
 /**
@@ -49,7 +49,7 @@ const DEFAULT_ROOTS = [
 const ROOT_OPT = opt('root', null);
 const ROOTS = ROOT_OPT === null
   ? DEFAULT_ROOTS
-  : ROOT_OPT.split(',').map((dir) => ({dir, strip: dir.endsWith('/') ? dir : dir + '/', api: null}));
+  : ROOT_OPT.split(',').map((dir) => ({dir, strip: dir.endsWith('/') ? dir : dir + '/'}));
 
 const files = [];
 const walk = (dir) => {
@@ -126,9 +126,14 @@ if (dead.length === 0) {
   console.log(`Dead-export check passed: ${exported.length} export(s) scanned, none unreferenced.`);
   process.exit(0);
 }
+// Relative to the tree scanned, which is what each root's `strip` is for.
+const shown = (file) => {
+  const root = ROOTS.find((entry) => entry.strip !== '' && file.startsWith(entry.dir));
+  return root === undefined ? file : file.slice(root.strip.length);
+};
 console.error(`\n${dead.length} exported symbol(s) no production file names:`);
 for (const {file, name} of dead) {
-  console.error(`  ${file} :: ${name}`);
+  console.error(`  ${shown(file)} :: ${name}`);
 }
 console.error('\nWire each one up or delete it (and its spec), or add it to TEST_INFRASTRUCTURE in this');
 console.error('script with a reason, if it exists for the specs.');

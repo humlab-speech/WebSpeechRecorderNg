@@ -17,6 +17,14 @@ jobs:
     steps:
       - name: a run block with no command under it
         run: |
+  planted-a-path-that-is-not-there:
+    runs-on: ubuntu-latest
+    steps:
+      - run: node bin/no-such-tool.mjs
+  planted-a-script-that-is-not-defined:
+    runs-on: ubuntu-latest
+    steps:
+      - run: npm run no-such-script -- --watch=false
   planted-empty-step:
     runs-on: ubuntu-latest
     steps:
