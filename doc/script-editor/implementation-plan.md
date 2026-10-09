@@ -8399,4 +8399,24 @@ worth knowing precisely and reporting as such.
 
 **And the branch is current**: nine commits pushed, with local, `origin` and the pull request's head all at `0b9632ab`.
 
+### 11.286 The sink works now, and that broke an assertion which assumed it would not — **Fixed**
+
+§11.284's retry did what it was written to do: on the next run the null sink existed, the driver's clock advanced, and the
+first session **passed** — `Dry run passed.` at 11:08:39, with the sink's own failure message appearing only as the step
+echoing its script. Five of the six jobs are green on that commit, including the editor job for the fourth time.
+
+**And the job still failed**, at the one assertion whose premise the fix had just removed: `the dry run failed without
+reporting the deadline`. The silence run blocks every clip at the network, and §11.246 asserted that it must end at its
+90-second deadline — true exactly while the audio clock was *frozen*, which is what a missing sink does. With a working
+sink the clock advances, the blocked clips fail their own assertions first, and the driver ends by naming them —
+*"5 check(s) not verified here: this browser cannot play a clip"* and the two prompt-audio console errors — rather than
+waiting.
+
+**So the assertion was written on a degraded runner and only holds there.** It now accepts either correct ending, and
+refuses a run that says neither: `exceeded its`, `could not be played` or `never played`. A run that passes with the clips
+blocked still fails the step.
+
+**Verified**: `workflow_check`, `bash -n` and the eight gates pass on the amended file, and the ending it now expects is the
+one this run actually produced.
+
 
