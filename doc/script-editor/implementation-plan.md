@@ -8542,9 +8542,9 @@ the deliverable and nobody should have to walk forty-two of them to find out. We
 `docs(readme):`, `chore:`.
 
 - **A new gate**: `bin/docs_links.mjs` reads the markdown itself — relative links, heading fragments, **code citations**
-  (`path/file.ts:120`, resolved by path then by basename, failing on a missing file or a line past its end) and the register's
-  own `§11.N` references. Each prints a count per run and CI fails when one is zero, so a walk that examined nothing cannot
-  pass quietly.
+  (a path in backticks followed by a line number, resolved by path then by basename, failing on a missing file or a line past
+  its end) and the register's own `§11.N` references. Each prints a count per run and CI fails when one is zero, so a walk
+  that examined nothing cannot pass quietly.
 - **Checkers that read what they claim**: `workflow_check` now requires every path a step names to exist (wildcards expanded)
   and every `npm run <script>` to be defined; `dead_exports`, `orphan_check`, `package_check` and `route_check` were brought
   up to their own headers.
@@ -8561,5 +8561,10 @@ the deliverable and nobody should have to walk forty-two of them to find out. We
 
 **Verified at the end**: eight gates exit 0, seven fixture sensitivities exit 1, the suites at 81 pass / 0 fail, 148 and 496,
 and four consecutive CI runs green on tips carrying all of it.
+
+(**And the gate caught this entry's first version**, which wrote the example citation inline instead of in the fenced form
+§11.269 established for exactly that reason: `docs_links` reported it as a citation to a file that does not exist. That is the
+third time this rule has flagged its own documentation — §11.269 and §11.270 record the first two — and the fix is the same
+one each time: an example is not a claim, so it goes where examples go.)
 
 
