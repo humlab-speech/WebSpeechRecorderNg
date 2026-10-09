@@ -8245,6 +8245,11 @@ following the log's convention and naming what it holds.
 **Verified**: `git status --short` is empty afterwards, and the eight gates and seven fixture sensitivities are unchanged by
 committing.
 
+(**Three more commits landed after this entry, so the branch carries twelve from this pass, not nine** — this entry's own
+record of the nine, then the fourth confirmation §11.278's paragraph needed, then the one correcting the push paragraph
+below. The nine are still the nine it grouped; the number in the title is the state at the moment of writing, which is the
+trap §11.177 exists for and §11.278 walked into one entry earlier.)
+
 **And pushed** — which this entry first said deliberately would not happen, from §11.126's *title* rather than its text.
 That entry's finding was not that pushing had gone wrong: it was that the work "was nowhere but this worktree, no remote ref
 containing it, no PR", and its fix was to push the branch to `origin` (humlab-speech, the fork) and open the pull request
