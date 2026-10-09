@@ -8258,6 +8258,26 @@ against the fork's own `master`. §11.170 then records the cadence — *every ro
 of the times a claim of mine rested on a document I had not read stays where §11.276 left it, with another instance rather
 than a new number.
 
+### 11.280 What went into the commits, reviewed before it is merged — and the checks left unstirred — **Verified**
+
+§11.279 recorded *that* the work was committed; this records *what* was. Pre-merge diligence on a range nobody else has read
+yet: 48 files, 5612 insertions, 284 deletions, and each pattern checked on its own.
+
+**Clean.** No secrets or credentials — api keys, passwords, tokens, private keys, zero hits. No debug leftovers: every
+`console.log` in the diff belongs to a tool's own output (the driver's deadline message, the docs-links summary, the theme
+audit's fit line, the editor centre probe). No binaries. No file mode lost, and exactly one added — `bin/docs_links.mjs`
+executable, which its shebang needs. And no path outside the work's directories, the two READMEs and the Apache sample.
+
+**The one non-code file** is that sample, whose diff is a comment block the work already records: the deploy path gains
+`dist/` and `--prod` becomes `--configuration production`, the spelling Angular kept.
+
+**And one check of mine was false**: the binary scan ran against `ebbc7d2`, a SHA with a digit missing, so "no binaries"
+was reported having examined nothing — re-run against the real range it agrees. Another instance, and the frame §11.278
+states rather than a new number.
+
+**Why this entry is not pushed yet**: the checks are running on the tip, and a tip that moves restarts them. The push
+follows the verdict.
+
 (**And the other half of the same class**, measured the same way when the path rule went in: **15** `npm run <name>`
 invocations across the workflows and the documents — `test_module`, `test_editor`, `build_module`, `build_editor`,
 `validate:i18n`, `serve:api`, `pack_pi_module`, `start_prod` and the rest — **every one defined** in `package.json`'s 24
