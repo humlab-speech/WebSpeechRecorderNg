@@ -8611,7 +8611,7 @@ the discrimination the local run cannot make, since the unmodified spec also pas
 first attempt failed deterministically where the unmodified spec passed, proving the wait is load-bearing and not decoration.
 
 (**And CI confirmed it**: on `c8255ef4`, the commit carrying this entry, `Editor (karma + build)` passed — the very job that had
-failed on two trees it was innocent of — and again on `f5bdadd6` after it. Across four runs on the branch the editor job is
-`completed/success` on every one, and two of the runs finished green end to end.)
+failed on two trees it was innocent of — and on `f5bdadd6` and `48d815dd` after it. Every run of the branch since the fix has the
+editor job `completed/success`, six of them, and three finished green end to end.)
 
 
