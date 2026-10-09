@@ -548,7 +548,7 @@ jobs:
           # The driver first, on the session it expects: the migrate above created it and nothing has
           # loaded it yet. The audits and the probe below visit the same pages and leave the session
           # loaded and connected, which is not the state the driver's first take is written for.
-          dry_out=$(node bin/audit/dry_run.mjs --base http://127.0.0.1:8391 --port 9333 --session 1 2>&1) \
+          dry_out=$(node bin/audit/dry_run.mjs --base http://127.0.0.1:8391 --port 9333 --session 1 --deadline-ms 300000 2>&1) \
             && dry_status=0 || dry_status=$?
           echo "$dry_out" | tail -25
           if [ "${dry_status:-0}" != "0" ]; then
@@ -571,7 +571,7 @@ jobs:
           # whereas the seeded 2, 3 and 9 carry other scripts (measured — a run on session 3 drove an 18-item script
           # and never reached the clip assertions). The other fault, which times out on purpose, runs last in this
           # step for the reason given there.
-          events_out=$(node bin/audit/dry_run.mjs --base http://127.0.0.1:8391 --port 9333 --session 1002 \
+          events_out=$(node bin/audit/dry_run.mjs --base http://127.0.0.1:8391 --port 9333 --session 1002 --deadline-ms 300000 \
             --prepare bin/audit/plant-silent-events.js 2>&1) && events_status=0 || events_status=$?
           if [ "${events_status:-0}" = "0" ]; then
             echo "the dry run passed with its audio events dropped"; echo "$events_out"; exit 1
