@@ -3885,6 +3885,11 @@ the editor.
 **Corrected**: #39 closed with that reason, and reopened against the fork's own `master` as humlab-speech#1 —
 `isCrossRepository: false`, 335 files, +57,952/-188, draft. Draft because §11.58 is still a maintainer decision.
 
+(**The same class again, found while checking that pull request's health**: `gh pr view --json commits` reports **100** for
+a branch that is **383** commits ahead of `master` — the API answers one page, so the number is a limit wearing the shape of
+a count. `git rev-list --count origin/master..HEAD` is the count; `mergeable=MERGEABLE` and a merge-base equal to the master
+tip are the other two things worth checking, and both hold: no drift under the branch, and no conflict to resolve.)
+
 ### 11.127 A gate that failed one run in four: Angular's own dev hint — **Fixed**
 
 Verifying the six CI jobs locally — the PR claims they pass — turned up one failure. The detail-view job's
