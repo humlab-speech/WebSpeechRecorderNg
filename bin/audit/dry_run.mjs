@@ -30,9 +30,15 @@
  *   node bin/audit/dry_run.mjs --base http://127.0.0.1:8391 --port 9333 --session 1
  *
  * Exits non-zero when an assertion fails; `--verbose` traces every step, `--json` prints the
- * timeline as data too. A console error, warning or uncaught exception during the run also fails it:
+ * timeline as data too. `--prepare <file>` plants a fault in the page before the run starts, so the assertions below
+ * can be shown to bite as well as to pass — `bin/audit/plant-clip-silence.js` and `bin/audit/plant-silent-events.js`
+ * are those faults — and `--deadline-ms` bounds the whole run (10 minutes by default, well inside a runner's own
+ * limit), because a step that waits for a page state that never comes would otherwise hang until that limit. A
+ * console error, warning or uncaught exception during the run also fails it:
  * a recorder that behaves while logging on every take is still broken for the operator.
  */
+
+import {readFileSync} from 'node:fs';
 
 const args = process.argv.slice(2);
 const opt = (name, fallback) => {
@@ -45,6 +51,33 @@ const SESSION = opt('session', '1');
 const STEP_TIMEOUT_MS = Number(opt('step-timeout-ms', '30000'));
 const VERBOSE = args.includes('--verbose');
 const JSON_OUT = args.includes('--json');
+const PREPARE_FILE = opt('prepare', '');
+const PREPARE_SOURCE = PREPARE_FILE === '' ? '' : readFileSync(PREPARE_FILE, 'utf8');
+const DEADLINE_MS = Number(opt('deadline-ms', '600000'));
+
+/**
+ * A bound on the whole run. Every *step* has `--step-timeout-ms`, but the waits around them do not, and a prompt
+ * clip that never arrives left this driver waiting for a page state that never came: measured, 15 minutes with no
+ * output and no exit (§11.246). A gate that hangs is a gate that cannot report — in CI that is the job's own
+ * six-hour limit, which reports nothing about the recorder.
+ */
+const watchdog = setTimeout(async () => {
+  console.log(`\nthe run exceeded its ${Math.round(DEADLINE_MS / 1000)}s deadline: a step is stuck, not slow — the `
+    + 'page never reached the state the next one waits for.');
+  // Best effort: leave the page clean, since a `--prepare` fault is still installed in it and the next run on the
+  // same browser can inherit it — measured, a run straight after a timed-out one failed on that fault's own
+  // `about:blank` requests, and another hung until its own deadline. This does *not* make a timed-out run safe to
+  // follow (measured: it does not), so a caller that plants a fault must run last.
+  try {
+    await Promise.race([
+      send('Page.navigate', {url: 'about:blank'}),
+      // Bounded: the connection can be exactly what is stuck, and an unbounded await here hung the watchdog itself
+      // (measured — the run it was supposed to end sat for 10 minutes instead).
+      new Promise((resolve) => setTimeout(resolve, 1500)),
+    ]);
+  } catch (ignored) { /* not connected yet, or nothing to clean */ }
+  process.exit(1);
+}, DEADLINE_MS);
 
 /**
  * Installed before the application loads: every media request (the recorder fetches with
@@ -321,6 +354,21 @@ const failures = [];
 const unverified = [];
 const clipFailure = (message) => { if (clipsAudible) { failures.push(message); } else { unverified.push(message); } };
 const timeline = [];
+/**
+ * A fault the caller wants planted before the run starts, in the same shape as the audits' `--prepare`. It runs
+ * *after* the audio clock was measured on purpose: `clipsAudible` describes the host, and a fixture must not be
+ * able to change that measurement — its job is to make the recorder's own claims fail, not to deselect the checks
+ * that would catch it (§11.246).
+ */
+if (PREPARE_FILE !== '') {
+  try {
+    const planted = await evaluate(PREPARE_SOURCE);
+    console.log(`  prepared(${PREPARE_FILE}): ${String(planted ?? '').slice(0, 140)}`);
+  } catch (reason) {
+    failures.push(`${PREPARE_FILE} failed to plant its fault: ${reason && reason.message ? reason.message : reason}`);
+  }
+  await sleep(300);
+}
 /**
  * A row is done when the recorder has put its `done` mark in the status cell. Counting such rows is
  * not the same thing: a non-recording item never gets the mark, so a count can stall a row short of
@@ -642,6 +690,7 @@ for (const problem of [...new Set(consoleProblems)].slice(0, 6)) {
   }
 }
 
+clearTimeout(watchdog);
 if (unverified.length) {
   console.log(`\n${unverified.length} check(s) not verified here: this browser cannot play a clip.`);
   unverified.forEach((item) => console.log('  · ' + item));
@@ -654,4 +703,7 @@ if (failures.length) {
   failures.forEach((failure) => console.log('  ✗ ' + failure));
   process.exit(1);
 }
-console.log('\nDry run passed.');
+console.log(unverified.length
+  ? `\nDry run finished, but ${unverified.length} check(s) are unverified: on this host the clip-relative `
+    + 'claims were not checked at all (see above for what a device would prove).'
+  : '\nDry run passed.');

@@ -7,8 +7,10 @@
  * and that a font outside the scale is named — all from one-off checks by hand in earlier rounds.
  *
  * Each planted element maps to one documented rule, and the messages are distinct enough to assert
- * on: a colour literal, type below the scale, a low-contrast paragraph, a document-level scrollbar
- * and a font outside the scale on a link the audit measures.
+ * on: a colour literal, type below the scale, a low-contrast paragraph, a document-level scrollbar,
+ * a state marker whose edge is too faint for WCAG 1.4.11 (§11.54), and a font outside the scale on a
+ * link the audit measures — six, which is what the step's loop asserts and what this file returns
+ * (§11.238 corrected a return that said five and a list that left the marker out).
  *
  * Usage (against a running editor or recorder, with Chrome to attach to):
  *   node bin/theme_audit.mjs --url http://127.0.0.1:4300/project/Demo1/script \
@@ -53,6 +55,15 @@
   const stateMarker = add('div', 'width: 60px; height: 20px; background: #ffffff; border: 2px solid #f4f4f4');
   stateMarker.className = marker + ' is-selected';
 
+  // A state whose mark sits on a *descendant* instead of itself (§11.260): the element announces the state and the child
+  // carries the boundary, which is how the recorder's selected row is built. The boundary is too faint for 3:1 on white.
+  const descendantMarked = add('div', 'width: 80px; height: 20px; background: #ffffff');
+  descendantMarked.className = marker + ' is-selected';
+  const descendantBar = document.createElement('span');
+  descendantBar.className = marker;
+  descendantBar.setAttribute('style', 'display: block; width: 8px; height: 20px; box-shadow: inset 3px 0 0 0 #f4f4f4');
+  descendantMarked.appendChild(descendantBar);
+
   // ---- and one per accessibility rule the audit claims to be sensitive to (a11y.md).
   // Rule 1: a control whose only content is aria-hidden has no accessible name.
   const nameless = document.createElement('button');
@@ -94,6 +105,130 @@
   inner.textContent = 'inner';
   outer.appendChild(inner);
   document.body.appendChild(outer);
+
+  // ---- the rules this fixture did not reach until §11.242: 2, 3, 7 and 8. Between them they are everything the
+  // audit can judge about a form field, an ARIA relationship, a composite widget and the tab order, and none had a
+  // planted case — so any of them could have stopped detecting without a step noticing.
+  // Rule 2: a field with no label of any kind.
+  const unlabelled = document.createElement('input');
+  unlabelled.className = marker;
+  unlabelled.type = 'text';
+  document.body.appendChild(unlabelled);
+
+  // Rule 3, both directions. The first carries its own aria-label, so what it reports is the dangling
+  // description and not a missing name; the second is named *only* by the id that is not there, which is the
+  // fault, and rule 1 sees it too.
+  // Rule 3 beyond the controls (§11.257): a section that names itself with an id that is not on the page. The editor
+  // labels its sections this way, so this is the shape of the fault the widened check exists for.
+  const danglingSection = document.createElement('section');
+  danglingSection.className = marker;
+  danglingSection.setAttribute('aria-labelledby', 'planted-absent-heading');
+  danglingSection.textContent = 'a planted section whose heading is elsewhere';
+  document.body.appendChild(danglingSection);
+
+  const danglingDescription = document.createElement('input');
+  danglingDescription.className = marker;
+  danglingDescription.type = 'text';
+  danglingDescription.setAttribute('aria-label', 'described by an id that is not here');
+  danglingDescription.setAttribute('aria-describedby', 'planted-absent-id');
+  document.body.appendChild(danglingDescription);
+
+  const danglingLabel = document.createElement('input');
+  danglingLabel.className = marker;
+  danglingLabel.type = 'text';
+  danglingLabel.setAttribute('aria-labelledby', 'planted-absent-id');
+  document.body.appendChild(danglingLabel);
+
+  // Rule 7: a group that marks none of its radios, and a group with no radios to mark.
+  const unmarkedGroup = document.createElement('div');
+  unmarkedGroup.className = marker;
+  unmarkedGroup.setAttribute('role', 'radiogroup');
+  unmarkedGroup.setAttribute('aria-label', 'planted group whose radios are unmarked');
+  for (const label of ['one', 'two']) {
+    const radio = document.createElement('button');
+    radio.className = marker;
+    radio.setAttribute('role', 'radio');
+    radio.textContent = label;
+    unmarkedGroup.appendChild(radio);
+  }
+  document.body.appendChild(unmarkedGroup);
+
+  const emptyGroup = document.createElement('div');
+  emptyGroup.className = marker;
+  emptyGroup.setAttribute('role', 'radiogroup');
+  emptyGroup.setAttribute('aria-label', 'planted group with no radios');
+  document.body.appendChild(emptyGroup);
+
+  // Rule 7's tree half: a treeitem with no aria-level. The probe reads the *first* `role="tree"` on the page, so
+  // where the application renders one (the editor's outline) the fault goes inside it; on a route without one —
+  // the library list, where this runs — the fixture supplies the tree, which is then the first and the measured
+  // one. Measured: on this route there is none, so the guarded version planted nothing and the rule stayed
+  // unproven. The `treeitems === 0` branch of the same rule cannot be shown in the same state (one tree is read),
+  // and is recorded as unproven rather than pretended.
+  // And a table row whose cells carry no text. The manual script's first and ninth steps ask a person to hear each row
+  // announce the script name, its id, the counts and the status chip (§11.276); with real `<table>` markup the browser
+  // computes that name from the cells, so an empty row is the fault to plant. Inside the application's own table, the way
+  // the tree cases attach to the real tree.
+  const appTable = document.querySelector('table');
+  if (appTable) {
+    const row = document.createElement('tr');
+    row.className = marker;
+    row.appendChild(document.createElement('td'));
+    (appTable.querySelector('tbody') || appTable).appendChild(row);
+  }
+
+  const appTree = document.querySelector('[role="tree"]');
+  const tree = appTree || document.createElement('div');
+  if (!appTree) {
+    tree.className = marker;
+    tree.setAttribute('role', 'tree');
+    tree.setAttribute('aria-label', 'planted tree');
+    document.body.appendChild(tree);
+  }
+  // Rule 7's other half (§11.256): a parent that never says whether it is expanded. Children are read from the levels
+  // in a flattened tree, so the parent is followed by an item at a deeper level and carries no aria-expanded.
+  const expandLess = document.createElement('div');
+  expandLess.className = marker;
+  expandLess.setAttribute('role', 'treeitem');
+  expandLess.setAttribute('aria-level', '1');
+  expandLess.textContent = 'planted parent that never says expanded';
+  tree.appendChild(expandLess);
+  const expandLessChild = document.createElement('div');
+  expandLessChild.className = marker;
+  expandLessChild.setAttribute('role', 'treeitem');
+  expandLessChild.setAttribute('aria-level', '2');
+  expandLessChild.textContent = 'planted child of that parent';
+  tree.appendChild(expandLessChild);
+  const levelLess = document.createElement('div');
+  levelLess.className = marker;
+  levelLess.setAttribute('role', 'treeitem');
+  levelLess.textContent = 'planted treeitem with no aria-level';
+  tree.appendChild(levelLess);
+
+  // Rule 8: two controls whose document order is the reverse of their vertical order, so focus jumps back up the
+  // same column. The rule allows 30 px between them; this pair is 200 px apart and overlaps horizontally by
+  // construction. Both are fixed, so neither lengthens the document the theme pass measures.
+  const first = document.createElement('button');
+  first.className = marker;
+  first.textContent = 'first in the document, lower on the page';
+  first.style.cssText = 'position: fixed; left: 40px; top: 520px; width: 220px; height: 30px; '
+    + 'font-family: inherit; font-size: 16px';
+  document.body.appendChild(first);
+  const second = document.createElement('button');
+  second.className = marker;
+  second.textContent = 'second in the document, higher on the page';
+  second.style.cssText = 'position: fixed; left: 40px; top: 320px; width: 220px; height: 30px; '
+    + 'font-family: inherit; font-size: 16px';
+  document.body.appendChild(second);
+
+  // Rule 9's live-region branch (§11.243): a region that announces itself with nothing inside to announce. It is
+  // given a size on purpose — the accessibility tree drops an invisible element, and the branch is then never
+  // reached, which is how it stayed unproven.
+  const emptyAnnouncement = document.createElement('div');
+  emptyAnnouncement.className = marker;
+  emptyAnnouncement.setAttribute('role', 'status');
+  emptyAnnouncement.style.cssText = 'display: block; width: 40px; height: 20px';
+  document.body.appendChild(emptyAnnouncement);
 
   // The logo rules, which fire on `spr-logos img`: only the recorder's control bar renders those, so
   // the editor routes carry none and the rules had never been exercised. One image per fault.
@@ -138,5 +273,6 @@
     + 'Contentful Paint (LCP) element but was given a "loading" value of lazy');
   console.warn('planted-genuine-warning: a console warning the audit must still report');
 
-  return 'planted 5 theme, 10 accessibility and 5 logo violations, plus the console rule\'s two halves';
+  return 'planted 6 theme-side, 18 accessibility and 5 logo violations, plus the console rule\'s two halves — '
+    + 'the empty-tree branch of rule 7 is a state of its own (bin/audit/plant-empty-tree.js)';
 })()
