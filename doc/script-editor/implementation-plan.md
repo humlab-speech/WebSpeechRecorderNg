@@ -8475,6 +8475,10 @@ branch did not carry. What hid it is that `git status --short` and `git rev-list
 different questions — the second said "in sync" while the first had a file in it, and I read the second as the first. Both
 are clean now: `9e5b5d5f` carries the two `--deadline-ms` flags.)
 
+(**And the run that followed passed with the bound in place**: `9cff5476` finished all six jobs green — including the dry
+run, whose first invocation fit inside the five minutes — and the pull request showed ten checks passing and none failing.
+The bound is not merely present; it is short enough for a healthy run and long enough to have caught nothing.)
+
 ### 11.289 Three claims of mine that did not survive their check, and where they were made — **Recorded**
 
 This register's claims are checked before they are written. Three of mine this session were not, and each failed the moment it
