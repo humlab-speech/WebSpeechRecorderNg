@@ -8492,4 +8492,19 @@ rather than what the working copy has — `git show @{u}:<file>` — and ask `gi
 not the thing it stands for, which is §11.126's own lesson, from `git log origin/main..HEAD | wc -l` printing a zero that was
 an error's rather than a count.
 
+### 11.290 The repository's own health, checked — a clean store, one cosmetic warning and a second worktree — **Measured, no change**
+
+Everything else in this register is about the *tree*; this is about the repository holding it. `git fsck` exits **0** — the
+object store is sound — with two dangling commits, which is what an amend or a rebase leaves behind and nothing to act on.
+`git count-objects -v` counts 27,602 objects in two packs and reports `prune-packable: 0`.
+
+**One warning, and one thing worth knowing.** `count-objects` also reports `garbage: 1`: this *worktree's* own `refs`
+directory is empty, which is simply how a worktree with no refs of its own looks, and `git gc` would clear it — not done
+here, because `gc` repacks the *shared* repository and that is not mine to spend. And `git worktree list` shows **three**: the
+main checkout on `master`, this one at `4a56b0b1`, and the original at `0c1de418` — the base commit §1 of this plan was
+written against — on a detached HEAD, untouched.
+
+**And the branch's place in the remote, checked the stronger way**: `git merge-base --is-ancestor HEAD @{u}` holds, so the
+upstream contains this tip, which says more than "0 behind" does.
+
 
